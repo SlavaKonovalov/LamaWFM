@@ -25,7 +25,7 @@ class OrganizationAdmin(admin.ModelAdmin):
 
 @admin.register(Production_Task)
 class TaskAdmin(admin.ModelAdmin):
-    list_display = ('organization', 'name', 'demand_calculate',
+    list_display = ('name', 'demand_calculate', 'organization',
                     'demand_data_source', 'work_scope_measure', 'demand_allocation_method')
     list_filter = ('demand_calculate', 'demand_data_source', 'demand_allocation_method')
     search_fields = ['name']
@@ -45,5 +45,11 @@ class ScheduledTaskAdmin(admin.ModelAdmin):
 @admin.register(Employee)
 class EmployeeAdmin(admin.ModelAdmin):
     form = EmployeeForm
+
+    # def save_model(self, request, obj, form, change):
+    #     obj.user.first_name = form.cleaned_data['first_name']
+    #     obj.user.last_name = form.cleaned_data['last_name']
+    #     obj.user.save()
+    #     obj.save()
 
     list_display = ['user', 'get_duties', 'get_part_job_org']
