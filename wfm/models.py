@@ -199,3 +199,14 @@ def create_or_update_user_profile(sender, instance, created, **kwargs):
         Employee.objects.create(user=instance)
     else:
         instance.employee.save()
+
+
+class Business_Indicator(models.Model):
+    name = models.CharField('Название', max_length=60)
+
+    class Meta:
+        verbose_name = 'Показатель бизнеса'
+        verbose_name_plural = 'Показатели бизнеса'
+
+    def __str__(self):
+        return self.name
