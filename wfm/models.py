@@ -210,3 +210,14 @@ class Employee(models.Model):
         return ", ".join([part_job_org.name for part_job_org in self.part_time_job_org.all()])
 
     get_part_job_org.short_description = 'Организации (подработка)'
+
+
+class Business_Indicator(models.Model):
+    name = models.CharField('Название', max_length=60)
+
+    class Meta:
+        verbose_name = 'Показатель бизнеса'
+        verbose_name_plural = 'Показатели бизнеса'
+
+    def __str__(self):
+        return self.name

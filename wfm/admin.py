@@ -5,7 +5,7 @@ from django.contrib import admin
 from django.contrib import admin
 
 from .forms import EmployeeForm
-from .models import Organization, Production_Task, Subdivision, Department, Scheduled_Production_Task, Employee
+from .models import Organization, Production_Task, Subdivision, Department, Scheduled_Production_Task, Employee, Business_Indicator
 
 
 @admin.register(Organization)
@@ -48,3 +48,7 @@ class EmployeeAdmin(admin.ModelAdmin):
                     'position',
                     'get_duties',
                     'get_part_job_org']
+
+@admin.register(Business_Indicator)
+class OrganizationAdmin(admin.ModelAdmin):
+    list_display = ['name']
