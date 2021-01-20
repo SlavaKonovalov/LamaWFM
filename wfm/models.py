@@ -15,6 +15,8 @@ class Organization(models.Model):
         verbose_name = 'Организация'
         verbose_name_plural = 'Организации'
 
+        ordering = ['name']
+
     def __str__(self):
         return self.name
 
@@ -28,6 +30,8 @@ class Subdivision(models.Model):
         verbose_name = 'Подразделение'
         verbose_name_plural = 'Подразделения'
 
+        ordering = ['organization', 'name']
+
     def __str__(self):
         return self.name
 
@@ -40,6 +44,8 @@ class Department(models.Model):
     class Meta:
         verbose_name = 'Отдел'
         verbose_name_plural = 'Отделы'
+
+        ordering = ['subdivision', 'name']
 
     def __str__(self):
         return self.name
@@ -80,6 +86,8 @@ class Production_Task(models.Model):
         verbose_name = 'Производственная задача'
         verbose_name_plural = 'Производственные задачи'
 
+        ordering = ['organization', 'name']
+
     def __str__(self):
         return self.name
 
@@ -118,6 +126,8 @@ class Scheduled_Production_Task(models.Model):
         verbose_name = 'Запланированная задача'
         verbose_name_plural = 'Запланированные задачи'
 
+        ordering = ['subdivision', 'task', 'begin_time']
+
     def __str__(self):
         return str(self.pk)
 
@@ -130,6 +140,8 @@ class Job_Duty(models.Model):
     class Meta:
         verbose_name = 'Функциональная обязанность'
         verbose_name_plural = 'Функциональные обязанности'
+
+        ordering = ['organization', 'name']
 
     def __str__(self):
         return self.name
@@ -146,6 +158,8 @@ class Tasks_In_Duty(models.Model):
         verbose_name = 'Функциональная обязанность'
         verbose_name_plural = 'Функциональные обязанности'
 
+        ordering = ['duty', 'task', 'priority']
+
     def __str__(self):
         return str(self.pk)
 
@@ -158,6 +172,8 @@ class Employee_Position(models.Model):
     class Meta:
         verbose_name = 'Должность сотрудника'
         verbose_name_plural = 'Должности сотрудников'
+
+        ordering = ['organization', 'name']
 
     def __str__(self):
         return self.name
@@ -172,12 +188,15 @@ class Employee(models.Model):
                                     related_name='employee_set', null=True, blank=True)
     position = models.ForeignKey(Employee_Position, on_delete=models.CASCADE, verbose_name='Должность',
                                  related_name='employee_position_set', null=True, blank=True)
-    duties = models.ManyToManyField(Job_Duty, null=True, blank=True)
-    part_time_job_org = models.ManyToManyField(Organization, null=True, blank=True)
+    duties = models.ManyToManyField(Job_Duty, verbose_name='Обязанности', null=True, blank=True)
+    part_time_job_org = models.ManyToManyField(Organization, verbose_name='Организации (подработка)',
+                                               null=True, blank=True)
 
     class Meta:
         verbose_name = 'Сотрудник'
         verbose_name_plural = 'Сотрудники'
+
+        ordering = ['subdivision', 'user']
 
     def __str__(self):
         return str(self.pk)
@@ -191,11 +210,3 @@ class Employee(models.Model):
         return ", ".join([part_job_org.name for part_job_org in self.part_time_job_org.all()])
 
     get_part_job_org.short_description = 'Организации (подработка)'
-
-
-@receiver(post_save, sender=User)
-def create_or_update_user_profile(sender, instance, created, **kwargs):
-    if created:
-        Employee.objects.create(user=instance)
-    else:
-        instance.employee.save()
