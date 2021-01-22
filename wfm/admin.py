@@ -5,7 +5,13 @@ from django.contrib import admin
 from django.contrib import admin
 
 from .forms import EmployeeForm
-from .models import Organization, Production_Task, Subdivision, Department, Scheduled_Production_Task, Employee, Business_Indicator
+from .models import Organization, Production_Task, Subdivision, Department, Scheduled_Production_Task, Employee, \
+    Business_Indicator, Company
+
+
+@admin.register(Company)
+class CompanyAdmin(admin.ModelAdmin):
+    list_display = ['name']
 
 
 @admin.register(Organization)
@@ -14,12 +20,12 @@ class OrganizationAdmin(admin.ModelAdmin):
 
 
 @admin.register(Subdivision)
-class OrganizationAdmin(admin.ModelAdmin):
-    list_display = ['organization', 'name']
+class SubdivisionAdmin(admin.ModelAdmin):
+    list_display = ['name', 'organization', 'get_companies']
 
 
 @admin.register(Department)
-class OrganizationAdmin(admin.ModelAdmin):
+class DepartmentAdmin(admin.ModelAdmin):
     list_display = ['subdivision', 'name', 'get_organization']
 
 
@@ -48,6 +54,7 @@ class EmployeeAdmin(admin.ModelAdmin):
                     'position',
                     'get_duties',
                     'get_part_job_org']
+
 
 @admin.register(Business_Indicator)
 class OrganizationAdmin(admin.ModelAdmin):

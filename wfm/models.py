@@ -8,6 +8,19 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 
 
+class Company(models.Model):
+    name = models.CharField('Юр. лицо', max_length=60)
+
+    class Meta:
+        verbose_name = 'Юр. лицо'
+        verbose_name_plural = 'Юр. лица'
+
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
 class Organization(models.Model):
     name = models.CharField('Организация', max_length=60)
 
@@ -26,6 +39,8 @@ class Subdivision(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE,
                                      verbose_name='Организация', related_name='subdivision_set')
 
+    companies = models.ManyToManyField(Company, verbose_name='Юр. лица', null=True, blank=True)
+
     class Meta:
         verbose_name = 'Подразделение'
         verbose_name_plural = 'Подразделения'
@@ -34,6 +49,11 @@ class Subdivision(models.Model):
 
     def __str__(self):
         return self.name
+
+    def get_companies(self):
+        return ", ".join([company.name for company in self.companies.all()])
+
+    get_companies.short_description = 'Юр. лица'
 
 
 class Department(models.Model):
@@ -189,7 +209,7 @@ class Employee(models.Model):
     position = models.ForeignKey(Employee_Position, on_delete=models.CASCADE, verbose_name='Должность',
                                  related_name='employee_position_set', null=True, blank=True)
     duties = models.ManyToManyField(Job_Duty, verbose_name='Обязанности', null=True, blank=True)
-    part_time_job_org = models.ManyToManyField(Organization, verbose_name='Организации (подработка)',
+    part_time_job_org = models.ManyToManyField(Company, verbose_name='Юр. лица (подработка)',
                                                null=True, blank=True)
 
     class Meta:
@@ -209,7 +229,7 @@ class Employee(models.Model):
     def get_part_job_org(self):
         return ", ".join([part_job_org.name for part_job_org in self.part_time_job_org.all()])
 
-    get_part_job_org.short_description = 'Организации (подработка)'
+    get_part_job_org.short_description = 'Юр. лица (подработка)'
 
 
 class Business_Indicator(models.Model):

@@ -24,8 +24,7 @@ class EmployeeForm(forms.ModelForm):
     def save(self, commit=True):
         user_entity = self.instance.user
         if user_entity is None:
-            user_entity = User.objects.create_user()
-        user_entity.username = self.cleaned_data['username']
+            user_entity = User.objects.create_user(self.cleaned_data['username'])
         user_entity.first_name = self.cleaned_data['first_name']
         user_entity.last_name = self.cleaned_data['last_name']
 
