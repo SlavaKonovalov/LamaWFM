@@ -1,8 +1,10 @@
 from django.http import JsonResponse
+from django.shortcuts import render
 from rest_framework import generics, status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.parsers import JSONParser
 
+from ..forms import RecalculateDemandForm
 from ..models import Production_Task, Organization, Subdivision, Employee
 from .serializers import ProductionTaskSerializer, OrganizationSerializer, SubdivisionSerializer, EmployeeSerializer
 
@@ -81,7 +83,7 @@ def organization_detail(request, pk):
 
     elif request.method == 'DELETE':
         organization.delete()
-        return JsonResponse({'message': 'Tutorial was deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
+        return JsonResponse({'message': 'Organization was deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
 
 
 class EmployeeListView(generics.ListAPIView):
@@ -98,3 +100,31 @@ class EmployeeListView(generics.ListAPIView):
 class EmployeeDetailView(generics.RetrieveAPIView):
     queryset = Employee.objects.all()
     serializer_class = EmployeeSerializer
+
+
+@api_view(['GET', 'POST'])
+def recalculate_demand(request):
+    if request.method == 'POST':
+        # Создаем экземпляр формы и заполняем данными из запроса (связывание, binding):
+        form = RecalculateDemandForm(request.POST)
+
+        # Проверка валидности данных формы:
+        if form.is_valid():
+            # Обработка данных из form.cleaned_data
+            subdiv_id = form.cleaned_data['subdiv_id']
+
+            try:
+                subdivision = Subdivision.objects.get(pk=subdiv_id)
+            except Subdivision.DoesNotExist:
+                return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_404_NOT_FOUND)
+
+            if subdivision is not None:
+                return JsonResponse({'message': 'request received!'}, status=status.HTTP_202_ACCEPTED)
+            else:
+                return JsonResponse({'message': 'request denied!'}, status=status.HTTP_409_CONFLICT)
+
+    # Если это GET (или какой-либо еще), создать форму по умолчанию.
+    else:
+        form = RecalculateDemandForm()
+
+    return render(request, 'test.html', {'form': form})

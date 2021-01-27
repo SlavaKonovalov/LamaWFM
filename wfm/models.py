@@ -241,3 +241,25 @@ class Business_Indicator(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class Demand_Detail_Main(models.Model):
+    subdivision = models.ForeignKey(Subdivision, on_delete=models.CASCADE, verbose_name='Подразделение',
+                                    related_name='demand_detail_set')
+    date_time_value = models.DateTimeField()
+    rounded_value = models.DecimalField(max_digits=32, decimal_places=16, verbose_name='Значение потребности')
+
+    class Meta:
+        verbose_name = 'Потребность'
+        verbose_name_plural = 'Потребность'
+
+
+class Demand_Detail_Task(models.Model):
+    demand_detail_main = models.ForeignKey(Demand_Detail_Main, on_delete=models.CASCADE,
+                                           related_name='demand_detail_task_set')
+    task = models.ForeignKey(Production_Task, on_delete=models.SET_NULL, null=True)
+    demand_value = models.DecimalField(max_digits=32, decimal_places=16, verbose_name='Значение потребности')
+
+
+class Demand_Detail_Parameters(models.Model):
+    time_interval_length = models.PositiveIntegerField('Длина периода детализации потребности', default=0)

@@ -48,3 +48,12 @@ class EmployeeForm(forms.ModelForm):
             'duties',
             'part_time_job_org'
         ]
+
+
+class RecalculateDemandForm(forms.Form):
+    subdiv_id = forms.IntegerField(label='Подразделение', help_text='Выберите подразделение:')
+
+    # def clean_subdiv_id(self):
+    #     data = self.cleaned_data['subdiv_id']
+    #     # Здесь могли бы быть ваши проверки
+    #     return data

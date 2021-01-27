@@ -24,9 +24,9 @@ class SubdivisionAdmin(admin.ModelAdmin):
     list_display = ['name', 'organization', 'get_companies']
 
 
-@admin.register(Department)
-class DepartmentAdmin(admin.ModelAdmin):
-    list_display = ['subdivision', 'name', 'get_organization']
+# @admin.register(Department)
+# class DepartmentAdmin(admin.ModelAdmin):
+#     list_display = ['subdivision', 'name', 'get_organization']
 
 
 @admin.register(Production_Task)

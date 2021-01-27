@@ -18,17 +18,21 @@ urlpatterns = [
          views.organization_detail,
          name='org_detail'),
 
-    path('subdivision/',
+    path('subdivisions/',
          views.SubdivisionListView.as_view(),
          name='subdiv_list'),
-    path('subdivision/<int:pk>/',
+    path('subdivisions/<int:pk>/',
          views.SubdivisionDetailView.as_view(),
          name='subdiv_detail'),
 
-    path('employee/',
+    path('employees/',
          views.EmployeeListView.as_view(),
          name='employee_list'),
-    path('employee/<int:pk>/',
+    path('employees/<int:pk>/',
          views.EmployeeDetailView.as_view(),
          name='employee_detail'),
+
+    path('recalculateDemand/',
+         views.recalculate_demand,
+         name='recalculate_demand'),
 ]
