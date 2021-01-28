@@ -1,2 +1,5 @@
-def recalculate_demand(subdivision, process_date):
-    return 500
+class demandProcessing:
+
+    @staticmethod
+    def recalculate_demand(subdivision, process_date):
+        return 500

@@ -33,6 +33,6 @@ urlpatterns = [
          name='employee_detail'),
 
     path('recalculateDemand/',
-         views.recalculate_demand,
+         views.recalculate_demand_request,
          name='recalculate_demand'),
 ]

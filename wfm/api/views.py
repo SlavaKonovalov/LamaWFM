@@ -4,9 +4,11 @@ from rest_framework import generics, status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.parsers import JSONParser
 
+from ..demandProcessing import demandProcessing
 from ..forms import RecalculateDemandForm
 from ..models import Production_Task, Organization, Subdivision, Employee
 from .serializers import ProductionTaskSerializer, OrganizationSerializer, SubdivisionSerializer, EmployeeSerializer
+from datetime import datetime
 
 
 class ProductionTaskListView(generics.ListAPIView):
@@ -103,7 +105,7 @@ class EmployeeDetailView(generics.RetrieveAPIView):
 
 
 @api_view(['GET', 'POST'])
-def recalculate_demand(request):
+def recalculate_demand_request(request):
     if request.method == 'POST':
         # Создаем экземпляр формы и заполняем данными из запроса (связывание, binding):
         form = RecalculateDemandForm(request.POST)
@@ -119,7 +121,8 @@ def recalculate_demand(request):
                 return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_404_NOT_FOUND)
 
             if subdivision is not None:
-                return JsonResponse({'message': 'request received!'}, status=status.HTTP_202_ACCEPTED)
+                qty = demandProcessing.recalculate_demand(subdivision, datetime.date(datetime.now()))
+                return JsonResponse({'message': 'data: %d' % qty}, status=status.HTTP_202_ACCEPTED)
             else:
                 return JsonResponse({'message': 'request denied!'}, status=status.HTTP_409_CONFLICT)
 
