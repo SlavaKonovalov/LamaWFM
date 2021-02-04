@@ -1,10 +1,18 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from ..models import Production_Task, Subdivision, Employee
+from ..models import Production_Task, Subdivision, Employee, Scheduled_Production_Task
 from ..models import Organization
 
 
+class ScheduledProductionTaskSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Scheduled_Production_Task
+        fields = '__all__'
+
+
 class ProductionTaskSerializer(serializers.ModelSerializer):
+    scheduled_task_set = ScheduledProductionTaskSerializer(many=True, read_only=True)
+
     class Meta:
         model = Production_Task
         fields = '__all__'

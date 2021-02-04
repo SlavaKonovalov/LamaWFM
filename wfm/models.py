@@ -1,11 +1,14 @@
-import datetime
+# import datetime
 
 from django.db import models
 from django.contrib.auth.models import User
 
 # Create your models here.
-from django.db.models.signals import post_save
-from django.dispatch import receiver
+# from django.db.models.signals import post_save
+# from django.dispatch import receiver
+from django.utils import timezone
+
+from .additionalFunctions import AdditionalFunctionsWFM
 
 
 class Company(models.Model):
@@ -124,12 +127,12 @@ class Scheduled_Production_Task(models.Model):
                              verbose_name='Задание', related_name='scheduled_task_set')
     subdivision = models.ForeignKey(Subdivision, on_delete=models.CASCADE,
                                     verbose_name='Подразделение', related_name='scheduled_task_set')
-    begin_date = models.DateField('Дата начала')
-    begin_time = models.TimeField('Время начала', default=datetime.time(7, 00))
-    end_time = models.TimeField('Время окончания', default=datetime.time(18, 00))
+    begin_date = models.DateTimeField('Дата начала', null=True, blank=True)
+    begin_time = models.DateTimeField('Время начала', null=True, blank=True)
+    end_time = models.DateTimeField('Время окончания', null=True, blank=True)
     work_scope = models.PositiveIntegerField('Объём работ', default=0)
     repetition_type = models.CharField('Повторение', max_length=20, choices=repetition_type_choices, default='empty')
-    end_date = models.DateField('Дата завершения', null=True, blank=True)
+    end_date = models.DateTimeField('Дата завершения', null=True, blank=True)
     repetition_interval = models.PositiveIntegerField('Интервал повторения', null=True, blank=True)
     exclude_holidays = models.BooleanField('Исключить праздники', default=False)
     exclude_weekdays = models.BooleanField('Исключить будни', default=False)
@@ -150,6 +153,40 @@ class Scheduled_Production_Task(models.Model):
 
     def __str__(self):
         return str(self.pk)
+
+    def begin_date_format(self):
+        if self.begin_date is not None:
+            begin_date = AdditionalFunctionsWFM.add_timezone(self.begin_date)
+            return begin_date.strftime('%d.%m.%Y')
+        return self.begin_date
+
+    def begin_time_format(self):
+        if self.begin_time is not None:
+            begin_time = AdditionalFunctionsWFM.add_timezone(self.begin_time)
+            return begin_time.strftime('%H:%M')
+        return self.begin_time
+
+    def end_date_format(self):
+        if self.end_date is not None:
+            end_date = AdditionalFunctionsWFM.add_timezone(self.end_date)
+            return end_date.strftime('%d.%m.%Y')
+        return self.end_date
+
+    def end_time_format(self):
+        if self.end_time is not None:
+            end_time = AdditionalFunctionsWFM.add_timezone(self.end_time)
+            return end_time.strftime('%H:%M')
+        return self.end_time
+
+    begin_date_format.short_description = 'Дата начала'
+    begin_time_format.short_description = 'Время начала'
+    end_date_format.short_description = 'Дата завершения'
+    end_time_format.short_description = 'Время окончания'
+
+    def task_duration(self):
+        end_time = AdditionalFunctionsWFM.add_timezone(self.end_time)
+        begin_time = AdditionalFunctionsWFM.add_timezone(self.begin_time)
+        return (end_time.hour * 60 + end_time.minute) - (begin_time.hour * 60 + begin_time.minute)
 
 
 class Job_Duty(models.Model):

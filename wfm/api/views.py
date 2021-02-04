@@ -4,7 +4,7 @@ from rest_framework import generics, status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.parsers import JSONParser
 
-from ..demandProcessing import demandProcessing
+from ..demandProcessing import DemandProcessing
 from ..forms import RecalculateDemandForm
 from ..models import Production_Task, Organization, Subdivision, Employee
 from .serializers import ProductionTaskSerializer, OrganizationSerializer, SubdivisionSerializer, EmployeeSerializer
@@ -12,8 +12,14 @@ from datetime import datetime
 
 
 class ProductionTaskListView(generics.ListAPIView):
-    queryset = Production_Task.objects.all()
     serializer_class = ProductionTaskSerializer
+
+    def get_queryset(self):
+        queryset = Production_Task.objects.all()
+        org_id = self.request.query_params.get('org_id', None)
+        if org_id is not None:
+            queryset = queryset.filter(organization_id=org_id)
+        return queryset
 
 
 class ProductionTaskDetailView(generics.RetrieveAPIView):
@@ -28,7 +34,7 @@ class SubdivisionListView(generics.ListAPIView):
         queryset = Subdivision.objects.all()
         org_id = self.request.query_params.get('org_id', None)
         if org_id is not None:
-            queryset = queryset.filter(organization__id=org_id)
+            queryset = queryset.filter(organization_id=org_id)
         return queryset
 
 
@@ -95,7 +101,7 @@ class EmployeeListView(generics.ListAPIView):
         queryset = Employee.objects.all()
         subdiv_id = self.request.query_params.get('subdiv_id', None)
         if subdiv_id is not None:
-            queryset = queryset.filter(subdivision__id=subdiv_id)
+            queryset = queryset.filter(subdivision_id=subdiv_id)
         return queryset
 
 
@@ -114,6 +120,7 @@ def recalculate_demand_request(request):
         if form.is_valid():
             # Обработка данных из form.cleaned_data
             subdiv_id = form.cleaned_data['subdiv_id']
+            date = form.cleaned_data['date']
 
             try:
                 subdivision = Subdivision.objects.get(pk=subdiv_id)
@@ -121,10 +128,12 @@ def recalculate_demand_request(request):
                 return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_404_NOT_FOUND)
 
             if subdivision is not None:
-                qty = demandProcessing.recalculate_demand(subdivision, datetime.date(datetime.now()))
-                return JsonResponse({'message': 'data: %d' % qty}, status=status.HTTP_202_ACCEPTED)
+                DemandProcessing.recalculate_demand_on_date(subdivision, date)
+                return JsonResponse({'message': 'request processed'}, status=status.HTTP_202_ACCEPTED)
             else:
                 return JsonResponse({'message': 'request denied!'}, status=status.HTTP_409_CONFLICT)
+        else:
+            return JsonResponse({'message': 'Invalid data!'}, status=status.HTTP_409_CONFLICT)
 
     # Если это GET (или какой-либо еще), создать форму по умолчанию.
     else:

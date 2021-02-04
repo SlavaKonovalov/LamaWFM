@@ -39,7 +39,8 @@ class TaskAdmin(admin.ModelAdmin):
 
 @admin.register(Scheduled_Production_Task)
 class ScheduledTaskAdmin(admin.ModelAdmin):
-    list_display = [field.name for field in Scheduled_Production_Task._meta.get_fields()]
+    list_display = ('task', 'subdivision', 'begin_date_format',
+                    'begin_time_format', 'end_time_format', 'end_date_format', 'work_scope')
     list_filter = ('task', 'subdivision')
     search_fields = ['task']
 

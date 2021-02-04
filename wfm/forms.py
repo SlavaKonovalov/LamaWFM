@@ -52,7 +52,7 @@ class EmployeeForm(forms.ModelForm):
 
 class RecalculateDemandForm(forms.Form):
     subdiv_id = forms.IntegerField(label='Подразделение', help_text='Выберите подразделение:')
-    # date = forms.DateField()
+    date = forms.DateField()
 
     # def clean_subdiv_id(self):
     #     data = self.cleaned_data['subdiv_id']
