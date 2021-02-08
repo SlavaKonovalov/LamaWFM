@@ -1,12 +1,7 @@
-import field as field
 from django.contrib import admin
-
-# Register your models here.
-from django.contrib import admin
-
 from .forms import EmployeeForm
 from .models import Organization, Production_Task, Subdivision, Department, Scheduled_Production_Task, Employee, \
-    Business_Indicator, Company
+    Business_Indicator, Company, Job_Duty, Tasks_In_Duty, Employee_Position
 
 
 @admin.register(Company)
@@ -21,7 +16,7 @@ class OrganizationAdmin(admin.ModelAdmin):
 
 @admin.register(Subdivision)
 class SubdivisionAdmin(admin.ModelAdmin):
-    list_display = ['name', 'organization', 'get_companies']
+    list_display = ['name', 'external_code', 'organization', 'get_companies']
 
 
 # @admin.register(Department)
@@ -45,16 +40,36 @@ class ScheduledTaskAdmin(admin.ModelAdmin):
     search_fields = ['task']
 
 
+@admin.register(Employee_Position)
+class EmployeePositionAdmin(admin.ModelAdmin):
+    list_display = ('short_name', 'name', 'organization')
+    list_filter = ['organization']
+    search_fields = ['name']
+
+
+@admin.register(Job_Duty)
+class JobDutyAdmin(admin.ModelAdmin):
+    list_display = ('name', 'organization', 'get_tasks')
+    list_filter = ['organization']
+    search_fields = ['name']
+
+
+@admin.register(Tasks_In_Duty)
+class TasksInDutyAdmin(admin.ModelAdmin):
+    list_display = ('duty', 'task', 'priority')
+    list_filter = ('duty', 'task')
+
+
 @admin.register(Employee)
 class EmployeeAdmin(admin.ModelAdmin):
     form = EmployeeForm
 
-    list_display = ['user',
+    list_display = ('user',
                     'subdivision',
                     'personnel_number',
                     'position',
                     'get_duties',
-                    'get_part_job_org']
+                    'get_part_job_org')
 
 
 @admin.register(Business_Indicator)

@@ -1,7 +1,7 @@
 from django.utils import timezone
 
 
-class AdditionalFunctionsWFM:
+class Global:
 
     @staticmethod
     def add_timezone(initial_date):

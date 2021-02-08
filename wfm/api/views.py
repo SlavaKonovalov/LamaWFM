@@ -1,14 +1,17 @@
+from django.db.models.functions import datetime
+from datetime import time
 from django.http import JsonResponse
 from django.shortcuts import render
 from rest_framework import generics, status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.parsers import JSONParser
-
 from ..demandProcessing import DemandProcessing
+from ..taskProcessing import TaskProcessing
 from ..forms import RecalculateDemandForm
-from ..models import Production_Task, Organization, Subdivision, Employee
-from .serializers import ProductionTaskSerializer, OrganizationSerializer, SubdivisionSerializer, EmployeeSerializer
-from datetime import datetime
+from ..models import Production_Task, Organization, Subdivision, Employee, Employee_Position, Job_Duty, \
+    Appointed_Production_Task
+from .serializers import ProductionTaskSerializer, OrganizationSerializer, SubdivisionSerializer, EmployeeSerializer, \
+    EmployeePositionSerializer, JobDutySerializer, AppointedTaskSerializer
 
 
 class ProductionTaskListView(generics.ListAPIView):
@@ -94,6 +97,38 @@ def organization_detail(request, pk):
         return JsonResponse({'message': 'Organization was deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
 
 
+class EmployeePositionListView(generics.ListAPIView):
+    serializer_class = EmployeePositionSerializer
+
+    def get_queryset(self):
+        queryset = Employee_Position.objects.all()
+        org_id = self.request.query_params.get('org_id', None)
+        if org_id is not None:
+            queryset = queryset.filter(organization_id=org_id)
+        return queryset
+
+
+class EmployeePositionDetailView(generics.RetrieveAPIView):
+    queryset = Employee_Position.objects.all()
+    serializer_class = EmployeePositionSerializer
+
+
+class JobDutyListView(generics.ListAPIView):
+    serializer_class = JobDutySerializer
+
+    def get_queryset(self):
+        queryset = Job_Duty.objects.all()
+        org_id = self.request.query_params.get('org_id', None)
+        if org_id is not None:
+            queryset = queryset.filter(organization_id=org_id)
+        return queryset
+
+
+class JobDutyDetailView(generics.RetrieveAPIView):
+    queryset = Job_Duty.objects.all()
+    serializer_class = JobDutySerializer
+
+
 class EmployeeListView(generics.ListAPIView):
     serializer_class = EmployeeSerializer
 
@@ -108,6 +143,27 @@ class EmployeeListView(generics.ListAPIView):
 class EmployeeDetailView(generics.RetrieveAPIView):
     queryset = Employee.objects.all()
     serializer_class = EmployeeSerializer
+
+
+class AppointedTaskListView(generics.ListAPIView):
+    serializer_class = AppointedTaskSerializer
+
+    def get_queryset(self):
+        queryset = Appointed_Production_Task.objects.all()
+        subdiv_id = self.request.query_params.get('subdiv_id', None)
+        date_from_str = self.request.query_params.get('date_from', None)
+        date_to_str = self.request.query_params.get('date_to', None)
+        if subdiv_id is not None and date_from_str is not None and date_to_str is not None:
+            date_from = datetime.datetime.strptime(date_from_str, "%Y-%m-%d")
+            date_to = datetime.datetime.strptime(date_to_str, "%Y-%m-%d")
+            queryset = queryset.filter(scheduled_task__subdivision_id=subdiv_id).select_related('scheduled_task')
+            queryset = queryset.filter(date__range=[
+                datetime.datetime.combine(date_from, time.min),
+                datetime.datetime.combine(date_to, time.max)
+            ])
+        else:
+            queryset = None
+        return queryset
 
 
 @api_view(['GET', 'POST'])
@@ -138,5 +194,16 @@ def recalculate_demand_request(request):
     # Если это GET (или какой-либо еще), создать форму по умолчанию.
     else:
         form = RecalculateDemandForm()
-
     return render(request, 'test.html', {'form': form})
+
+
+@api_view(['POST'])
+def assign_tasks(request):
+    data = JSONParser().parse(request)
+    subdiv_id = data.get('subdiv_id')
+    try:
+        subdivision = Subdivision.objects.get(pk=subdiv_id)
+    except Subdivision.DoesNotExist:
+        return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    TaskProcessing.assign_tasks(subdivision)
+    return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_204_NO_CONTENT)

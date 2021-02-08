@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from ..models import Production_Task, Subdivision, Employee, Scheduled_Production_Task
+from ..models import Production_Task, Subdivision, Employee, Scheduled_Production_Task, Employee_Position, Job_Duty, \
+    Tasks_In_Duty, Appointed_Production_Task
 from ..models import Organization
 
 
@@ -48,4 +49,38 @@ class EmployeeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Employee
+        fields = '__all__'
+
+
+class EmployeePositionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Employee_Position
+        fields = '__all__'
+
+
+class TasksInDutySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Tasks_In_Duty
+        fields = '__all__'
+
+
+class JobDutySerializer(serializers.ModelSerializer):
+    task_in_duty_set = TasksInDutySerializer(read_only=True, many=True)
+
+    class Meta:
+        model = Job_Duty
+        fields = '__all__'
+
+
+class ScheduledTaskSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Scheduled_Production_Task
+        fields = '__all__'
+
+
+class AppointedTaskSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Appointed_Production_Task
         fields = '__all__'

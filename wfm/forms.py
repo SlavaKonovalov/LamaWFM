@@ -1,7 +1,5 @@
 from django import forms
-from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
-
 from .models import Employee
 
 
@@ -53,8 +51,3 @@ class EmployeeForm(forms.ModelForm):
 class RecalculateDemandForm(forms.Form):
     subdiv_id = forms.IntegerField(label='Подразделение', help_text='Выберите подразделение:')
     date = forms.DateField()
-
-    # def clean_subdiv_id(self):
-    #     data = self.cleaned_data['subdiv_id']
-    #     # Здесь могли бы быть ваши проверки
-    #     return data

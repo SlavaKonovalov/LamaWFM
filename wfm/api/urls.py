@@ -25,12 +25,30 @@ urlpatterns = [
          views.SubdivisionDetailView.as_view(),
          name='subdiv_detail'),
 
+    path('employee_positions/',
+         views.EmployeePositionListView.as_view(),
+         name='employee_position_list'),
+    path('employee_positions/<int:pk>/',
+         views.EmployeePositionDetailView.as_view(),
+         name='employee_position_detail'),
+
+    path('job_duties/',
+         views.JobDutyListView.as_view(),
+         name='job_duty_list'),
+    path('job_duties/<int:pk>/',
+         views.JobDutyDetailView.as_view(),
+         name='job_duty_detail'),
+
     path('employees/',
          views.EmployeeListView.as_view(),
          name='employee_list'),
     path('employees/<int:pk>/',
          views.EmployeeDetailView.as_view(),
          name='employee_detail'),
+
+    path('appointed_tasks/',
+         views.AppointedTaskListView.as_view(),
+         name='appointed_task_list'),
 
     path('recalculateDemand/',
          views.recalculate_demand_request,

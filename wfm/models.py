@@ -1,14 +1,7 @@
-# import datetime
-
 from django.db import models
 from django.contrib.auth.models import User
 
-# Create your models here.
-# from django.db.models.signals import post_save
-# from django.dispatch import receiver
-from django.utils import timezone
-
-from .additionalFunctions import AdditionalFunctionsWFM
+from .additionalFunctions import Global
 
 
 class Company(models.Model):
@@ -39,6 +32,7 @@ class Organization(models.Model):
 
 class Subdivision(models.Model):
     name = models.CharField('Подразделение', max_length=60)
+    external_code = models.CharField('Внешний код', max_length=20, null=True, blank=True)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE,
                                      verbose_name='Организация', related_name='subdivision_set')
 
@@ -156,25 +150,25 @@ class Scheduled_Production_Task(models.Model):
 
     def begin_date_format(self):
         if self.begin_date is not None:
-            begin_date = AdditionalFunctionsWFM.add_timezone(self.begin_date)
+            begin_date = Global.add_timezone(self.begin_date)
             return begin_date.strftime('%d.%m.%Y')
         return self.begin_date
 
     def begin_time_format(self):
         if self.begin_time is not None:
-            begin_time = AdditionalFunctionsWFM.add_timezone(self.begin_time)
+            begin_time = Global.add_timezone(self.begin_time)
             return begin_time.strftime('%H:%M')
         return self.begin_time
 
     def end_date_format(self):
         if self.end_date is not None:
-            end_date = AdditionalFunctionsWFM.add_timezone(self.end_date)
+            end_date = Global.add_timezone(self.end_date)
             return end_date.strftime('%d.%m.%Y')
         return self.end_date
 
     def end_time_format(self):
         if self.end_time is not None:
-            end_time = AdditionalFunctionsWFM.add_timezone(self.end_time)
+            end_time = Global.add_timezone(self.end_time)
             return end_time.strftime('%H:%M')
         return self.end_time
 
@@ -184,9 +178,22 @@ class Scheduled_Production_Task(models.Model):
     end_time_format.short_description = 'Время окончания'
 
     def task_duration(self):
-        end_time = AdditionalFunctionsWFM.add_timezone(self.end_time)
-        begin_time = AdditionalFunctionsWFM.add_timezone(self.begin_time)
+        end_time = Global.add_timezone(self.end_time)
+        begin_time = Global.add_timezone(self.begin_time)
         return (end_time.hour * 60 + end_time.minute) - (begin_time.hour * 60 + begin_time.minute)
+
+
+class Appointed_Production_Task(models.Model):
+    scheduled_task = models.ForeignKey(Scheduled_Production_Task, on_delete=models.CASCADE,
+                                       verbose_name='Запланированное задание', related_name='appointed_task_set')
+    date = models.DateTimeField('Дата выполнения')
+    work_scope_time = models.PositiveIntegerField('Объём работ (минуты)')
+
+    class Meta:
+        verbose_name = 'Назначенное задание'
+        verbose_name_plural = 'Назначенные задания'
+
+        ordering = ['date', 'scheduled_task']
 
 
 class Job_Duty(models.Model):
@@ -203,6 +210,10 @@ class Job_Duty(models.Model):
     def __str__(self):
         return self.name
 
+    def get_tasks(self):
+        return " | ".join([tasks_in_duty.task.name for tasks_in_duty
+                           in self.task_in_duty_set.all().select_related('task')])
+
 
 class Tasks_In_Duty(models.Model):
     task = models.ForeignKey(Production_Task, on_delete=models.CASCADE,
@@ -212,8 +223,8 @@ class Tasks_In_Duty(models.Model):
     priority = models.PositiveIntegerField('Приоритет', default=0)
 
     class Meta:
-        verbose_name = 'Функциональная обязанность'
-        verbose_name_plural = 'Функциональные обязанности'
+        verbose_name = 'Функциональная обязанность. Настройка'
+        verbose_name_plural = 'Функциональные обязанности. Настройка'
 
         ordering = ['duty', 'task', 'priority']
 
@@ -223,6 +234,7 @@ class Tasks_In_Duty(models.Model):
 
 class Employee_Position(models.Model):
     name = models.CharField('Название', max_length=60)
+    short_name = models.CharField('Краткое название', max_length=20, unique=True)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE,
                                      verbose_name='Организация', related_name='employee_position_set')
 
