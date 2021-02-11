@@ -1,15 +1,14 @@
-from django.db.models.functions import datetime
-from datetime import time
+import datetime as datetime
 from django.http import JsonResponse
 from django.shortcuts import render
-from rest_framework import generics, status, permissions
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework import generics, status
+from rest_framework.decorators import api_view
 from rest_framework.parsers import JSONParser
 from ..demandProcessing import DemandProcessing
 from ..taskProcessing import TaskProcessing
 from ..forms import RecalculateDemandForm
 from ..models import Production_Task, Organization, Subdivision, Employee, Employee_Position, Job_Duty, \
-    Appointed_Production_Task
+    Appointed_Production_Task, Scheduled_Production_Task
 from .serializers import ProductionTaskSerializer, OrganizationSerializer, SubdivisionSerializer, EmployeeSerializer, \
     EmployeePositionSerializer, JobDutySerializer, AppointedTaskSerializer
 
@@ -158,8 +157,8 @@ class AppointedTaskListView(generics.ListAPIView):
             date_to = datetime.datetime.strptime(date_to_str, "%Y-%m-%d")
             queryset = queryset.filter(scheduled_task__subdivision_id=subdiv_id).select_related('scheduled_task')
             queryset = queryset.filter(date__range=[
-                datetime.datetime.combine(date_from, time.min),
-                datetime.datetime.combine(date_to, time.max)
+                datetime.datetime.combine(date_from, datetime.time.min),
+                datetime.datetime.combine(date_to, datetime.time.max)
             ])
         else:
             queryset = None
@@ -200,10 +199,17 @@ def recalculate_demand_request(request):
 @api_view(['POST'])
 def assign_tasks(request):
     data = JSONParser().parse(request)
-    subdiv_id = data.get('subdiv_id')
+    subdivision_id = data.get('subdivision_id')
+    scheduled_task_id = data.get('scheduled_task_id')
     try:
-        subdivision = Subdivision.objects.get(pk=subdiv_id)
+        subdivision = Subdivision.objects.get(pk=subdivision_id)
     except Subdivision.DoesNotExist:
         return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_404_NOT_FOUND)
-    TaskProcessing.assign_tasks(subdivision)
-    return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_204_NO_CONTENT)
+    if scheduled_task_id:
+        try:
+            scheduled_task = Scheduled_Production_Task.objects.get(pk=scheduled_task_id,
+                                                                   subdivision_id=subdivision_id)
+        except Scheduled_Production_Task.DoesNotExist:
+            return JsonResponse({'message': 'The scheduled task does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    TaskProcessing.assign_tasks(subdivision_id, scheduled_task_id)
+    return JsonResponse({'message': 'request processed'}, status=status.HTTP_204_NO_CONTENT)

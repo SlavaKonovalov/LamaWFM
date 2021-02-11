@@ -1,7 +1,7 @@
 from django.db.models import Sum, Subquery, OuterRef, FloatField, F
 from django.db.models.functions import Round
 from .additionalFunctions import Global
-from .models import Scheduled_Production_Task, Demand_Detail_Parameters, Demand_Detail_Main, Demand_Detail_Task
+from .models import Scheduled_Production_Task, Demand_Detail_Main, Demand_Detail_Task, Global_Parameters
 import datetime as datetime
 
 
@@ -10,9 +10,9 @@ class DemandProcessing:
     @staticmethod
     def recalculate_demand_on_date(subdivision, process_date):
         tasks = Scheduled_Production_Task.objects.filter(subdivision_id=subdivision.pk).order_by('begin_time')
-        interval_length = Demand_Detail_Parameters.objects.all().first().time_interval_length
+        interval_length = Global_Parameters.objects.all().first().time_interval_length
         duration = datetime.timedelta(minutes=interval_length)
-        for task in tasks:
+        for task in tasks.iterator():
             counter = datetime.timedelta(minutes=0)
             work_scope_for_interval = task.work_scope * interval_length / task.task_duration()
             begin_date_time = Global.add_timezone(task.begin_time)

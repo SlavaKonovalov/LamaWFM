@@ -50,6 +50,10 @@ urlpatterns = [
          views.AppointedTaskListView.as_view(),
          name='appointed_task_list'),
 
+    path('assign_tasks/',
+         views.assign_tasks,
+         name='appointed_tasks'),
+
     path('recalculateDemand/',
          views.recalculate_demand_request,
          name='recalculate_demand'),

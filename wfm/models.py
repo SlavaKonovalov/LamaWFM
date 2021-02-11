@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from pandas import Series
 
 from .additionalFunctions import Global
 
@@ -177,10 +178,23 @@ class Scheduled_Production_Task(models.Model):
     end_date_format.short_description = 'Дата завершения'
     end_time_format.short_description = 'Время окончания'
 
-    def task_duration(self):
+    def get_task_duration(self):
         end_time = Global.add_timezone(self.end_time)
         begin_time = Global.add_timezone(self.begin_time)
         return (end_time.hour * 60 + end_time.minute) - (begin_time.hour * 60 + begin_time.minute)
+
+    def work_scope_normalize(self):
+        # здесь будет вызов нормализации
+        return self.work_scope
+
+    def get_week_series(self):
+        return Series([self.day1_selection,
+                       self.day2_selection,
+                       self.day3_selection,
+                       self.day4_selection,
+                       self.day5_selection,
+                       self.day6_selection,
+                       self.day7_selection])
 
 
 class Appointed_Production_Task(models.Model):
@@ -194,6 +208,14 @@ class Appointed_Production_Task(models.Model):
         verbose_name_plural = 'Назначенные задания'
 
         ordering = ['date', 'scheduled_task']
+
+    @staticmethod
+    def create_instance(scheduled_task_id, date, work_scope):
+        return Appointed_Production_Task.objects.create(
+            scheduled_task_id=scheduled_task_id,
+            date=date,
+            work_scope_time=work_scope
+        )
 
 
 class Job_Duty(models.Model):
@@ -310,5 +332,7 @@ class Demand_Detail_Task(models.Model):
     demand_value = models.DecimalField(max_digits=32, decimal_places=16, verbose_name='Значение потребности')
 
 
-class Demand_Detail_Parameters(models.Model):
-    time_interval_length = models.PositiveIntegerField('Длина периода детализации потребности', default=0)
+class Global_Parameters(models.Model):
+    demand_detail_interval_length = models.PositiveIntegerField('Длина периода детализации потребности', default=0)
+    scheduling_period = models.PositiveIntegerField('Длина периода для построения графика запланированных задач',
+                                                    default=0)
