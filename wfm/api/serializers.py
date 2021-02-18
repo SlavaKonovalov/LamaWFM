@@ -1,11 +1,11 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from ..models import Production_Task, Subdivision, Employee, Scheduled_Production_Task, Employee_Position, Job_Duty, \
-    Tasks_In_Duty, Appointed_Production_Task
-from ..models import Organization
+    Tasks_In_Duty, Appointed_Production_Task, Organization, Demand_Detail_Main, Demand_Detail_Task
 
 
 class ScheduledProductionTaskSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = Scheduled_Production_Task
         fields = '__all__'
@@ -17,6 +17,13 @@ class ProductionTaskSerializer(serializers.ModelSerializer):
     class Meta:
         model = Production_Task
         fields = '__all__'
+
+
+class ProductionTaskShortSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Production_Task
+        fields = ['id', 'name']
 
 
 class SubdivisionSerializer(serializers.ModelSerializer):
@@ -59,6 +66,8 @@ class EmployeePositionSerializer(serializers.ModelSerializer):
 
 
 class TasksInDutySerializer(serializers.ModelSerializer):
+    task = ProductionTaskShortSerializer(read_only=True, many=False)
+
     class Meta:
         model = Tasks_In_Duty
         fields = '__all__'
@@ -72,15 +81,23 @@ class JobDutySerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class ScheduledTaskSerializer(serializers.ModelSerializer):
-
+class AppointedTaskSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Scheduled_Production_Task
+        model = Appointed_Production_Task
         fields = '__all__'
 
 
-class AppointedTaskSerializer(serializers.ModelSerializer):
+class DemandTaskSerializer(serializers.ModelSerializer):
+    task = ProductionTaskShortSerializer(read_only=True, many=False)
 
     class Meta:
-        model = Appointed_Production_Task
+        model = Demand_Detail_Task
+        fields = '__all__'
+
+
+class DemandMainSerializer(serializers.ModelSerializer):
+    demand_detail_task_set = DemandTaskSerializer(read_only=True, many=True)
+
+    class Meta:
+        model = Demand_Detail_Main
         fields = '__all__'

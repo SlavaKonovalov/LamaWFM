@@ -34,4 +34,4 @@ class Global:
 
     @staticmethod
     def toFixed(num_obj, digits=0):
-        return f"{num_obj:.{digits}f}"
+        return float(f"{num_obj:.{digits}f}")

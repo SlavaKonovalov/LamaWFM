@@ -16,7 +16,7 @@ class OrganizationAdmin(admin.ModelAdmin):
 
 @admin.register(Subdivision)
 class SubdivisionAdmin(admin.ModelAdmin):
-    list_display = ['name', 'external_code', 'organization', 'get_companies']
+    list_display = ['name', 'external_code', 'organization', 'get_companies', 'shop_open_time', 'shop_close_time']
 
 
 # @admin.register(Department)

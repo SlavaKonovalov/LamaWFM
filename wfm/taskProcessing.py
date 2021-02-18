@@ -22,12 +22,14 @@ class TaskProcessing:
                 .select_related('scheduled_task')
         appointed_task.filter(date__gte=date_begin).delete()
         # Фильтруем запланированные задачи
-        tasks = Scheduled_Production_Task.objects.all()
+        tasks = Scheduled_Production_Task.objects.all().select_related('task')
         if scheduled_task_id:
             tasks = tasks.filter(id=scheduled_task_id)
         else:
             tasks = tasks.filter(subdivision_id=subdivision_id)
-        tasks = tasks.filter(Q(end_date__isnull=True) | Q(end_date__gte=date_begin))
+        tasks = tasks.filter(Q(end_date__isnull=True) | Q(end_date__gte=date_begin))\
+            .filter(task__demand_calculate=True)\
+            .exclude(task__demand_data_source='statistical_data')
         for task in tasks.iterator():
             date_step = datetime.timedelta(days=1)
             begin_date_task = Global.get_current_midnight(task.begin_date)

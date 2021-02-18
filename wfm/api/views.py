@@ -1,16 +1,15 @@
 import datetime as datetime
 from django.http import JsonResponse
-from django.shortcuts import render
 from rest_framework import generics, status
 from rest_framework.decorators import api_view
 from rest_framework.parsers import JSONParser
 from ..demandProcessing import DemandProcessing
 from ..taskProcessing import TaskProcessing
-from ..forms import RecalculateDemandForm
 from ..models import Production_Task, Organization, Subdivision, Employee, Employee_Position, Job_Duty, \
-    Appointed_Production_Task, Scheduled_Production_Task
+    Appointed_Production_Task, Scheduled_Production_Task, Demand_Detail_Main
 from .serializers import ProductionTaskSerializer, OrganizationSerializer, SubdivisionSerializer, EmployeeSerializer, \
-    EmployeePositionSerializer, JobDutySerializer, AppointedTaskSerializer
+    EmployeePositionSerializer, JobDutySerializer, AppointedTaskSerializer, ScheduledProductionTaskSerializer, \
+    DemandMainSerializer
 
 
 class ProductionTaskListView(generics.ListAPIView):
@@ -27,6 +26,48 @@ class ProductionTaskListView(generics.ListAPIView):
 class ProductionTaskDetailView(generics.RetrieveAPIView):
     queryset = Production_Task.objects.all()
     serializer_class = ProductionTaskSerializer
+
+
+@api_view(['GET', 'POST'])
+def scheduled_task_list(request):
+    if request.method == 'GET':
+        scheduled_tasks = Scheduled_Production_Task.objects.all()
+
+        scheduled_task_serializer = ScheduledProductionTaskSerializer(scheduled_tasks, many=True)
+        return JsonResponse(scheduled_task_serializer.data, safe=False)
+
+    elif request.method == 'POST':
+        scheduled_task_data = JSONParser().parse(request)
+        scheduled_task_serializer = ScheduledProductionTaskSerializer(data=scheduled_task_data)
+        if scheduled_task_serializer.is_valid():
+            scheduled_task_serializer.save()
+            return JsonResponse(scheduled_task_serializer.data, status=status.HTTP_201_CREATED)
+        return JsonResponse(scheduled_task_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'POST', 'DELETE'])
+def scheduled_task_detail(request, pk):
+    try:
+        scheduled_task = Scheduled_Production_Task.objects.get(pk=pk)
+    except Scheduled_Production_Task.DoesNotExist:
+        return JsonResponse({'message': 'The scheduled task does not exist'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        scheduled_task_serializer = ScheduledProductionTaskSerializer(scheduled_task)
+        return JsonResponse(scheduled_task_serializer.data)
+
+    elif request.method == 'POST':
+        scheduled_task_data = JSONParser().parse(request)
+        scheduled_task_serializer = ScheduledProductionTaskSerializer(scheduled_task, data=scheduled_task_data)
+        if scheduled_task_serializer.is_valid():
+            scheduled_task_serializer.save()
+            return JsonResponse(scheduled_task_serializer.data)
+        return JsonResponse(scheduled_task_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        scheduled_task.delete()
+        return JsonResponse({'message': 'Scheduled task was deleted successfully!'},
+                            status=status.HTTP_204_NO_CONTENT)
 
 
 class SubdivisionListView(generics.ListAPIView):
@@ -133,9 +174,9 @@ class EmployeeListView(generics.ListAPIView):
 
     def get_queryset(self):
         queryset = Employee.objects.all()
-        subdiv_id = self.request.query_params.get('subdiv_id', None)
-        if subdiv_id is not None:
-            queryset = queryset.filter(subdivision_id=subdiv_id)
+        subdivision_id = self.request.query_params.get('subdivision_id', None)
+        if subdivision_id is not None:
+            queryset = queryset.filter(subdivision_id=subdivision_id)
         return queryset
 
 
@@ -144,18 +185,38 @@ class EmployeeDetailView(generics.RetrieveAPIView):
     serializer_class = EmployeeSerializer
 
 
+class DemandMainListView(generics.ListAPIView):
+    serializer_class = DemandMainSerializer
+
+    def get_queryset(self):
+        queryset = Demand_Detail_Main.objects.all()
+        subdivision_id = self.request.query_params.get('subdivision_id', None)
+        date_from_str = self.request.query_params.get('date_from', None)
+        date_to_str = self.request.query_params.get('date_to', None)
+        if subdivision_id is not None and date_from_str is not None and date_to_str is not None:
+            date_from = datetime.datetime.strptime(date_from_str, "%Y-%m-%d")
+            date_to = datetime.datetime.strptime(date_to_str, "%Y-%m-%d")
+            queryset = queryset.filter(subdivision_id=subdivision_id)
+            queryset = queryset.filter(date_time_value__range=[
+                datetime.datetime.combine(date_from, datetime.time.min),
+                datetime.datetime.combine(date_to, datetime.time.max)
+            ])
+
+        return queryset
+
+
 class AppointedTaskListView(generics.ListAPIView):
     serializer_class = AppointedTaskSerializer
 
     def get_queryset(self):
         queryset = Appointed_Production_Task.objects.all()
-        subdiv_id = self.request.query_params.get('subdiv_id', None)
+        subdivision_id = self.request.query_params.get('subdivision_id', None)
         date_from_str = self.request.query_params.get('date_from', None)
         date_to_str = self.request.query_params.get('date_to', None)
-        if subdiv_id is not None and date_from_str is not None and date_to_str is not None:
+        if subdivision_id is not None and date_from_str is not None and date_to_str is not None:
             date_from = datetime.datetime.strptime(date_from_str, "%Y-%m-%d")
             date_to = datetime.datetime.strptime(date_to_str, "%Y-%m-%d")
-            queryset = queryset.filter(scheduled_task__subdivision_id=subdiv_id).select_related('scheduled_task')
+            queryset = queryset.filter(scheduled_task__subdivision_id=subdivision_id).select_related('scheduled_task')
             queryset = queryset.filter(date__range=[
                 datetime.datetime.combine(date_from, datetime.time.min),
                 datetime.datetime.combine(date_to, datetime.time.max)
@@ -165,35 +226,16 @@ class AppointedTaskListView(generics.ListAPIView):
         return queryset
 
 
-@api_view(['GET', 'POST'])
-def recalculate_demand_request(request):
-    if request.method == 'POST':
-        # Создаем экземпляр формы и заполняем данными из запроса (связывание, binding):
-        form = RecalculateDemandForm(request.POST)
-
-        # Проверка валидности данных формы:
-        if form.is_valid():
-            # Обработка данных из form.cleaned_data
-            subdiv_id = form.cleaned_data['subdiv_id']
-            date = form.cleaned_data['date']
-
-            try:
-                subdivision = Subdivision.objects.get(pk=subdiv_id)
-            except Subdivision.DoesNotExist:
-                return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_404_NOT_FOUND)
-
-            if subdivision is not None:
-                DemandProcessing.recalculate_demand_on_date(subdivision, date)
-                return JsonResponse({'message': 'request processed'}, status=status.HTTP_202_ACCEPTED)
-            else:
-                return JsonResponse({'message': 'request denied!'}, status=status.HTTP_409_CONFLICT)
-        else:
-            return JsonResponse({'message': 'Invalid data!'}, status=status.HTTP_409_CONFLICT)
-
-    # Если это GET (или какой-либо еще), создать форму по умолчанию.
-    else:
-        form = RecalculateDemandForm()
-    return render(request, 'test.html', {'form': form})
+@api_view(['POST'])
+def recalculate_demand(request):
+    data = JSONParser().parse(request)
+    subdivision_id = data.get('subdivision_id')
+    try:
+        subdivision = Subdivision.objects.get(pk=subdivision_id)
+    except Subdivision.DoesNotExist:
+        return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    DemandProcessing.recalculate_demand(subdivision_id)
+    return JsonResponse({'message': 'request processed'}, status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(['POST'])

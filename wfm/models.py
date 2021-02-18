@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from pandas import Series
-
+from django_pandas.managers import DataFrameManager
 from .additionalFunctions import Global
 
 
@@ -36,6 +36,8 @@ class Subdivision(models.Model):
     external_code = models.CharField('Внешний код', max_length=20, null=True, blank=True)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE,
                                      verbose_name='Организация', related_name='subdivision_set')
+    shop_open_time = models.TimeField('Время открытия магазина', null=True, blank=True)
+    shop_close_time = models.TimeField('Время закрытия магазина', null=True, blank=True)
 
     companies = models.ManyToManyField(Company, verbose_name='Юр. лица', null=True, blank=True)
 
@@ -84,9 +86,9 @@ class Production_Task(models.Model):
         ('pieces', 'Штуки'),
     )
     demand_allocation_method_choices = (
-        ('soft', 'Свободное'),
-        ('continuous', 'Непрерывное'),
-        ('hard', 'Равномерное'),
+        ('1_soft', 'Свободное'),
+        ('2_continuous', 'Непрерывное'),
+        ('0_hard', 'Равномерное'),
     )
 
     name = models.CharField('Название', max_length=60)
@@ -319,6 +321,8 @@ class Demand_Detail_Main(models.Model):
                                     related_name='demand_detail_set')
     date_time_value = models.DateTimeField()
     rounded_value = models.DecimalField(max_digits=32, decimal_places=16, verbose_name='Значение потребности')
+
+    objects = DataFrameManager()
 
     class Meta:
         verbose_name = 'Потребность'
