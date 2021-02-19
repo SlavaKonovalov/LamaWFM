@@ -182,6 +182,18 @@ class Scheduled_Production_Task(models.Model):
         begin_time = Global.add_timezone(self.begin_time)
         return (end_time.hour * 60 + end_time.minute) - (begin_time.hour * 60 + begin_time.minute)
 
+class Predictable_Production_Task(models.Model):
+
+    task = models.ForeignKey(Production_Task, on_delete=models.CASCADE,
+                             verbose_name='Задание')
+    subdivision = models.ForeignKey(Subdivision, on_delete=models.CASCADE,
+                                    verbose_name='Подразделение')
+    class Meta:
+        verbose_name = 'Прогнозируемые задача'
+        verbose_name_plural = 'Прогнозируемые задачи'
+
+    def __str__(self):
+        return str(self.pk)
 
 class Appointed_Production_Task(models.Model):
     scheduled_task = models.ForeignKey(Scheduled_Production_Task, on_delete=models.CASCADE,
@@ -283,6 +295,7 @@ class Employee(models.Model):
 
 class Business_Indicator(models.Model):
     name = models.CharField('Название', max_length=60)
+    external_code = models.CharField('Внешний код', max_length=20, null=True, blank=True)
 
     class Meta:
         verbose_name = 'Показатель бизнеса'
@@ -290,6 +303,38 @@ class Business_Indicator(models.Model):
 
     def __str__(self):
         return self.name
+
+class Business_Indicator_Norm(models.Model):
+    business_indicator = models.ForeignKey(Business_Indicator, on_delete=models.CASCADE,
+                                    verbose_name='Бизнес показатель')
+
+    norm_value= models.DecimalField( max_digits=32, decimal_places=16, verbose_name = 'Значение норматива (в секундах)')
+
+    class Meta:
+        verbose_name = 'Норматив по показателям бизнеса'
+        verbose_name_plural = 'Нормативы по показателям бизнеса'
+
+class Business_Indicator_Data(models.Model):
+    time_interval_lenght_choices = (
+        (15, '15 минут'),
+        (30, '30 минут'),
+        (60, '1 Час'),
+    )
+    subdivision = models.ForeignKey(Subdivision, on_delete=models.CASCADE,
+                                    verbose_name='Подразделение')
+
+    business_indicator = models.ForeignKey(Business_Indicator, on_delete=models.CASCADE,
+                                    verbose_name='Показатель бизнеса')
+    begin_date_time = models.DateTimeField(verbose_name='Дата и время начала временного интервала')
+    indicator_value = models.DecimalField( max_digits=32, decimal_places=16, verbose_name = 'Значение показателя бизнеса')
+    time_interval_length = models.PositiveIntegerField(choices=time_interval_lenght_choices, verbose_name = 'Длинна временного интервала')
+
+    def __str__(self):
+        return 'Подразделение:' + self.subdivision.name \
+               + ' Показатель: ' + self.business_indicator.name \
+               + ' Дата и аремя начала интервала: ' + self.begin_date_time.__str__() \
+               + ' Длина интервала '+ self.time_interval_length.__str__() \
+               + ' Значение: ' + self.indicator_value.__str__()
 
 
 class Demand_Detail_Main(models.Model):
@@ -312,3 +357,28 @@ class Demand_Detail_Task(models.Model):
 
 class Demand_Detail_Parameters(models.Model):
     time_interval_length = models.PositiveIntegerField('Длина периода детализации потребности', default=0)
+
+class Production_Task_Business_Indicator(models.Model):
+    task = models.ForeignKey(Production_Task, on_delete=models.CASCADE,
+                             verbose_name='Задание')
+    business_indicator = models.ForeignKey(Business_Indicator, on_delete=models.CASCADE,
+                                           verbose_name='Показатель бизнеса')
+
+    class Meta:
+        verbose_name = 'Показатели для расчёта производственной задачи'
+        verbose_name_plural = 'Показатели для расчёта производственной задачи'
+
+
+class Predicted_Production_Task(models.Model):
+    predictable_task = models.ForeignKey(Predictable_Production_Task, on_delete=models.CASCADE,
+                                       verbose_name='Прогнозируемое задание', related_name='predicted_task_set')
+    business_indicator = models.ForeignKey( Business_Indicator, on_delete=models.CASCADE,
+                                       verbose_name='Показатель бизнеса')
+    begin_date_time         = models.DateTimeField('Дата и время выполнения')
+    work_scope_time         = models.PositiveIntegerField('Объём работ (минуты)')
+
+    class Meta:
+        verbose_name = 'Спрогнозированное задание'
+        verbose_name_plural = 'Спрогнозированное задания'
+
+        ordering = ['predictable_task', 'begin_date_time']

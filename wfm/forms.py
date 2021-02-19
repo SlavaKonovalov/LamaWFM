@@ -47,7 +47,6 @@ class EmployeeForm(forms.ModelForm):
             'part_time_job_org'
         ]
 
-
 class RecalculateDemandForm(forms.Form):
     subdiv_id = forms.IntegerField(label='Подразделение', help_text='Выберите подразделение:')
     date = forms.DateField()

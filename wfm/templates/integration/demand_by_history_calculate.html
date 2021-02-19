@@ -1,0 +1,8 @@
+<form method="POST" enctype="multipart/form-data">
+  {% csrf_token %}
+  <H1>Расчет данных потребности на основе исторических данных<H1>
+  <table>
+    {{ form }}
+  </table>
+  <input type="submit" value="Рассчитать" />
+</form>

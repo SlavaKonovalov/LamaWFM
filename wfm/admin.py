@@ -1,7 +1,8 @@
 from django.contrib import admin
 from .forms import EmployeeForm
-from .models import Organization, Production_Task, Subdivision, Department, Scheduled_Production_Task, Employee, \
-    Business_Indicator, Company, Job_Duty, Tasks_In_Duty, Employee_Position
+from .models import Organization, Production_Task, Subdivision,  Scheduled_Production_Task, Employee, \
+    Business_Indicator, Company, Job_Duty, Tasks_In_Duty, Employee_Position, Predictable_Production_Task,\
+    Production_Task_Business_Indicator, Business_Indicator_Norm
 
 
 @admin.register(Company)
@@ -75,3 +76,15 @@ class EmployeeAdmin(admin.ModelAdmin):
 @admin.register(Business_Indicator)
 class OrganizationAdmin(admin.ModelAdmin):
     list_display = ['name']
+
+@admin.register(Predictable_Production_Task)
+class OrganizationAdmin(admin.ModelAdmin):
+    list_display = ['subdivision', 'task']
+
+@admin.register(Production_Task_Business_Indicator)
+class Production_Task_Business_Indicator(admin.ModelAdmin):
+    list_display = ['task', 'business_indicator']
+
+@admin.register(Business_Indicator_Norm)
+class Production_Task_Business_Indicator(admin.ModelAdmin):
+    list_display = ['business_indicator', 'norm_value']
