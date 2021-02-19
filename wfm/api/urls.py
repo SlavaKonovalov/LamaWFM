@@ -46,11 +46,27 @@ urlpatterns = [
          views.EmployeeDetailView.as_view(),
          name='employee_detail'),
 
+    path('scheduled_tasks/',
+         views.scheduled_task_list,
+         name='scheduled_task_list'),
+
+    path('scheduled_tasks/<int:pk>/',
+         views.scheduled_task_detail,
+         name='scheduled_task_detail'),
+
     path('appointed_tasks/',
          views.AppointedTaskListView.as_view(),
          name='appointed_task_list'),
 
-    path('recalculateDemand/',
-         views.recalculate_demand_request,
+    path('demand_main/',
+         views.DemandMainListView.as_view(),
+         name='demand_main_list'),
+
+    path('assign_tasks/',
+         views.assign_tasks,
+         name='appointed_tasks'),
+
+    path('recalculate_demand/',
+         views.recalculate_demand,
          name='recalculate_demand'),
 ]

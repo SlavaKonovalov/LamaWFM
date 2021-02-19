@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
-
+from pandas import Series
+from django_pandas.managers import DataFrameManager
 from .additionalFunctions import Global
 
 
@@ -35,6 +36,8 @@ class Subdivision(models.Model):
     external_code = models.CharField('Внешний код', max_length=20, null=True, blank=True)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE,
                                      verbose_name='Организация', related_name='subdivision_set')
+    shop_open_time = models.TimeField('Время открытия магазина', null=True, blank=True)
+    shop_close_time = models.TimeField('Время закрытия магазина', null=True, blank=True)
 
     companies = models.ManyToManyField(Company, verbose_name='Юр. лица', null=True, blank=True)
 
@@ -83,9 +86,9 @@ class Production_Task(models.Model):
         ('pieces', 'Штуки'),
     )
     demand_allocation_method_choices = (
-        ('soft', 'Свободное'),
-        ('continuous', 'Непрерывное'),
-        ('hard', 'Равномерное'),
+        ('1_soft', 'Свободное'),
+        ('2_continuous', 'Непрерывное'),
+        ('0_hard', 'Равномерное'),
     )
 
     name = models.CharField('Название', max_length=60)
@@ -177,10 +180,23 @@ class Scheduled_Production_Task(models.Model):
     end_date_format.short_description = 'Дата завершения'
     end_time_format.short_description = 'Время окончания'
 
-    def task_duration(self):
+    def get_task_duration(self):
         end_time = Global.add_timezone(self.end_time)
         begin_time = Global.add_timezone(self.begin_time)
         return (end_time.hour * 60 + end_time.minute) - (begin_time.hour * 60 + begin_time.minute)
+
+    def work_scope_normalize(self):
+        # здесь будет вызов нормализации
+        return self.work_scope
+
+    def get_week_series(self):
+        return Series([self.day1_selection,
+                       self.day2_selection,
+                       self.day3_selection,
+                       self.day4_selection,
+                       self.day5_selection,
+                       self.day6_selection,
+                       self.day7_selection])
 
 class Predictable_Production_Task(models.Model):
 
@@ -206,6 +222,14 @@ class Appointed_Production_Task(models.Model):
         verbose_name_plural = 'Назначенные задания'
 
         ordering = ['date', 'scheduled_task']
+
+    @staticmethod
+    def create_instance(scheduled_task_id, date, work_scope):
+        return Appointed_Production_Task.objects.create(
+            scheduled_task_id=scheduled_task_id,
+            date=date,
+            work_scope_time=work_scope
+        )
 
 
 class Job_Duty(models.Model):
@@ -343,6 +367,8 @@ class Demand_Detail_Main(models.Model):
     date_time_value = models.DateTimeField()
     rounded_value = models.DecimalField(max_digits=32, decimal_places=16, verbose_name='Значение потребности')
 
+    objects = DataFrameManager()
+
     class Meta:
         verbose_name = 'Потребность'
         verbose_name_plural = 'Потребность'
@@ -355,8 +381,10 @@ class Demand_Detail_Task(models.Model):
     demand_value = models.DecimalField(max_digits=32, decimal_places=16, verbose_name='Значение потребности')
 
 
-class Demand_Detail_Parameters(models.Model):
-    time_interval_length = models.PositiveIntegerField('Длина периода детализации потребности', default=0)
+class Global_Parameters(models.Model):
+    demand_detail_interval_length = models.PositiveIntegerField('Длина периода детализации потребности', default=0)
+    scheduling_period = models.PositiveIntegerField('Длина периода для построения графика запланированных задач',
+                                                    default=0)
 
 class Production_Task_Business_Indicator(models.Model):
     task = models.ForeignKey(Production_Task, on_delete=models.CASCADE,
