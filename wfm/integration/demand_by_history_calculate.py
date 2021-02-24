@@ -39,7 +39,6 @@ class DemandByHistoryDataCalculate:
 
         self.clear_predicted_production_task(predictable_Production_Task.pk, business_indicator.pk)
 
-        db = DataBase()
         query = "SELECT " \
                 "begin_date_time, " \
                 "CAST(date_part('isodow',begin_date_time) AS INT) AS dayofweek, " \
@@ -53,7 +52,7 @@ class DemandByHistoryDataCalculate:
                 "WHERE subdivision_id = " + str(self.subdivision_id) + " AND business_indicator_id = " + str(
             business_indicator.pk)
 
-        df = db.get_dataframe_by_query(query)
+        df = DataBase.get_dataframe_by_query(query)
         if not df.empty:
             avg_by_dayofweek = df.groupby(['dayofweek', 'begin_time_in_sec'])['indicator_value'].mean().reset_index()
 
