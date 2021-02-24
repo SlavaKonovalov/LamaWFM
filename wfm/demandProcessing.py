@@ -4,7 +4,7 @@ from django.db.models import Avg, Sum, Min, Max, Subquery, OuterRef, FloatField,
 from django.db.models.functions import Round, ExtractHour, Coalesce, Trunc
 from .additionalFunctions import Global
 from .models import Scheduled_Production_Task, Demand_Detail_Main, Demand_Detail_Task, Global_Parameters, \
-    Appointed_Production_Task
+    Appointed_Production_Task, Predicted_Production_Task
 import datetime as datetime
 import sys
 
@@ -132,6 +132,7 @@ class DemandProcessing:
 
     @staticmethod
     @transaction.atomic
+    # Пересчёт потребности
     def recalculate_demand(subdivision_id):
         date_step = Global.get_current_midnight(datetime.datetime.now())
         date_begin = date_step + datetime.timedelta(days=1)
@@ -141,6 +142,26 @@ class DemandProcessing:
             .filter(date_time_value__gte=date_begin).delete()
 
         # !!!ТУТ ДОЛЖНА БЫТЬ ПЕРЕКАЧКА СТАТИСТИКИ!!!
+        d = date_begin - datetime.timedelta(days=10)
+        predicted_tasks = Predicted_Production_Task.objects.select_related('predictable_task')\
+            .filter(begin_date_time__gte=d)\
+            .filter(predictable_task__subdivision_id=subdivision_id)\
+            .annotate(task_id=F('predictable_task__task'))\
+            .values('begin_date_time', 'task_id')\
+            .annotate(demand_sum=Coalesce(Sum("work_scope_time"), 0))
+
+        for predicted_task in predicted_tasks.iterator():
+            demand_detail_main = Demand_Detail_Main.objects.get_or_create(
+                subdivision_id=subdivision_id,
+                date_time_value=Global.add_timezone(predicted_task.get('begin_date_time')),
+                rounded_value=0
+            )
+            Demand_Detail_Task.objects.create(
+                demand_detail_main_id=demand_detail_main.id,
+                task_id=predicted_task.get('task_id'),
+                demand_value=Global.toFixed(predicted_task.get('demand_sum')/60, 2)
+            )
+        # КОООООООООООООООООООООООНЕЕЕЕЕЕЕЕЕЕЕЕЕЕЕЕЕЕЕЕЕЕЕЕЕЕЦ
 
         appointed_tasks = Appointed_Production_Task.objects.select_related('scheduled_task__task') \
             .filter(scheduled_task__subdivision_id=subdivision_id) \
@@ -182,6 +203,11 @@ class DemandProcessing:
                                                        work_scope_step, duration)
             # свободное распределение:
             if appointed_task.scheduled_task.task.demand_allocation_method == '1_soft':
+                DemandProcessing.calculate_demand_soft(appointed_task, begin_date_time, end_date_time,
+                                                       work_scope_step, work_scope_all)
+            # непрерывное распределение:
+            if appointed_task.scheduled_task.task.demand_allocation_method == '2_continuous':
+                # пока что повторяет свободное распределение
                 DemandProcessing.calculate_demand_soft(appointed_task, begin_date_time, end_date_time,
                                                        work_scope_step, work_scope_all)
 

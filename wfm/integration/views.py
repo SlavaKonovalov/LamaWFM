@@ -16,7 +16,7 @@ def business_indicator_download(request):
         return JsonResponse({'message': 'not ok'})
     else:
         form = BusinessIndicatorDownloadForm()
-        return render(request, 'integration\\business_indicator_dowload.html', {'form': form})
+        return render(request, 'integration\\business_indicator_download.html', {'form': form})
 
 
 def demand_by_history_calculate(request):
