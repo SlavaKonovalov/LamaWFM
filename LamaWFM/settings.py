@@ -60,7 +60,7 @@ MIDDLEWARE = [
 
 CORS_ALLOWED_ORIGINS = ["http://127.0.0.1:8001",
                         "http://localhost:8080"]
-CORS_ALLOWED_ORIGIN_REGEXES = [r"^https://192\.168\.$"]
+CORS_ALLOWED_ORIGIN_REGEXES = [r"^http://192\.168\.$"]
 CORS_URLS_REGEX = r'^/api/.*$'
 
 ROOT_URLCONF = 'LamaWFM.urls'

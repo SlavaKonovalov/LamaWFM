@@ -30,14 +30,14 @@ class DemandByHistoryDataCalculate:
 
         return "Demand data by subdivision: " + subdivision.name + " success calculated !"
 
-    def calculate_predicted_production_task(self, business_indicator, predictable_Production_Task):
+    def calculate_predicted_production_task(self, business_indicator, predictable_production_task):
 
         try:
             business_Indicator_Norm = Business_Indicator_Norm.objects.get(business_indicator_id=business_indicator.pk)
         except Business_Indicator_Norm.DoesNotExist:
             return "Norm on business indicator with id " + str(business_indicator.pk) + " not found in DB "
 
-        self.clear_predicted_production_task(predictable_Production_Task.pk, business_indicator.pk)
+        self.clear_predicted_production_task(predictable_production_task.pk, business_indicator.pk)
 
         query = "SELECT " \
                 "begin_date_time, " \
@@ -49,8 +49,7 @@ class DemandByHistoryDataCalculate:
                 "business_indicator_id, " \
                 "subdivision_id " \
                 "FROM public.wfm_business_indicator_data " \
-                "WHERE subdivision_id = " + str(self.subdivision_id) + " AND business_indicator_id = " + str(
-            business_indicator.pk)
+                "WHERE subdivision_id = " + str(self.subdivision_id) + " AND business_indicator_id = " + str(business_indicator.pk)
 
         df = DataBase.get_dataframe_by_query(query)
         if not df.empty:
@@ -69,10 +68,10 @@ class DemandByHistoryDataCalculate:
 
                     predicted_Production_Task = Predicted_Production_Task()
                     predicted_Production_Task.begin_date_time = cur_date
-                    predicted_Production_Task.predictable_task = predictable_Production_Task
+                    predicted_Production_Task.predictable_task = predictable_production_task
                     predicted_Production_Task.business_indicator = business_indicator
                     predicted_Production_Task.work_scope_time = int(
-                        (indicator_value * business_Indicator_Norm.norm_value) / 60);
+                        (indicator_value * business_Indicator_Norm.norm_value) / 60)
                     predicted_Production_Task.save()
 
     def clear_predicted_production_task(self, predictable_task_id, business_indicator_id):

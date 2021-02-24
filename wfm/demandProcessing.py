@@ -39,6 +39,28 @@ class DemandProcessing:
             date_step += duration
 
     @staticmethod
+    # Копирование статистических данных
+    def copy_statistical_data(subdivision_id, date_begin):
+        predicted_tasks = Predicted_Production_Task.objects.select_related('predictable_task') \
+            .filter(begin_date_time__gte=date_begin) \
+            .filter(predictable_task__subdivision_id=subdivision_id) \
+            .annotate(task_id=F('predictable_task__task')) \
+            .values('begin_date_time', 'task_id') \
+            .annotate(demand_sum=Coalesce(Sum("work_scope_time"), 0))
+
+        for predicted_task in predicted_tasks.iterator():
+            demand_detail_main, create_main = Demand_Detail_Main.objects.get_or_create(
+                subdivision_id=subdivision_id,
+                date_time_value=Global.add_timezone(predicted_task.get('begin_date_time')),
+                rounded_value=0
+            )
+            Demand_Detail_Task.objects.create(
+                demand_detail_main_id=demand_detail_main.id,
+                task_id=predicted_task.get('task_id'),
+                demand_value=Global.toFixed(predicted_task.get('demand_sum') / 60, 2)
+            )
+
+    @staticmethod
     def calculate_rounded_value(date_begin, tz):
         cursor = connection.cursor()
         query = """
@@ -141,27 +163,8 @@ class DemandProcessing:
         Demand_Detail_Main.objects.filter(subdivision_id=subdivision_id) \
             .filter(date_time_value__gte=date_begin).delete()
 
-        # !!!ТУТ ДОЛЖНА БЫТЬ ПЕРЕКАЧКА СТАТИСТИКИ!!!
-        d = date_begin - datetime.timedelta(days=10)
-        predicted_tasks = Predicted_Production_Task.objects.select_related('predictable_task')\
-            .filter(begin_date_time__gte=d)\
-            .filter(predictable_task__subdivision_id=subdivision_id)\
-            .annotate(task_id=F('predictable_task__task'))\
-            .values('begin_date_time', 'task_id')\
-            .annotate(demand_sum=Coalesce(Sum("work_scope_time"), 0))
-
-        for predicted_task in predicted_tasks.iterator():
-            demand_detail_main = Demand_Detail_Main.objects.get_or_create(
-                subdivision_id=subdivision_id,
-                date_time_value=Global.add_timezone(predicted_task.get('begin_date_time')),
-                rounded_value=0
-            )
-            Demand_Detail_Task.objects.create(
-                demand_detail_main_id=demand_detail_main.id,
-                task_id=predicted_task.get('task_id'),
-                demand_value=Global.toFixed(predicted_task.get('demand_sum')/60, 2)
-            )
-        # КОООООООООООООООООООООООНЕЕЕЕЕЕЕЕЕЕЕЕЕЕЕЕЕЕЕЕЕЕЕЕЕЕЦ
+        # Закачиваем статистику
+        DemandProcessing.copy_statistical_data(subdivision_id, date_begin)
 
         appointed_tasks = Appointed_Production_Task.objects.select_related('scheduled_task__task') \
             .filter(scheduled_task__subdivision_id=subdivision_id) \
