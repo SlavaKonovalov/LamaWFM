@@ -57,7 +57,7 @@ class DemandProcessing:
             Demand_Detail_Task.objects.create(
                 demand_detail_main_id=demand_detail_main.id,
                 task_id=predicted_task.get('task_id'),
-                demand_value=Global.toFixed(predicted_task.get('demand_sum') / 60, 2)
+                demand_value=Global.toFixed(predicted_task.get('demand_sum') / 15, 2)
             )
 
     @staticmethod
@@ -110,7 +110,7 @@ class DemandProcessing:
                     date_time_value__lt=end_date_time,
                     subdivision_id=appointed_task.scheduled_task.subdivision_id) \
             .annotate(demand_sum=Coalesce(Sum("demand_detail_task_set__demand_value"), 0)) \
-            .order_by('demand_sum', 'date_time_value')
+            .order_by('date_time_value')
 
         df_demand = demand_detail_main_sum.to_dataframe(['demand_sum'], index='id')
         df_demand['demand_sum'] = pandas.to_numeric(df_demand['demand_sum'])
@@ -134,6 +134,41 @@ class DemandProcessing:
                                               name=demand_detail_main.id)
                 df_demand = df_demand.append(df_demand_row, ignore_index=False)
             else:
+                df_demand_min_idx = df_demand['demand_sum'].idxmin()
+                df_demand_min_value = df_demand.loc[df_demand_min_idx, 'demand_sum']
+
+                demand_detail_task, created_task = Demand_Detail_Task.objects.get_or_create(
+                    demand_detail_main_id=df_demand_min_idx,
+                    task_id=appointed_task.scheduled_task.task_id,
+                    defaults={'demand_value': work_scope_step}
+                )
+
+                if not created_task:
+                    demand_detail_task.demand_value = float(demand_detail_task.demand_value) + work_scope_step
+                    demand_detail_task.save(update_fields=['demand_value'])
+
+                # Скорректируем строку DataFrame с выбранным индексом на величину work_scope_step
+                df_demand.at[df_demand_min_idx, 'demand_sum'] = df_demand_min_value + work_scope_step
+
+            work_scope_all = Global.toFixed(work_scope_all - work_scope_step, 2)
+
+    @staticmethod
+    # Расчет потребности для задач с непрерывным распределением
+    def calculate_demand_continuous(appointed_task, begin_date_time, end_date_time, work_scope_step, work_scope_all):
+        demand_detail_main_sum = Demand_Detail_Main.objects \
+            .filter(date_time_value__gte=begin_date_time,
+                    date_time_value__lt=end_date_time,
+                    subdivision_id=appointed_task.scheduled_task.subdivision_id) \
+            .annotate(demand_sum=Coalesce(Sum("demand_detail_task_set__demand_value"), 0)) \
+            .order_by('date_time_value')
+
+        df_demand = demand_detail_main_sum.to_dataframe(['demand_sum'], index='id')
+        df_demand['demand_sum'] = pandas.to_numeric(df_demand['demand_sum'])
+
+        while work_scope_all > 0:
+            work_scope_step = min(work_scope_all, work_scope_step)
+
+            if not df_demand.empty:
                 df_demand_min_idx = df_demand['demand_sum'].idxmin()
                 df_demand_min_value = df_demand.loc[df_demand_min_idx, 'demand_sum']
 
@@ -210,7 +245,8 @@ class DemandProcessing:
                                                        work_scope_step, work_scope_all)
             # непрерывное распределение:
             if appointed_task.scheduled_task.task.demand_allocation_method == '2_continuous':
-                # пока что повторяет свободное распределение
+                # DemandProcessing.calculate_demand_continuous(appointed_task, begin_date_time, end_date_time,
+                #                                              work_scope_step, work_scope_all)
                 DemandProcessing.calculate_demand_soft(appointed_task, begin_date_time, end_date_time,
                                                        work_scope_step, work_scope_all)
 
