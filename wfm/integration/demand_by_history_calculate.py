@@ -1,16 +1,18 @@
 from ..models import Subdivision, Predictable_Production_Task, Production_Task_Business_Indicator, \
     Predicted_Production_Task, Business_Indicator_Norm
 from ..db import DataBase
-from decimal import *
+from decimal import Decimal
 from datetime import timedelta
 
 
 class DemandByHistoryDataCalculate:
 
-    def __init__(self, subdivision_id, from_date, to_date):
+    def __init__(self, subdivision_id, from_date, to_date, history_from_date, history_to_date):
         self.subdivision_id = subdivision_id
         self.from_date = from_date
         self.to_date = to_date
+        self.history_from_date = history_from_date
+        self.history_to_date = history_to_date
 
     def run(self):
         try:
@@ -49,18 +51,19 @@ class DemandByHistoryDataCalculate:
                 "business_indicator_id, " \
                 "subdivision_id " \
                 "FROM public.wfm_business_indicator_data " \
-                "WHERE subdivision_id = " + str(self.subdivision_id) + " AND business_indicator_id = " + str(
-            business_indicator.pk)
+                "WHERE subdivision_id = " + str(self.subdivision_id) \
+                + " AND business_indicator_id = " + str(business_indicator.pk) \
+                + " AND  begin_date_time >= '" + str(self.history_from_date) + "'" \
+                + " AND  begin_date_time <= '" + str(self.history_to_date) + "'"
 
         df = DataBase.get_dataframe_by_query(query)
         if not df.empty:
-            avg_by_dayofweek = df.groupby(['dayofweek', 'begin_time_in_sec'])['indicator_value'].mean().reset_index()
-
+            avg_by_dayofweek = df.groupby(['dayofweek', 'begin_time_in_sec'])['indicator_value'].median().reset_index()
             cur_date = self.from_date
             while cur_date < self.to_date:
                 cur_date = cur_date + timedelta(minutes=15)
-                utcoffset_in_sec = cur_date.utcoffset().seconds
-                time_in_sec = cur_date.hour * 3600 + cur_date.minute * 60 + cur_date.second + utcoffset_in_sec
+                time_in_sec = cur_date.hour * 3600 + cur_date.minute * 60 + cur_date.second
+
                 weekday = cur_date.isoweekday()
                 avg_by_dayofweek_row = avg_by_dayofweek.loc[(avg_by_dayofweek['dayofweek'] == weekday)
                                                             & (avg_by_dayofweek['begin_time_in_sec'] == time_in_sec)]
@@ -71,8 +74,8 @@ class DemandByHistoryDataCalculate:
                     predicted_Production_Task.begin_date_time = cur_date
                     predicted_Production_Task.predictable_task = predictable_Production_Task
                     predicted_Production_Task.business_indicator = business_indicator
-                    predicted_Production_Task.work_scope_time = int(
-                        (indicator_value * business_Indicator_Norm.norm_value) / 60);
+                    predicted_Production_Task.work_scope_time = int((indicator_value * business_Indicator_Norm.norm_value * Decimal(1.3)) / 60)
+                    # predicted_Production_Task.work_scope_time = int((indicator_value * business_Indicator_Norm.norm_value) / 60)
                     predicted_Production_Task.save()
 
     def clear_predicted_production_task(self, predictable_task_id, business_indicator_id):

@@ -3,6 +3,7 @@ from django.http import JsonResponse
 from .forms import BusinessIndicatorDownloadForm, DemandByHistoryCalculateForm
 from .integration_download_data import BusinessIndicatorDownload4CSV
 from .demand_by_history_calculate import DemandByHistoryDataCalculate
+from datetime import datetime
 
 
 def business_indicator_download(request):
@@ -26,8 +27,14 @@ def demand_by_history_calculate(request):
             subdivision_id = form.cleaned_data['subdivision_id']
             from_date = form.cleaned_data['from_date']
             to_date = form.cleaned_data['to_date']
+            history_from_date = form.cleaned_data['history_from_date']
+            history_to_date = form.cleaned_data['history_to_date']
 
-            demand_by_history_data_calculate = DemandByHistoryDataCalculate(subdivision_id, from_date, to_date)
+            demand_by_history_data_calculate = DemandByHistoryDataCalculate(subdivision_id,
+                                                                            from_date,
+                                                                            to_date,
+                                                                            history_from_date,
+                                                                            history_to_date)
             # demandByHistoryDataCalculate = DemandByHistoryDataCalculate(subdivision_id,
             #                                                             datetime.fromisoformat('2021-02-01'),
             #                                                             datetime.fromisoformat('2021-02-05'))

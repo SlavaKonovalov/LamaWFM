@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from ..models import Production_Task, Subdivision, Employee, Scheduled_Production_Task, Employee_Position, Job_Duty, \
-    Tasks_In_Duty, Appointed_Production_Task, Organization, Demand_Detail_Main, Demand_Detail_Task
+    Tasks_In_Duty, Appointed_Production_Task, Organization, Demand_Detail_Main, Demand_Detail_Task, Company
 
 
 class ScheduledProductionTaskSerializer(serializers.ModelSerializer):
@@ -100,4 +100,11 @@ class DemandMainSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Demand_Detail_Main
+        fields = '__all__'
+
+
+
+class CompanySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Company
         fields = '__all__'

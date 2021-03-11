@@ -69,4 +69,8 @@ urlpatterns = [
     path('recalculate_demand/',
          views.recalculate_demand,
          name='recalculate_demand'),
+
+    path('companies/',
+         views.CompanyListView.as_view(),
+         name='companies_list'),
 ]

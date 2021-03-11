@@ -148,6 +148,7 @@ class Scheduled_Production_Task(models.Model):
 
         ordering = ['subdivision', 'task', 'begin_time']
 
+
     def __str__(self):
         return str(self.pk)
 

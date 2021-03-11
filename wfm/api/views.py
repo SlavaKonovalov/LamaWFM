@@ -6,10 +6,10 @@ from rest_framework.parsers import JSONParser
 from ..demandProcessing import DemandProcessing
 from ..taskProcessing import TaskProcessing
 from ..models import Production_Task, Organization, Subdivision, Employee, Employee_Position, Job_Duty, \
-    Appointed_Production_Task, Scheduled_Production_Task, Demand_Detail_Main
+    Appointed_Production_Task, Scheduled_Production_Task, Demand_Detail_Main, Company
 from .serializers import ProductionTaskSerializer, OrganizationSerializer, SubdivisionSerializer, EmployeeSerializer, \
     EmployeePositionSerializer, JobDutySerializer, AppointedTaskSerializer, ScheduledProductionTaskSerializer, \
-    DemandMainSerializer
+    DemandMainSerializer, CompanySerializer
 
 
 class ProductionTaskListView(generics.ListAPIView):
@@ -20,6 +20,7 @@ class ProductionTaskListView(generics.ListAPIView):
         org_id = self.request.query_params.get('org_id', None)
         if org_id is not None:
             queryset = queryset.filter(organization_id=org_id)
+
         return queryset
 
 
@@ -255,3 +256,10 @@ def assign_tasks(request):
             return JsonResponse({'message': 'The scheduled task does not exist'}, status=status.HTTP_404_NOT_FOUND)
     TaskProcessing.assign_tasks(subdivision_id, scheduled_task_id)
     return JsonResponse({'message': 'request processed'}, status=status.HTTP_204_NO_CONTENT)
+
+class CompanyListView(generics.ListAPIView):
+    serializer_class = CompanySerializer
+
+    def get_queryset(self):
+        queryset = Company.objects.all()
+        return queryset

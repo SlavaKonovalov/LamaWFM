@@ -4,7 +4,8 @@ import pandas
 
 class DataBase:
 
-    def get_dataframe_by_query(self, query):
+    @staticmethod
+    def get_dataframe_by_query(query):
         user = settings.DATABASES['default']['USER']
         password = settings.DATABASES['default']['PASSWORD']
         database_name = settings.DATABASES['default']['NAME']
