@@ -155,6 +155,8 @@ class DemandProcessing:
     @staticmethod
     # Расчет потребности для задач с непрерывным распределением
     def calculate_demand_continuous(appointed_task, begin_date_time, end_date_time, work_scope_step, work_scope_all):
+        df_demand_res = pandas.DataFrame()
+
         demand_detail_main_sum = Demand_Detail_Main.objects \
             .filter(date_time_value__gte=begin_date_time,
                     date_time_value__lt=end_date_time,
@@ -164,16 +166,54 @@ class DemandProcessing:
 
         df_demand = demand_detail_main_sum.to_dataframe(['demand_sum'], index='id')
         df_demand['demand_sum'] = pandas.to_numeric(df_demand['demand_sum'])
+        df_demand_last_pos = len(df_demand) - 1
 
-        while work_scope_all > 0:
-            work_scope_step = min(work_scope_all, work_scope_step)
+        if not df_demand.empty:
+            df_demand_min_idx = df_demand['demand_sum'].idxmin()
+            df_demand_min_value = df_demand.loc[df_demand_min_idx, 'demand_sum']
+            df_demand_min_pos = df_demand.index.get_loc(df_demand_min_idx)
+            if df_demand_min_pos == 0:
+                df_demand_res = df_demand.iloc[0:2]
+            else:
+                df_demand_res = df_demand.iloc[(df_demand_min_pos - 1):(df_demand_min_pos + 2)]
+            df_demand_res.at[df_demand_min_idx, 'demand_sum'] = df_demand_min_value + work_scope_step
+            demand_detail_task, created_task = Demand_Detail_Task.objects.get_or_create(
+                demand_detail_main_id=df_demand_min_idx,
+                task_id=appointed_task.scheduled_task.task_id,
+                defaults={'demand_value': work_scope_step}
+            )
 
-            if not df_demand.empty:
-                df_demand_min_idx = df_demand['demand_sum'].idxmin()
-                df_demand_min_value = df_demand.loc[df_demand_min_idx, 'demand_sum']
+            if not created_task:
+                demand_detail_task.demand_value = float(demand_detail_task.demand_value) + work_scope_step
+                demand_detail_task.save(update_fields=['demand_value'])
+
+            work_scope_all = Global.toFixed(work_scope_all - work_scope_step, 2)
+
+        if not df_demand_res.empty:
+            while work_scope_all > 0:
+                work_scope_step = min(work_scope_all, work_scope_step)
+                df_demand_res_last_pos = len(df_demand_res) - 1
+                df_demand_res_min_idx = df_demand_res['demand_sum'].idxmin()
+                df_demand_res_min_value = df_demand_res.loc[df_demand_res_min_idx, 'demand_sum']
+                df_demand_res_min_pos = df_demand_res.index.get_loc(df_demand_res_min_idx)
+
+                df_demand_res.at[df_demand_res_min_idx, 'demand_sum'] = df_demand_res_min_value + work_scope_step
+                work_scope_all = Global.toFixed(work_scope_all - work_scope_step, 2)
+
+                if df_demand_res_last_pos != df_demand_last_pos and df_demand_res_min_pos in [0, df_demand_res_last_pos] and work_scope_all > 0:
+                    if df_demand_res_min_pos == 0 or df_demand_res_min_pos == df_demand_res_last_pos:
+                        df_demand_min_pos = df_demand.index.get_loc(df_demand_res_min_idx)
+                        if df_demand_res_min_pos == 0:
+                            if df_demand_min_pos != 0:
+                                df_for_concat = df_demand.iloc[[df_demand_min_pos-1]]
+                                df_demand_res = pandas.concat([df_for_concat, df_demand_res])
+                        else:
+                            if df_demand_min_pos != df_demand_last_pos:
+                                df_for_concat = df_demand.iloc[[df_demand_min_pos + 1]]
+                                df_demand_res = pandas.concat([df_demand_res, df_for_concat])
 
                 demand_detail_task, created_task = Demand_Detail_Task.objects.get_or_create(
-                    demand_detail_main_id=df_demand_min_idx,
+                    demand_detail_main_id=df_demand_res_min_idx,
                     task_id=appointed_task.scheduled_task.task_id,
                     defaults={'demand_value': work_scope_step}
                 )
@@ -181,11 +221,6 @@ class DemandProcessing:
                 if not created_task:
                     demand_detail_task.demand_value = float(demand_detail_task.demand_value) + work_scope_step
                     demand_detail_task.save(update_fields=['demand_value'])
-
-                # Скорректируем строку DataFrame с выбранным индексом на величину work_scope_step
-                df_demand.at[df_demand_min_idx, 'demand_sum'] = df_demand_min_value + work_scope_step
-
-            work_scope_all = Global.toFixed(work_scope_all - work_scope_step, 2)
 
     @staticmethod
     @transaction.atomic
@@ -200,7 +235,6 @@ class DemandProcessing:
 
         # Закачиваем статистику
         DemandProcessing.copy_statistical_data(subdivision_id, date_begin)
-
         appointed_tasks = Appointed_Production_Task.objects.select_related('scheduled_task__task') \
             .filter(scheduled_task__subdivision_id=subdivision_id) \
             .filter(date__gte=date_begin) \
@@ -245,10 +279,8 @@ class DemandProcessing:
                                                        work_scope_step, work_scope_all)
             # непрерывное распределение:
             if appointed_task.scheduled_task.task.demand_allocation_method == '2_continuous':
-                # DemandProcessing.calculate_demand_continuous(appointed_task, begin_date_time, end_date_time,
-                #                                              work_scope_step, work_scope_all)
-                DemandProcessing.calculate_demand_soft(appointed_task, begin_date_time, end_date_time,
-                                                       work_scope_step, work_scope_all)
+                DemandProcessing.calculate_demand_continuous(appointed_task, begin_date_time, end_date_time,
+                                                             work_scope_step, work_scope_all)
 
         # собираем среднее значение потребностей по каждому экземпляру main и округляем, сразу обновляем rounded_value:
         DemandProcessing.calculate_rounded_value(date_begin, TIME_ZONE)
