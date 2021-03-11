@@ -2,6 +2,7 @@ from django.conf import settings
 import psycopg2
 import pandas
 
+
 class DataBase:
 
     @staticmethod
@@ -17,4 +18,3 @@ class DataBase:
         df = pandas.read_sql(query, connection)
 
         return df
-

@@ -1,5 +1,5 @@
 from django.utils import timezone
-from datetime import datetime, timedelta
+import datetime
 from pytz import utc
 
 
@@ -39,10 +39,10 @@ class Global:
 
     @staticmethod
     def strdatetime2datetime(naive_date_time_string):
-        naive_datetime = datetime.strptime(naive_date_time_string, '%d.%m.%Y %H:%M:%S')
+        naive_datetime = datetime.datetime.strptime(naive_date_time_string, '%d.%m.%Y %H:%M:%S')
         current_timezone = timezone.get_current_timezone()
-        current_utcoffset_in_seconds = datetime.now(current_timezone).utcoffset().total_seconds()
-        utc_naive_datetime = naive_datetime - timedelta(seconds=current_utcoffset_in_seconds)
+        current_utcoffset_in_seconds = datetime.datetime.now(current_timezone).utcoffset().total_seconds()
+        utc_naive_datetime = naive_datetime - datetime.timedelta(seconds=current_utcoffset_in_seconds)
         local_datetime = utc_naive_datetime.astimezone(timezone.get_default_timezone())
         return local_datetime
 

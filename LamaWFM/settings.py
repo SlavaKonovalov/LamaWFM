@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/3.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.1/ref/settings/
 """
-
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -22,10 +22,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'hc0s-4kb###_(xi$agxwyr8n1i$o)#^o6c#z6y(x4lp2^we6mt'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = ['10.0.0.238']
+# ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
@@ -59,8 +60,10 @@ MIDDLEWARE = [
 ]
 
 CORS_ALLOWED_ORIGINS = ["http://127.0.0.1:8001",
-                        "http://localhost:8080"]
-CORS_ALLOWED_ORIGIN_REGEXES = [r"^https://192\.168\.$"]
+                        "http://localhost:8080",
+                        "http://192.168.63.123:8080",
+                        "http://10.0.0.238:3000"]
+CORS_ALLOWED_ORIGIN_REGEXES = [r"^http://192\.168\.$"]
 CORS_URLS_REGEX = r'^/api/.*$'
 
 ROOT_URLCONF = 'LamaWFM.urls'
@@ -132,3 +135,4 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
 
 STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
