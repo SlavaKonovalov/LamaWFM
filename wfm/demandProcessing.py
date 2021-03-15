@@ -1,10 +1,13 @@
 import pandas
 from django.db import transaction, connection
-from django.db.models import Avg, Sum, Min, Max, Subquery, OuterRef, FloatField, F, DateTimeField
-from django.db.models.functions import Round, ExtractHour, Coalesce, Trunc
+from django.db.models import Sum, OuterRef, F, Exists
+from django.db.models.functions import Coalesce
+from django.http import JsonResponse
+from rest_framework import status
+
 from .additionalFunctions import Global
-from .models import Scheduled_Production_Task, Demand_Detail_Main, Demand_Detail_Task, Global_Parameters, \
-    Appointed_Production_Task, Predicted_Production_Task
+from .models import Demand_Detail_Main, Demand_Detail_Task, Global_Parameters, \
+    Appointed_Production_Task, Predicted_Production_Task, Production_Task, Tasks_In_Duty
 import datetime as datetime
 import sys
 
