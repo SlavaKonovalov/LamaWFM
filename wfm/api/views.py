@@ -235,8 +235,8 @@ def recalculate_demand(request):
         subdivision = Subdivision.objects.get(pk=subdivision_id)
     except Subdivision.DoesNotExist:
         return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_404_NOT_FOUND)
-    DemandProcessing.recalculate_demand(subdivision_id)
-    return JsonResponse({'message': 'request processed'}, status=status.HTTP_204_NO_CONTENT)
+    response = DemandProcessing.recalculate_demand(subdivision_id)
+    return response
 
 
 @api_view(['POST'])
@@ -256,6 +256,7 @@ def assign_tasks(request):
             return JsonResponse({'message': 'The scheduled task does not exist'}, status=status.HTTP_404_NOT_FOUND)
     TaskProcessing.assign_tasks(subdivision_id, scheduled_task_id)
     return JsonResponse({'message': 'request processed'}, status=status.HTTP_204_NO_CONTENT)
+
 
 class CompanyListView(generics.ListAPIView):
     serializer_class = CompanySerializer

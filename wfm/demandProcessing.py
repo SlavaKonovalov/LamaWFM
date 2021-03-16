@@ -1,10 +1,13 @@
 import pandas
 from django.db import transaction, connection
-from django.db.models import Avg, Sum, Min, Max, Subquery, OuterRef, FloatField, F, DateTimeField
-from django.db.models.functions import Round, ExtractHour, Coalesce, Trunc
+from django.db.models import Sum, OuterRef, F, Exists
+from django.db.models.functions import Coalesce
+from django.http import JsonResponse
+from rest_framework import status
+
 from .additionalFunctions import Global
-from .models import Scheduled_Production_Task, Demand_Detail_Main, Demand_Detail_Task, Global_Parameters, \
-    Appointed_Production_Task, Predicted_Production_Task
+from .models import Demand_Detail_Main, Demand_Detail_Task, Global_Parameters, \
+    Appointed_Production_Task, Predicted_Production_Task, Production_Task, Tasks_In_Duty
 import datetime as datetime
 import sys
 
@@ -61,26 +64,79 @@ class DemandProcessing:
             )
 
     @staticmethod
+    # 1. находим среднее значение потребности по каждой задаче в разрезе часа
+    # 2. находим фун-ю обяз-ть с наименьшим приоритетом, связанную с этой задачей
+    # 3. находим сумму потребностей внутри ФО, затем округляем. Если получаем 0, то повышаем до 1.
+    # 4. находим сумму по всем ФО в разрезе часа.
     def calculate_rounded_value(date_begin, tz):
         cursor = connection.cursor()
         query = """
                 UPDATE wfm_demand_detail_main
                 SET rounded_value =
                 (
-                SELECT COALESCE(ROUND(AVG(ddt.demand_value)), 0) AS demand_sum
+                SELECT SUM(demand_sum)
+                FROM
+                (
+                SELECT
+                CASE WHEN ROUND(SUM(task_sum.demand_sum)) = 0 THEN 1
+                ELSE ROUND(SUM(task_sum.demand_sum))
+                END AS demand_sum,
+                date, hour, duty_id
+                FROM
+                (
+                SELECT task_id,
+                AVG(ddt.demand_value) AS demand_sum,
+                DATE_TRUNC('day', ddm.date_time_value AT TIME ZONE '%s') as date,
+                EXTRACT('hour' FROM ddm.date_time_value AT TIME ZONE '%s') as hour
                 FROM wfm_demand_detail_main ddm
                 LEFT OUTER JOIN wfm_demand_detail_task ddt
                 ON (ddm.id = ddt.demand_detail_main_id)
+                GROUP BY ddt.task_id,
+                                DATE_TRUNC('day', ddm.date_time_value AT TIME ZONE '%s'),
+                                EXTRACT('hour' FROM ddm.date_time_value AT TIME ZONE '%s')
+                ) AS task_sum
+                LEFT OUTER JOIN 
+                (
+                SELECT tid1.task_id, tid1.duty_id FROM wfm_tasks_in_duty AS tid1
+                LEFT OUTER JOIN wfm_tasks_in_duty AS tid2
+                ON tid1.task_id = tid2.task_id AND tid1.priority > tid2.priority
+                WHERE tid2.task_id IS NULL
+                ) as tid
+                ON task_sum.task_id = tid.task_id
+                GROUP BY date, hour, duty_id
+                ) as result
                 WHERE (
-                    DATE_TRUNC('day', ddm.date_time_value AT TIME ZONE '%s') = DATE_TRUNC('day', wfm_demand_detail_main.date_time_value AT TIME ZONE '%s')
-                    AND EXTRACT('hour' FROM ddm.date_time_value AT TIME ZONE '%s') = EXTRACT('hour' FROM wfm_demand_detail_main.date_time_value AT TIME ZONE '%s')
-                    )
-                GROUP BY DATE_TRUNC('day', ddm.date_time_value AT TIME ZONE 'Asia/Tomsk'),
-                         EXTRACT('hour' FROM ddm.date_time_value AT TIME ZONE 'Asia/Tomsk')
+                date = DATE_TRUNC('day', wfm_demand_detail_main.date_time_value AT TIME ZONE '%s')
+                AND hour = EXTRACT('hour' FROM wfm_demand_detail_main.date_time_value AT TIME ZONE '%s')
+                )
+                GROUP BY date, hour
                 LIMIT 1
                 )
                 WHERE wfm_demand_detail_main.date_time_value >= '%s'
-                """ % (tz, tz, tz, tz, date_begin)
+                """ % (tz, tz, tz, tz, tz, tz, date_begin)
+        cursor.execute(query)
+
+    @staticmethod
+    def calculate_rounded_value_old(date_begin, tz):
+        cursor = connection.cursor()
+        query = """
+                    UPDATE wfm_demand_detail_main
+                    SET rounded_value =
+                    (
+                    SELECT COALESCE(ROUND(AVG(ddt.demand_value)), 0) AS demand_sum
+                    FROM wfm_demand_detail_main ddm
+                    LEFT OUTER JOIN wfm_demand_detail_task ddt
+                    ON (ddm.id = ddt.demand_detail_main_id)
+                    WHERE (
+                        DATE_TRUNC('day', ddm.date_time_value AT TIME ZONE '%s') = DATE_TRUNC('day', wfm_demand_detail_main.date_time_value AT TIME ZONE '%s')
+                        AND EXTRACT('hour' FROM ddm.date_time_value AT TIME ZONE '%s') = EXTRACT('hour' FROM wfm_demand_detail_main.date_time_value AT TIME ZONE '%s')
+                        )
+                    GROUP BY DATE_TRUNC('day', ddm.date_time_value AT TIME ZONE 'Asia/Tomsk'),
+                             EXTRACT('hour' FROM ddm.date_time_value AT TIME ZONE 'Asia/Tomsk')
+                    LIMIT 1
+                    )
+                    WHERE wfm_demand_detail_main.date_time_value >= '%s'
+                    """ % (tz, tz, tz, tz, date_begin)
         cursor.execute(query)
 
     @staticmethod
@@ -200,12 +256,13 @@ class DemandProcessing:
                 df_demand_res.at[df_demand_res_min_idx, 'demand_sum'] = df_demand_res_min_value + work_scope_step
                 work_scope_all = Global.toFixed(work_scope_all - work_scope_step, 2)
 
-                if df_demand_res_last_pos != df_demand_last_pos and df_demand_res_min_pos in [0, df_demand_res_last_pos] and work_scope_all > 0:
+                if df_demand_res_last_pos != df_demand_last_pos and df_demand_res_min_pos in [0,
+                                                                                              df_demand_res_last_pos] and work_scope_all > 0:
                     if df_demand_res_min_pos == 0 or df_demand_res_min_pos == df_demand_res_last_pos:
                         df_demand_min_pos = df_demand.index.get_loc(df_demand_res_min_idx)
                         if df_demand_res_min_pos == 0:
                             if df_demand_min_pos != 0:
-                                df_for_concat = df_demand.iloc[[df_demand_min_pos-1]]
+                                df_for_concat = df_demand.iloc[[df_demand_min_pos - 1]]
                                 df_demand_res = pandas.concat([df_for_concat, df_demand_res])
                         else:
                             if df_demand_min_pos != df_demand_last_pos:
@@ -226,6 +283,14 @@ class DemandProcessing:
     @transaction.atomic
     # Пересчёт потребности
     def recalculate_demand(subdivision_id):
+        # проверка связи задач и ФО
+        production_task_check = Production_Task.objects.filter(
+            ~Exists(Tasks_In_Duty.objects.filter(task_id=OuterRef('pk'))),
+        )
+        if len(list(production_task_check)) > 0:
+            return JsonResponse({'message': 'Не все задачи сопоставлены с обязанностями!'},
+                                status=status.HTTP_404_NOT_FOUND)
+
         date_step = Global.get_current_midnight(datetime.datetime.now())
         date_begin = date_step + datetime.timedelta(days=1)
 
@@ -282,5 +347,7 @@ class DemandProcessing:
                 DemandProcessing.calculate_demand_continuous(appointed_task, begin_date_time, end_date_time,
                                                              work_scope_step, work_scope_all)
 
-        # собираем среднее значение потребностей по каждому экземпляру main и округляем, сразу обновляем rounded_value:
+        # собираем среднее значение потребностей и обновляем rounded_value:
         DemandProcessing.calculate_rounded_value(date_begin, TIME_ZONE)
+
+        return JsonResponse({'message': 'request processed'}, status=status.HTTP_204_NO_CONTENT)

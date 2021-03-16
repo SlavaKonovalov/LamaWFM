@@ -148,7 +148,6 @@ class Scheduled_Production_Task(models.Model):
 
         ordering = ['subdivision', 'task', 'begin_time']
 
-
     def __str__(self):
         return str(self.pk)
 
@@ -378,6 +377,7 @@ class Demand_Detail_Main(models.Model):
     class Meta:
         verbose_name = 'Потребность'
         verbose_name_plural = 'Потребность'
+        unique_together = ('subdivision', 'date_time_value')
 
 
 class Demand_Detail_Task(models.Model):
