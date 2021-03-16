@@ -4,6 +4,7 @@ from rest_framework import generics, status
 from rest_framework.decorators import api_view
 from rest_framework.parsers import JSONParser
 from ..demandProcessing import DemandProcessing
+from ..integration.demand_by_history_calculate import DemandByHistoryDataCalculate
 from ..taskProcessing import TaskProcessing
 from ..models import Production_Task, Organization, Subdivision, Employee, Employee_Position, Job_Duty, \
     Appointed_Production_Task, Scheduled_Production_Task, Demand_Detail_Main, Company
@@ -225,6 +226,29 @@ class AppointedTaskListView(generics.ListAPIView):
         else:
             queryset = None
         return queryset
+
+
+@api_view(['POST'])
+def recalculate_history_demand(request):
+    data = JSONParser().parse(request)
+    subdivision_id = data.get('subdivision_id')
+    from_date = data.get('from_date')
+    to_date = data.get('to_date')
+    history_from_date = data.get('history_from_date')
+    history_to_date = data.get('history_to_date')
+    try:
+        subdivision = Subdivision.objects.get(pk=subdivision_id)
+    except Subdivision.DoesNotExist:
+        return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_404_NOT_FOUND)
+
+    demand_by_history_data_calculate = DemandByHistoryDataCalculate(subdivision_id,
+                                                                    from_date,
+                                                                    to_date,
+                                                                    history_from_date,
+                                                                    history_to_date)
+    demand_by_history_data_calculate.run()
+
+    return JsonResponse({'message': 'request processed'}, status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(['POST'])

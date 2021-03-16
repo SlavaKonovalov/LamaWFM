@@ -73,4 +73,8 @@ urlpatterns = [
     path('companies/',
          views.CompanyListView.as_view(),
          name='companies_list'),
+
+    path('recalculate_history_demand/',
+         views.recalculate_history_demand,
+         name='recalculate_history_demand'),
 ]
