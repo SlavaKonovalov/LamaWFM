@@ -3,6 +3,8 @@ from . import views
 
 app_name = 'wfm'
 
+#Драсьте
+
 urlpatterns = [
     path('productionTasks/',
          views.ProductionTaskListView.as_view(),
