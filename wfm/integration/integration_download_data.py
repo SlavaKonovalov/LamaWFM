@@ -13,7 +13,7 @@ class BusinessIndicatorDownload4CSV:
     def run(self):
         decoded_file = self.file.read().decode('utf-8')
         io_string = io.StringIO(decoded_file)
-        dataframe = pandas.read_csv(io_string, sep=r';',  usecols=['Подразделение','Показатель','Дата и время','Значение'])
+        dataframe = pandas.read_csv(io_string, sep=r';',  usecols=['Подразделение', 'Показатель', 'Дата и время', 'Значение'])
 
         for index, row in dataframe.iterrows():
             subdivision_name = row['Подразделение']
