@@ -546,3 +546,6 @@ class Employee_Planning_Rules(models.Model):
     class Meta:
         verbose_name = 'Сотрудник - Правила планирования'
         verbose_name_plural = 'Сотрудник - Правила планирования'
+
+#test
+
