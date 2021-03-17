@@ -77,4 +77,11 @@ urlpatterns = [
     path('recalculate_history_demand/',
          views.recalculate_history_demand,
          name='recalculate_history_demand'),
+
+    path('availability_templates/',
+         views.availability_template_list,
+         name='availability_template_list'),
+    path('availability_templates/<int:pk>/',
+         views.availability_template_detail,
+         name='availability_template_detail'),
 ]
