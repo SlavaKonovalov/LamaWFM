@@ -2,7 +2,8 @@ from django.contrib import admin
 from .forms import EmployeeForm
 from .models import Organization, Production_Task, Subdivision, Scheduled_Production_Task, Employee, \
     Business_Indicator, Company, Job_Duty, Tasks_In_Duty, Employee_Position, Predictable_Production_Task, \
-    Production_Task_Business_Indicator, Business_Indicator_Norm
+    Production_Task_Business_Indicator, Business_Indicator_Norm, Work_Shift_Planning_Rule, Breaking_Rule, \
+    Planning_Method, Working_Hours_Rate, Employee_Planning_Rules
 
 
 @admin.register(Company)
@@ -91,3 +92,50 @@ class Production_Task_Business_Indicator(admin.ModelAdmin):
 @admin.register(Business_Indicator_Norm)
 class Production_Task_Business_Indicator(admin.ModelAdmin):
     list_display = ['business_indicator', 'norm_value']
+
+
+@admin.register(Work_Shift_Planning_Rule)
+class Work_Shift_Planning_RuleAdmin(admin.ModelAdmin):
+    list_display = ['time_between_shift', 'continuous_weekly_rest']
+
+
+@admin.register(Breaking_Rule)
+class Breaking_RuleAdmin(admin.ModelAdmin):
+    list_display = ['break_first',
+                    'break_second',
+                    'first_break_starting_after_going',
+                    'time_between_breaks',
+                    'second_break_starting_before_end']
+
+
+@admin.register(Planning_Method)
+class Planning_MethodAdmin(admin.ModelAdmin):
+    list_display = ['name',
+                    'shift_type',
+                    'working_days_for_flexible_min',
+                    'working_days_for_flexible_max',
+                    'weekends_for_flexible_min',
+                    'weekends_for_flexible_max',
+                    'count_days_continuous_rest_min',
+                    'count_days_continuous_rest_max',
+                    'count_days_continuous_work_min',
+                    'count_days_continuous_work_max',
+                    'shift_duration_min',
+                    'shift_duration_max']
+
+
+@admin.register(Working_Hours_Rate)
+class Working_Hours_RateAdmin(admin.ModelAdmin):
+    list_display = ['name',
+                    'count_workings_hours_in_month']
+
+
+@admin.register(Employee_Planning_Rules)
+class Employee_Planning_RulesAdmin(admin.ModelAdmin):
+    list_display = ['employee_id',
+                    'working_hours_rate_id',
+                    'planning_methods_id',
+                    'date_rules_start',
+                    "date_rules_end"]
+
+
