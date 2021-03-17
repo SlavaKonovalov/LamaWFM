@@ -433,6 +433,7 @@ class Availability_Template(models.Model):
     class Meta:
         verbose_name = 'Шаблон доступности'
         verbose_name_plural = 'Шаблоны доступности'
+        unique_together = ('subdivision', 'name')
 
 
 class Availability_Template_Data(models.Model):

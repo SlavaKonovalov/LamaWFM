@@ -328,7 +328,7 @@ def availability_template_detail(request, pk):
 
     elif request.method == 'POST':
         availability_template_data = JSONParser().parse(request)
-        availability_template_serializer = OrganizationSerializer(availability_template, data=availability_template_data)
+        availability_template_serializer = AvailabilityTemplateSerializer(availability_template, data=availability_template_data)
         if availability_template_serializer.is_valid():
             availability_template_serializer.save()
             return JsonResponse(availability_template_serializer.data)
