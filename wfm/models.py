@@ -417,3 +417,32 @@ class Predicted_Production_Task(models.Model):
         verbose_name_plural = 'Спрогнозированное задания'
 
         ordering = ['predictable_task', 'begin_date_time']
+
+
+class Holiday(models.Model):
+    name = models.CharField('Праздник', max_length=60)
+
+    class Meta:
+        verbose_name = 'Праздник'
+        verbose_name_plural = 'Праздники'
+
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
+class Holiday_Period(models.Model):
+    holiday = models.ForeignKey(Holiday, on_delete=models.CASCADE,
+                                     verbose_name='Праздник', related_name='holiday_period_set')
+    begin_date_time = models.DateTimeField('Дата начала')
+    end_date_time = models.DateTimeField('Дата окончания')
+
+    class Meta:
+        verbose_name = 'Период праздника'
+        verbose_name_plural = 'Периоды праздников'
+
+        ordering = ['holiday', 'begin_date_time']
+
+    def __str__(self):
+        return str(self.holiday)

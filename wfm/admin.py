@@ -2,7 +2,7 @@ from django.contrib import admin
 from .forms import EmployeeForm
 from .models import Organization, Production_Task, Subdivision, Scheduled_Production_Task, Employee, \
     Business_Indicator, Company, Job_Duty, Tasks_In_Duty, Employee_Position, Predictable_Production_Task, \
-    Production_Task_Business_Indicator, Business_Indicator_Norm
+    Production_Task_Business_Indicator, Business_Indicator_Norm, Holiday, Holiday_Period
 
 
 @admin.register(Company)
@@ -84,10 +84,20 @@ class OrganizationAdmin(admin.ModelAdmin):
 
 
 @admin.register(Production_Task_Business_Indicator)
-class Production_Task_Business_Indicator(admin.ModelAdmin):
+class ProductionTaskBusinessIndicator(admin.ModelAdmin):
     list_display = ['task', 'business_indicator']
 
 
 @admin.register(Business_Indicator_Norm)
-class Production_Task_Business_Indicator(admin.ModelAdmin):
+class ProductionTaskBusinessIndicator(admin.ModelAdmin):
     list_display = ['business_indicator', 'norm_value']
+
+
+@admin.register(Holiday)
+class Holiday(admin.ModelAdmin):
+    list_display = ['name']
+
+
+@admin.register(Holiday_Period)
+class HolidayPeriod(admin.ModelAdmin):
+    list_display = ['holiday', 'begin_date_time', 'end_date_time']
