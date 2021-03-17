@@ -232,10 +232,18 @@ class AppointedTaskListView(generics.ListAPIView):
 def recalculate_history_demand(request):
     data = JSONParser().parse(request)
     subdivision_id = data.get('subdivision_id')
-    from_date = data.get('from_date')
-    to_date = data.get('to_date')
-    history_from_date = data.get('history_from_date')
-    history_to_date = data.get('history_to_date')
+    from_date_str = data.get('from_date')
+    from_date = datetime.datetime.strptime(from_date_str, "%Y-%m-%d")
+    datetime.datetime.combine(from_date, datetime.time.min)
+    to_date_str = data.get('to_date')
+    to_date = datetime.datetime.strptime(to_date_str, "%Y-%m-%d")
+    datetime.datetime.combine(to_date, datetime.time.max)
+    history_from_date_str = data.get('history_from_date')
+    history_from_date = datetime.datetime.strptime(history_from_date_str, "%Y-%m-%d")
+    datetime.datetime.combine(history_from_date, datetime.time.min)
+    history_to_date_str = data.get('history_to_date')
+    history_to_date = datetime.datetime.strptime(history_to_date_str, "%Y-%m-%d")
+    datetime.datetime.combine(history_to_date, datetime.time.max)
     try:
         subdivision = Subdivision.objects.get(pk=subdivision_id)
     except Subdivision.DoesNotExist:
