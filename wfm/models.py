@@ -417,3 +417,48 @@ class Predicted_Production_Task(models.Model):
         verbose_name_plural = 'Спрогнозированное задания'
 
         ordering = ['predictable_task', 'begin_date_time']
+
+
+class Availability_Template(models.Model):
+    type_choices = (
+        ('week', 'Неделя'),
+        ('day', 'День')
+    )
+
+    name = models.CharField('Название', max_length=60)
+    type = models.CharField('Распределение', max_length=20,
+                            choices=type_choices, default='week')
+    week_num = models.PositiveIntegerField('Номер недели', default=0)
+    week_day = models.PositiveIntegerField('День недели', default=0)
+    begin_time = models.TimeField('Время начала')
+    end_time = models.TimeField('Время окончания')
+
+    class Meta:
+        verbose_name = 'Шаблон доступности'
+        verbose_name_plural = 'Шаблоны доступности'
+
+
+class Employee_Availability_Templates(models.Model):
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, verbose_name='Сотрудник',
+                                 related_name='availability_template_set')
+    template = models.ForeignKey(Availability_Template, on_delete=models.CASCADE, verbose_name='Шаблон',
+                                 related_name='availability_template_set')
+    begin_date = models.DateTimeField('Дата начала')
+    end_date = models.DateTimeField('Дата окончания', null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'Назначенный шаблон доступности'
+        verbose_name_plural = 'Назначенные шаблоны доступности'
+
+
+class Employee_Availability(models.Model):
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, verbose_name='Сотрудник',
+                                 related_name='availability_set', null=True, blank=True)
+    subdivision = models.ForeignKey(Subdivision, on_delete=models.CASCADE, verbose_name='Подразделение',
+                                    related_name='availability_set')
+    begin_date_time = models.DateTimeField('Дата/время начала')
+    end_date_time = models.DateTimeField('Дата/время окончания')
+
+    class Meta:
+        verbose_name = 'Назначенный шаблон доступности'
+        verbose_name_plural = 'Назначенные шаблоны доступности'
