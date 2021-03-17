@@ -4,12 +4,13 @@ from rest_framework import generics, status
 from rest_framework.decorators import api_view
 from rest_framework.parsers import JSONParser
 from ..demandProcessing import DemandProcessing
+from ..integration.demand_by_history_calculate import DemandByHistoryDataCalculate
 from ..taskProcessing import TaskProcessing
 from ..models import Production_Task, Organization, Subdivision, Employee, Employee_Position, Job_Duty, \
-    Appointed_Production_Task, Scheduled_Production_Task, Demand_Detail_Main, Company
+    Appointed_Production_Task, Scheduled_Production_Task, Demand_Detail_Main, Company, Availability_Template
 from .serializers import ProductionTaskSerializer, OrganizationSerializer, SubdivisionSerializer, EmployeeSerializer, \
     EmployeePositionSerializer, JobDutySerializer, AppointedTaskSerializer, ScheduledProductionTaskSerializer, \
-    DemandMainSerializer, CompanySerializer
+    DemandMainSerializer, CompanySerializer, AvailabilityTemplateSerializer
 
 
 class ProductionTaskListView(generics.ListAPIView):
@@ -228,6 +229,37 @@ class AppointedTaskListView(generics.ListAPIView):
 
 
 @api_view(['POST'])
+def recalculate_history_demand(request):
+    data = JSONParser().parse(request)
+    subdivision_id = data.get('subdivision_id')
+    from_date_str = data.get('from_date')
+    from_date = datetime.datetime.strptime(from_date_str, "%Y-%m-%d")
+    datetime.datetime.combine(from_date, datetime.time.min)
+    to_date_str = data.get('to_date')
+    to_date = datetime.datetime.strptime(to_date_str, "%Y-%m-%d")
+    datetime.datetime.combine(to_date, datetime.time.max)
+    history_from_date_str = data.get('history_from_date')
+    history_from_date = datetime.datetime.strptime(history_from_date_str, "%Y-%m-%d")
+    datetime.datetime.combine(history_from_date, datetime.time.min)
+    history_to_date_str = data.get('history_to_date')
+    history_to_date = datetime.datetime.strptime(history_to_date_str, "%Y-%m-%d")
+    datetime.datetime.combine(history_to_date, datetime.time.max)
+    try:
+        subdivision = Subdivision.objects.get(pk=subdivision_id)
+    except Subdivision.DoesNotExist:
+        return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_404_NOT_FOUND)
+
+    demand_by_history_data_calculate = DemandByHistoryDataCalculate(subdivision_id,
+                                                                    from_date,
+                                                                    to_date,
+                                                                    history_from_date,
+                                                                    history_to_date)
+    demand_by_history_data_calculate.run()
+
+    return JsonResponse({'message': 'request processed'}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['POST'])
 def recalculate_demand(request):
     data = JSONParser().parse(request)
     subdivision_id = data.get('subdivision_id')
@@ -264,3 +296,44 @@ class CompanyListView(generics.ListAPIView):
     def get_queryset(self):
         queryset = Company.objects.all()
         return queryset
+
+
+@api_view(['GET', 'POST'])
+def availability_template_list(request):
+    if request.method == 'GET':
+        availability_template = Availability_Template.objects.all()
+
+        availability_template_serializer = AvailabilityTemplateSerializer(availability_template, many=True)
+        return JsonResponse(availability_template_serializer.data, safe=False)
+
+    elif request.method == 'POST':
+        availability_template_data = JSONParser().parse(request)
+        availability_template_serializer = AvailabilityTemplateSerializer(data=availability_template_data)
+        if availability_template_serializer.is_valid():
+            availability_template_serializer.save()
+            return JsonResponse(availability_template_serializer.data, status=status.HTTP_201_CREATED)
+        return JsonResponse(availability_template_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'POST', 'DELETE'])
+def availability_template_detail(request, pk):
+    try:
+        availability_template = Availability_Template.objects.get(pk=pk)
+    except Availability_Template.DoesNotExist:
+        return JsonResponse({'message': 'The organization does not exist'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        availability_template_serializer = AvailabilityTemplateSerializer(availability_template)
+        return JsonResponse(availability_template_serializer.data)
+
+    elif request.method == 'POST':
+        availability_template_data = JSONParser().parse(request)
+        availability_template_serializer = OrganizationSerializer(availability_template, data=availability_template_data)
+        if availability_template_serializer.is_valid():
+            availability_template_serializer.save()
+            return JsonResponse(availability_template_serializer.data)
+        return JsonResponse(availability_template_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        availability_template.delete()
+        return JsonResponse({'message': 'Organization was deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)

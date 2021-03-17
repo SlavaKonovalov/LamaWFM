@@ -1,11 +1,11 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from ..models import Production_Task, Subdivision, Employee, Scheduled_Production_Task, Employee_Position, Job_Duty, \
-    Tasks_In_Duty, Appointed_Production_Task, Organization, Demand_Detail_Main, Demand_Detail_Task, Company
+    Tasks_In_Duty, Appointed_Production_Task, Organization, Demand_Detail_Main, Demand_Detail_Task, Company, \
+    Availability_Template, Availability_Template_Data
 
-# rere
+
 class ScheduledProductionTaskSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Scheduled_Production_Task
         fields = '__all__'
@@ -20,7 +20,6 @@ class ProductionTaskSerializer(serializers.ModelSerializer):
 
 
 class ProductionTaskShortSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Production_Task
         fields = ['id', 'name']
@@ -103,8 +102,21 @@ class DemandMainSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-
 class CompanySerializer(serializers.ModelSerializer):
     class Meta:
         model = Company
+        fields = '__all__'
+
+
+class AvailabilityTemplateDataSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Availability_Template_Data
+        fields = '__all__'
+
+
+class AvailabilityTemplateSerializer(serializers.ModelSerializer):
+    data_set = AvailabilityTemplateDataSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Availability_Template
         fields = '__all__'

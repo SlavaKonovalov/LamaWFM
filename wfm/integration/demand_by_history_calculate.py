@@ -30,7 +30,7 @@ class DemandByHistoryDataCalculate:
                 self.calculate_predicted_production_task(production_Task_Business_Indicator.business_indicator,
                                                          predictable_Production_Task)
 
-        return "Demand data by subdivision: " + subdivision.name + " success calculated !"
+        #return "Demand data by subdivision: " + subdivision.name + " success calculated !"
 
     def calculate_predicted_production_task(self, business_indicator, predictable_Production_Task):
 
