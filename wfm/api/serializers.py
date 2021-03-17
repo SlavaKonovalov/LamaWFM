@@ -109,14 +109,41 @@ class CompanySerializer(serializers.ModelSerializer):
 
 
 class AvailabilityTemplateDataSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(required=False)
+
     class Meta:
         model = Availability_Template_Data
         fields = '__all__'
 
 
 class AvailabilityTemplateSerializer(serializers.ModelSerializer):
-    data_set = AvailabilityTemplateDataSerializer(many=True, read_only=True)
+    data_set = AvailabilityTemplateDataSerializer(many=True, required=False)
 
     class Meta:
         model = Availability_Template
         fields = '__all__'
+
+    def update(self, instance, validated_data):
+        instance.name = validated_data.get('name', instance.name)
+        instance.type = validated_data.get('type', instance.type)
+        subdivision = validated_data.get('subdivision', None)
+        if subdivision is None:
+            instance.subdivision_id = None
+        else:
+            instance.subdivision_id = subdivision.id
+        instance.save()
+
+        lines = validated_data.get('data_set')
+
+        for line_step in lines:
+            line_id = line_step.get('id', None)
+            if line_id:
+                line = Availability_Template_Data.objects.get(id=line_id, template=instance)
+                line.week_num = line_step.get('week_num', line.week_num)
+                line.week_day = line_step.get('week_day', line.week_day)
+                line.begin_time = line_step.get('begin_time', line.begin_time)
+                line.end_time = line_step.get('end_time', line.end_time)
+                line.save()
+            else:
+                Availability_Template_Data.objects.create(**line_step)
+        return instance
