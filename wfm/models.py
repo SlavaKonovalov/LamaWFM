@@ -537,9 +537,9 @@ class Working_Hours_Rate(models.Model):
 
 
 class Employee_Planning_Rules(models.Model):
-    employee_id = models.ForeignKey(Employee, on_delete=models.CASCADE, verbose_name='Сотрудник', related_name='planning_rules_set', null=True, blank=True)
-    working_hours_rate_id = models.ForeignKey(Working_Hours_Rate, on_delete=models.CASCADE, verbose_name='Рабочие часы', related_name='planning_rules_set', null=True, blank=True)
-    planning_methods_id = models.ForeignKey(Planning_Method, on_delete=models.CASCADE, verbose_name='Способы планирования смен', related_name='planning_rules_set', null=True, blank=True)
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, verbose_name='Сотрудник', related_name='planning_rules_set', null=True, blank=True)
+    working_hours_rate = models.ForeignKey(Working_Hours_Rate, on_delete=models.CASCADE, verbose_name='Рабочие часы', related_name='planning_rules_set', null=True, blank=True)
+    planning_methods = models.ForeignKey(Planning_Method, on_delete=models.CASCADE, verbose_name='Способы планирования смен', related_name='planning_rules_set', null=True, blank=True)
     date_rules_start = models.DateField('Дата начала действия правила для сотрудника')
     date_rules_end = models.DateField('Дата окончания действия правила для сотрудника')
 
