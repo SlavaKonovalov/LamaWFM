@@ -527,7 +527,7 @@ class Planning_Method(models.Model):
 
 class Working_Hours_Rate(models.Model):
     name = models.CharField('Название', max_length=100)
-    count_workings_hours_in_month = models.PositiveIntegerField('Количество рабочих часов в месяц', default=0)
+    count_working_hours_in_month = models.PositiveIntegerField('Количество рабочих часов в месяц', default=0)
 
     class Meta:
         verbose_name = 'Рабочие часы'

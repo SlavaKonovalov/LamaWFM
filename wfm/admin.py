@@ -127,7 +127,7 @@ class Planning_MethodAdmin(admin.ModelAdmin):
 @admin.register(Working_Hours_Rate)
 class Working_Hours_RateAdmin(admin.ModelAdmin):
     list_display = ['name',
-                    'count_workings_hours_in_month']
+                    'count_working_hours_in_month']
 
 
 @admin.register(Employee_Planning_Rules)
