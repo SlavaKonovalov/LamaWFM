@@ -84,4 +84,8 @@ urlpatterns = [
     path('availability_templates/<int:pk>/',
          views.availability_template_detail,
          name='availability_template_detail'),
+
+    path('assign_availability_template/',
+         views.assign_employee_availability_template,
+         name='assign_availability_template'),
 ]
