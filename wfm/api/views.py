@@ -13,7 +13,8 @@ from ..models import Production_Task, Organization, Subdivision, Employee, Emplo
     Employee_Availability_Templates
 from .serializers import ProductionTaskSerializer, OrganizationSerializer, SubdivisionSerializer, EmployeeSerializer, \
     EmployeePositionSerializer, JobDutySerializer, AppointedTaskSerializer, ScheduledProductionTaskSerializer, \
-    DemandMainSerializer, CompanySerializer, AvailabilityTemplateSerializer
+    DemandMainSerializer, CompanySerializer, AvailabilityTemplateSerializer, EmployeeAvailabilityTemplatesSerializer, \
+    EmployeeAvailabilityTemplateSerializer
 
 
 class ProductionTaskListView(generics.ListAPIView):
