@@ -3,6 +3,8 @@ from django.http import JsonResponse
 from rest_framework import generics, status
 from rest_framework.decorators import api_view
 from rest_framework.parsers import JSONParser
+
+from ..availabilityProcessing import AvailabilityProcessing
 from ..demandProcessing import DemandProcessing
 from ..integration.demand_by_history_calculate import DemandByHistoryDataCalculate
 from ..taskProcessing import TaskProcessing
@@ -11,7 +13,7 @@ from ..models import Production_Task, Organization, Subdivision, Employee, Emplo
     Employee_Availability_Templates
 from .serializers import ProductionTaskSerializer, OrganizationSerializer, SubdivisionSerializer, EmployeeSerializer, \
     EmployeePositionSerializer, JobDutySerializer, AppointedTaskSerializer, ScheduledProductionTaskSerializer, \
-    DemandMainSerializer, CompanySerializer, AvailabilityTemplateSerializer, EmployeeAvailabilityTemplatesSerializer
+    DemandMainSerializer, CompanySerializer, AvailabilityTemplateSerializer
 
 
 class ProductionTaskListView(generics.ListAPIView):
@@ -340,7 +342,8 @@ def availability_template_detail(request, pk):
 
     elif request.method == 'POST':
         availability_template_data = JSONParser().parse(request)
-        availability_template_serializer = AvailabilityTemplateSerializer(availability_template, data=availability_template_data)
+        availability_template_serializer = AvailabilityTemplateSerializer(availability_template,
+                                                                          data=availability_template_data)
         if availability_template_serializer.is_valid():
             availability_template_serializer.save()
             return JsonResponse(availability_template_serializer.data)
@@ -349,3 +352,23 @@ def availability_template_detail(request, pk):
     elif request.method == 'DELETE':
         availability_template.delete()
         return JsonResponse({'message': 'Organization was deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['POST'])
+def assign_employee_availability_template(request):
+    data = JSONParser().parse(request)
+    eat_serializer = EmployeeAvailabilityTemplateSerializer(data=data)
+    if eat_serializer.is_valid():
+        employee_id = data.get('employee')
+        template_id = data.get('template')
+        try:
+            employee = Employee.objects.get(pk=employee_id)
+        except Employee.DoesNotExist:
+            return JsonResponse({'message': 'The employee does not exist'}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            template = Availability_Template.objects.get(pk=template_id)
+        except Availability_Template.DoesNotExist:
+            return JsonResponse({'message': 'The template does not exist'}, status=status.HTTP_404_NOT_FOUND)
+        response = AvailabilityProcessing.assign_availability_template(eat_serializer)
+        return response
+    return JsonResponse(eat_serializer.errors, status=status.HTTP_400_BAD_REQUEST)

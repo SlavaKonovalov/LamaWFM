@@ -153,3 +153,10 @@ class AvailabilityTemplateSerializer(serializers.ModelSerializer):
             else:
                 Availability_Template_Data.objects.create(**line_step)
         return instance
+
+
+class EmployeeAvailabilityTemplateSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Employee_Availability_Templates
+        fields = '__all__'

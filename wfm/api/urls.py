@@ -85,6 +85,10 @@ urlpatterns = [
          views.availability_template_detail,
          name='availability_template_detail'),
 
+    path('assign_availability_template/',
+         views.assign_employee_availability_template,
+         name='assign_availability_template'),
+
     path('employee_availability_templates/',
          views.EmployeeAvailabilityTemplatesView.as_view(),
          name='employee_availability_templates'),
