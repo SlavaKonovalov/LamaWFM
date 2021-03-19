@@ -84,4 +84,8 @@ urlpatterns = [
     path('availability_templates/<int:pk>/',
          views.availability_template_detail,
          name='availability_template_detail'),
+
+    path('employee_availability_templates/',
+         views.EmployeeAvailabilityTemplatesView.as_view(),
+         name='employee_availability_templates'),
 ]
