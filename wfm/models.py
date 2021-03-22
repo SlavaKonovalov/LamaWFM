@@ -444,6 +444,8 @@ class Availability_Template_Data(models.Model):
     begin_time = models.TimeField('Время начала')
     end_time = models.TimeField('Время окончания')
 
+    objects = DataFrameManager()
+
     class Meta:
         verbose_name = 'Строки шаблона доступности'
         verbose_name_plural = 'Строки шаблона доступности'

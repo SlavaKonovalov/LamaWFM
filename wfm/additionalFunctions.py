@@ -17,6 +17,10 @@ class Global:
         ))
 
     @staticmethod
+    def get_combine_datetime(initial_date, initial_time):
+        return Global.add_timezone(datetime.datetime.combine(initial_date, initial_time))
+
+    @staticmethod
     def get_week_delta(date_from, date_to):
         if date_from > date_to:
             return 0

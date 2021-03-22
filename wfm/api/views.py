@@ -1,9 +1,11 @@
 import datetime as datetime
+import dateutil.parser
 from django.http import JsonResponse
 from rest_framework import generics, status
 from rest_framework.decorators import api_view
 from rest_framework.parsers import JSONParser
 
+from ..additionalFunctions import Global
 from ..availabilityProcessing import AvailabilityProcessing
 from ..demandProcessing import DemandProcessing
 from ..integration.demand_by_history_calculate import DemandByHistoryDataCalculate
@@ -360,3 +362,27 @@ def assign_employee_availability_template(request):
         response = AvailabilityProcessing.assign_availability_template(eat_serializer)
         return response
     return JsonResponse(eat_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+def recalculate_availability(request):
+    data = JSONParser().parse(request)
+    subdivision_id = data.get('subdivision_id')
+    employee_id = data.get('employee_id')
+    begin_date = dateutil.parser.parse(data.get('begin_date'))
+    end_date = dateutil.parser.parse(data.get('end_date'))
+    tomorrow_day = Global.get_current_midnight(datetime.datetime.now()) + datetime.timedelta(days=1)
+    begin_date = max(begin_date, tomorrow_day)
+    try:
+        subdivision = Subdivision.objects.get(pk=subdivision_id)
+    except Subdivision.DoesNotExist:
+        return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    if employee_id:
+        try:
+            employee = Employee.objects.get(pk=employee_id)
+        except Employee.DoesNotExist:
+            return JsonResponse({'message': 'The employee does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    if begin_date is None or end_date is None or begin_date >= end_date:
+        return JsonResponse({'message': 'Wrong date parameters'}, status=status.HTTP_400_BAD_REQUEST)
+    response = AvailabilityProcessing.recalculate_availability(subdivision_id, begin_date, end_date, employee_id)
+    return response

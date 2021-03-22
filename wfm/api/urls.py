@@ -88,4 +88,8 @@ urlpatterns = [
     path('assign_availability_template/',
          views.assign_employee_availability_template,
          name='assign_availability_template'),
+
+    path('recalculate_availability/',
+         views.recalculate_availability,
+         name='recalculate_availability'),
 ]
