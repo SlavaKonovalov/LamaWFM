@@ -20,32 +20,33 @@ class DemandByHistoryDataCalculate:
         except Subdivision.DoesNotExist:
             return "Subdivision with id " + str(self.subdivision_id) + " not found in DB "
 
-        predictable_Production_Tasks = Predictable_Production_Task.objects.filter(subdivision_id=subdivision.pk)
+        predictable_production_tasks = Predictable_Production_Task.objects.filter(subdivision_id=subdivision.pk)
 
-        for predictable_Production_Task in predictable_Production_Tasks:
-            production_Task_Business_Indicators = Production_Task_Business_Indicator.objects.filter(
-                task_id=predictable_Production_Task.task)
+        for predictable_production_task in predictable_production_tasks:
+            production_task_business_indicators = Production_Task_Business_Indicator.objects.filter(
+                task_id=predictable_production_task.task)
 
-            for production_Task_Business_Indicator in production_Task_Business_Indicators:
+            for production_Task_Business_Indicator in production_task_business_indicators:
                 self.calculate_predicted_production_task(production_Task_Business_Indicator.business_indicator,
-                                                         predictable_Production_Task)
+                                                         predictable_production_task)
 
         #return "Demand data by subdivision: " + subdivision.name + " success calculated !"
 
-    def calculate_predicted_production_task(self, business_indicator, predictable_Production_Task):
+    def calculate_predicted_production_task(self, business_indicator, predictable_production_task):
 
         try:
-            business_Indicator_Norm = Business_Indicator_Norm.objects.get(business_indicator_id=business_indicator.pk)
+            business_indicator_norm = Business_Indicator_Norm.objects.get(business_indicator_id=business_indicator.pk)
         except Business_Indicator_Norm.DoesNotExist:
             return "Norm on business indicator with id " + str(business_indicator.pk) + " not found in DB "
 
-        self.clear_predicted_production_task(predictable_Production_Task.pk, business_indicator.pk)
+        self.clear_predicted_production_task(predictable_production_task.pk, business_indicator.pk)
 
         query = "SELECT " \
                 "begin_date_time, " \
                 "CAST(date_part('isodow',begin_date_time) AS INT) AS dayofweek, " \
                 "begin_date_time::time AS begin_time, " \
-                "CAST((EXTRACT(HOUR FROM begin_date_time) * 3600 + EXTRACT(MIN FROM begin_date_time) * 60 + EXTRACT(SECOND FROM begin_date_time))AS INT)  AS begin_time_in_sec," \
+                "CAST((EXTRACT(HOUR FROM begin_date_time) * 3600 + EXTRACT(MIN FROM begin_date_time) * 60 " \
+                "+ EXTRACT(SECOND FROM begin_date_time))AS INT)  AS begin_time_in_sec," \
                 "CAST(indicator_value AS DECIMAL(32,16)) AS indicator_value, " \
                 "time_interval_length, " \
                 "business_indicator_id, " \
@@ -53,8 +54,9 @@ class DemandByHistoryDataCalculate:
                 "FROM public.wfm_business_indicator_data " \
                 "WHERE subdivision_id = " + str(self.subdivision_id) \
                 + " AND business_indicator_id = " + str(business_indicator.pk) \
-                + " AND  begin_date_time >= '" + str(self.history_from_date) + "'" \
-                + " AND  begin_date_time <= '" + str(self.history_to_date) + "'"
+                + " AND begin_date_time >= '" + str(self.history_from_date) + "'" \
+                + " AND begin_date_time <= '" + str(self.history_to_date) + "'" \
+                + " AND holiday_period_id = 0"
 
         df = DataBase.get_dataframe_by_query(query)
         if not df.empty:
@@ -70,13 +72,13 @@ class DemandByHistoryDataCalculate:
                 if not avg_by_dayofweek_row.empty:
                     indicator_value = round(Decimal(list(avg_by_dayofweek_row['indicator_value'])[0]), 2)
 
-                    predicted_Production_Task = Predicted_Production_Task()
-                    predicted_Production_Task.begin_date_time = cur_date
-                    predicted_Production_Task.predictable_task = predictable_Production_Task
-                    predicted_Production_Task.business_indicator = business_indicator
-                    predicted_Production_Task.work_scope_time = int((indicator_value * business_Indicator_Norm.norm_value * Decimal(1.3)) / 60)
-                    # predicted_Production_Task.work_scope_time = int((indicator_value * business_Indicator_Norm.norm_value) / 60)
-                    predicted_Production_Task.save()
+                    predicted_production_task = Predicted_Production_Task()
+                    predicted_production_task.begin_date_time = cur_date
+                    predicted_production_task.predictable_task = predictable_production_task
+                    predicted_production_task.business_indicator = business_indicator
+                    predicted_production_task.work_scope_time = int((indicator_value * business_indicator_norm.norm_value * Decimal(1.3)) / 60)
+                    # predicted_Production_Task.work_scope_time = int((indicator_value * business_indicator_norm.norm_value) / 60)
+                    predicted_production_task.save()
 
     def clear_predicted_production_task(self, predictable_task_id, business_indicator_id):
         Predicted_Production_Task.objects.filter(predictable_task_id=predictable_task_id,
