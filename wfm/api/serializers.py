@@ -64,6 +64,12 @@ class EmployeePositionSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class EmployeeAvailabilityTemplatesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Employee_Availability_Templates
+        fields = '__all__'
+
+
 class TasksInDutySerializer(serializers.ModelSerializer):
     task = ProductionTaskShortSerializer(read_only=True, many=False)
 

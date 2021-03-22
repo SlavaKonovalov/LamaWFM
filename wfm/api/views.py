@@ -11,10 +11,12 @@ from ..demandProcessing import DemandProcessing
 from ..integration.demand_by_history_calculate import DemandByHistoryDataCalculate
 from ..taskProcessing import TaskProcessing
 from ..models import Production_Task, Organization, Subdivision, Employee, Employee_Position, Job_Duty, \
-    Appointed_Production_Task, Scheduled_Production_Task, Demand_Detail_Main, Company, Availability_Template
+    Appointed_Production_Task, Scheduled_Production_Task, Demand_Detail_Main, Company, Availability_Template, \
+    Employee_Availability_Templates
 from .serializers import ProductionTaskSerializer, OrganizationSerializer, SubdivisionSerializer, EmployeeSerializer, \
     EmployeePositionSerializer, JobDutySerializer, AppointedTaskSerializer, ScheduledProductionTaskSerializer, \
-    DemandMainSerializer, CompanySerializer, AvailabilityTemplateSerializer, EmployeeAvailabilityTemplateSerializer
+    DemandMainSerializer, CompanySerializer, AvailabilityTemplateSerializer, EmployeeAvailabilityTemplatesSerializer, \
+    EmployeeAvailabilityTemplateSerializer
 
 
 class ProductionTaskListView(generics.ListAPIView):
@@ -151,6 +153,17 @@ class EmployeePositionListView(generics.ListAPIView):
         org_id = self.request.query_params.get('org_id', None)
         if org_id is not None:
             queryset = queryset.filter(organization_id=org_id)
+        return queryset
+
+
+class EmployeeAvailabilityTemplatesView(generics.ListAPIView):
+    serializer_class = EmployeeAvailabilityTemplatesSerializer
+
+    def get_queryset(self):
+        queryset = Employee_Availability_Templates.objects.all()
+        empl_id = self.request.query_params.get('empl_id', None)
+        if empl_id is not None:
+            queryset = queryset.filter(employee_id=empl_id)
         return queryset
 
 
