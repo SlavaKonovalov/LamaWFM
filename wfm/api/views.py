@@ -1,16 +1,22 @@
 import datetime as datetime
+import dateutil.parser
 from django.http import JsonResponse
 from rest_framework import generics, status
 from rest_framework.decorators import api_view
 from rest_framework.parsers import JSONParser
+
+from ..additionalFunctions import Global
+from ..availabilityProcessing import AvailabilityProcessing
 from ..demandProcessing import DemandProcessing
 from ..integration.demand_by_history_calculate import DemandByHistoryDataCalculate
 from ..taskProcessing import TaskProcessing
 from ..models import Production_Task, Organization, Subdivision, Employee, Employee_Position, Job_Duty, \
-    Appointed_Production_Task, Scheduled_Production_Task, Demand_Detail_Main, Company, Availability_Template
+    Appointed_Production_Task, Scheduled_Production_Task, Demand_Detail_Main, Company, Availability_Template, \
+    Employee_Availability_Templates
 from .serializers import ProductionTaskSerializer, OrganizationSerializer, SubdivisionSerializer, EmployeeSerializer, \
     EmployeePositionSerializer, JobDutySerializer, AppointedTaskSerializer, ScheduledProductionTaskSerializer, \
-    DemandMainSerializer, CompanySerializer, AvailabilityTemplateSerializer
+    DemandMainSerializer, CompanySerializer, AvailabilityTemplateSerializer, EmployeeAvailabilityTemplatesSerializer, \
+    EmployeeAvailabilityTemplateSerializer
 
 
 class ProductionTaskListView(generics.ListAPIView):
@@ -147,6 +153,17 @@ class EmployeePositionListView(generics.ListAPIView):
         org_id = self.request.query_params.get('org_id', None)
         if org_id is not None:
             queryset = queryset.filter(organization_id=org_id)
+        return queryset
+
+
+class EmployeeAvailabilityTemplatesView(generics.ListAPIView):
+    serializer_class = EmployeeAvailabilityTemplatesSerializer
+
+    def get_queryset(self):
+        queryset = Employee_Availability_Templates.objects.all()
+        empl_id = self.request.query_params.get('empl_id', None)
+        if empl_id is not None:
+            queryset = queryset.filter(employee_id=empl_id)
         return queryset
 
 
@@ -328,7 +345,8 @@ def availability_template_detail(request, pk):
 
     elif request.method == 'POST':
         availability_template_data = JSONParser().parse(request)
-        availability_template_serializer = OrganizationSerializer(availability_template, data=availability_template_data)
+        availability_template_serializer = AvailabilityTemplateSerializer(availability_template,
+                                                                          data=availability_template_data)
         if availability_template_serializer.is_valid():
             availability_template_serializer.save()
             return JsonResponse(availability_template_serializer.data)
@@ -337,3 +355,47 @@ def availability_template_detail(request, pk):
     elif request.method == 'DELETE':
         availability_template.delete()
         return JsonResponse({'message': 'Organization was deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['POST'])
+def assign_employee_availability_template(request):
+    data = JSONParser().parse(request)
+    eat_serializer = EmployeeAvailabilityTemplateSerializer(data=data)
+    if eat_serializer.is_valid():
+        employee_id = data.get('employee')
+        template_id = data.get('template')
+        try:
+            employee = Employee.objects.get(pk=employee_id)
+        except Employee.DoesNotExist:
+            return JsonResponse({'message': 'The employee does not exist'}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            template = Availability_Template.objects.get(pk=template_id)
+        except Availability_Template.DoesNotExist:
+            return JsonResponse({'message': 'The template does not exist'}, status=status.HTTP_404_NOT_FOUND)
+        response = AvailabilityProcessing.assign_availability_template(eat_serializer)
+        return response
+    return JsonResponse(eat_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+def recalculate_availability(request):
+    data = JSONParser().parse(request)
+    subdivision_id = data.get('subdivision_id')
+    employee_id = data.get('employee_id')
+    begin_date = dateutil.parser.parse(data.get('begin_date'))
+    end_date = dateutil.parser.parse(data.get('end_date'))
+    tomorrow_day = Global.get_current_midnight(datetime.datetime.now()) + datetime.timedelta(days=1)
+    begin_date = max(begin_date, tomorrow_day)
+    try:
+        subdivision = Subdivision.objects.get(pk=subdivision_id)
+    except Subdivision.DoesNotExist:
+        return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    if employee_id:
+        try:
+            employee = Employee.objects.get(pk=employee_id)
+        except Employee.DoesNotExist:
+            return JsonResponse({'message': 'The employee does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    if begin_date is None or end_date is None or begin_date >= end_date:
+        return JsonResponse({'message': 'Wrong date parameters'}, status=status.HTTP_400_BAD_REQUEST)
+    response = AvailabilityProcessing.recalculate_availability(subdivision_id, begin_date, end_date, employee_id)
+    return response

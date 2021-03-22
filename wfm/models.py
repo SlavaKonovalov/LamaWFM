@@ -462,6 +462,7 @@ class Availability_Template(models.Model):
     class Meta:
         verbose_name = 'Шаблон доступности'
         verbose_name_plural = 'Шаблоны доступности'
+        unique_together = ('subdivision', 'name')
 
 
 class Availability_Template_Data(models.Model):
@@ -471,6 +472,8 @@ class Availability_Template_Data(models.Model):
     week_day = models.PositiveIntegerField('День недели', default=0)
     begin_time = models.TimeField('Время начала')
     end_time = models.TimeField('Время окончания')
+
+    objects = DataFrameManager()
 
     class Meta:
         verbose_name = 'Строки шаблона доступности'
@@ -555,7 +558,7 @@ class Planning_Method(models.Model):
 
 class Working_Hours_Rate(models.Model):
     name = models.CharField('Название', max_length=100)
-    count_workings_hours_in_month = models.PositiveIntegerField('Количество рабочих часов в месяц', default=0)
+    count_working_hours_in_month = models.PositiveIntegerField('Количество рабочих часов в месяц', default=0)
 
     class Meta:
         verbose_name = 'Рабочие часы'
@@ -566,9 +569,9 @@ class Working_Hours_Rate(models.Model):
 
 
 class Employee_Planning_Rules(models.Model):
-    employee_id = models.ForeignKey(Employee, on_delete=models.CASCADE, verbose_name='Сотрудник', related_name='planning_rules_set', null=True, blank=True)
-    working_hours_rate_id = models.ForeignKey(Working_Hours_Rate, on_delete=models.CASCADE, verbose_name='Рабочие часы', related_name='planning_rules_set', null=True, blank=True)
-    planning_methods_id = models.ForeignKey(Planning_Method, on_delete=models.CASCADE, verbose_name='Способы планирования смен', related_name='planning_rules_set', null=True, blank=True)
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, verbose_name='Сотрудник', related_name='planning_rules_set', null=True, blank=True)
+    working_hours_rate = models.ForeignKey(Working_Hours_Rate, on_delete=models.CASCADE, verbose_name='Рабочие часы', related_name='planning_rules_set', null=True, blank=True)
+    planning_methods = models.ForeignKey(Planning_Method, on_delete=models.CASCADE, verbose_name='Способы планирования смен', related_name='planning_rules_set', null=True, blank=True)
     date_rules_start = models.DateField('Дата начала действия правила для сотрудника')
     date_rules_end = models.DateField('Дата окончания действия правила для сотрудника')
 

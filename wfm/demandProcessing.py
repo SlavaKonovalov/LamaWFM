@@ -33,13 +33,16 @@ class DemandProcessing:
                                                   day=date_step.day,
                                                   )
         date_step = apt_step_earliest
+        objects = []
         while date_step < apt_step_latest:
-            demand_detail_main, created_main = Demand_Detail_Main.objects.get_or_create(
+            demand_detail_main = Demand_Detail_Main(
                 subdivision_id=subdivision_id,
                 date_time_value=date_step,
-                defaults={'rounded_value': 0}
+                rounded_value=0
             )
+            objects.append(demand_detail_main)
             date_step += duration
+        Demand_Detail_Main.objects.bulk_create(objects, ignore_conflicts=True)
 
     @staticmethod
     # Копирование статистических данных
@@ -144,6 +147,7 @@ class DemandProcessing:
     def calculate_demand_hard(appointed_task, begin_date_time, end_date_time, work_scope_step, duration):
         date_time_counter = begin_date_time
 
+        objects = []
         while date_time_counter < end_date_time:
             demand_detail_main, created_main = Demand_Detail_Main.objects.get_or_create(
                 subdivision_id=appointed_task.scheduled_task.subdivision_id,
@@ -151,12 +155,14 @@ class DemandProcessing:
                 defaults={'rounded_value': 0}
             )
             if demand_detail_main is not None:
-                demand_detail_task, created_task = Demand_Detail_Task.objects.update_or_create(
+                demand_detail_task = Demand_Detail_Task(
                     demand_detail_main_id=demand_detail_main.id,
                     task_id=appointed_task.scheduled_task.task_id,
-                    defaults={'demand_value': work_scope_step}
+                    demand_value=work_scope_step
                 )
+                objects.append(demand_detail_task)
             date_time_counter += duration
+        Demand_Detail_Task.objects.bulk_create(objects, ignore_conflicts=True)
 
     @staticmethod
     # Расчет потребности для задач со свободным распределением
