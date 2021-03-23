@@ -137,14 +137,14 @@ class Planning_MethodAdmin(admin.ModelAdmin):
 @admin.register(Working_Hours_Rate)
 class Working_Hours_RateAdmin(admin.ModelAdmin):
     list_display = ['name',
-                    'count_workings_hours_in_month']
+                    'count_working_hours_in_month']
 
 
 @admin.register(Employee_Planning_Rules)
 class Employee_Planning_RulesAdmin(admin.ModelAdmin):
-    list_display = ['employee_id',
-                    'working_hours_rate_id',
-                    'planning_methods_id',
+    list_display = ['employee',
+                    'working_hours_rate',
+                    'planning_methods',
                     'date_rules_start',
                     "date_rules_end"]
 
