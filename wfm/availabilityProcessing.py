@@ -22,7 +22,8 @@ class AvailabilityProcessing:
         employee_templates_for_delete.delete()
         # Корректировка даты окончания действующих шаблонов
         employee_templates_for_change = employee_templates.filter(
-            Q(end_date__gte=begin_date) | Q(end_date__isnull=True))
+            Q(end_date__gte=begin_date) | Q(end_date__isnull=True),
+            employee_id=employee.id)
         for step in employee_templates_for_change.iterator():
             step.end_date = begin_date
             step.save(update_fields=['end_date'])
