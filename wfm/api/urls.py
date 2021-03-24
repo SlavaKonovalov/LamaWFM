@@ -107,4 +107,12 @@ urlpatterns = [
     path('planning_method/',
          views.PlanningMethodView.as_view(),
          name='planning_method'),
+
+    path('working_hours_rate/',
+         views.WorkingHoursRateView.as_view(),
+         name='working_hours_rate'),
+
+    path('work_shift_planning_rule/',
+         views.WorkShiftPlanningRuleView.as_view(),
+         name='work_shift_planning_rule'),
 ]
