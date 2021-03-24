@@ -84,6 +84,9 @@ urlpatterns = [
     path('availability_templates/<int:pk>/',
          views.availability_template_detail,
          name='availability_template_detail'),
+    path('availability_template_data_details/<int:pk>/',
+         views.availability_template_data_detail,
+         name='availability_template_data_detail'),
 
     path('assign_availability_template/',
          views.assign_employee_availability_template,
@@ -96,4 +99,20 @@ urlpatterns = [
     path('recalculate_availability/',
          views.recalculate_availability,
          name='recalculate_availability'),
+
+    path('plan_shifts/',
+         views.plan_shifts,
+         name='plan_shifts'),
+
+    path('planning_method/',
+         views.PlanningMethodView.as_view(),
+         name='planning_method'),
+
+    path('working_hours_rate/',
+         views.WorkingHoursRateView.as_view(),
+         name='working_hours_rate'),
+
+    path('work_shift_planning_rule/',
+         views.WorkShiftPlanningRuleView.as_view(),
+         name='work_shift_planning_rule'),
 ]

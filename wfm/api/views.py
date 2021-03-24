@@ -9,14 +9,17 @@ from ..additionalFunctions import Global
 from ..availabilityProcessing import AvailabilityProcessing
 from ..demandProcessing import DemandProcessing
 from ..integration.demand_by_history_calculate import DemandByHistoryDataCalculate
+from ..shiftPlanning import ShiftPlanning
 from ..taskProcessing import TaskProcessing
 from ..models import Production_Task, Organization, Subdivision, Employee, Employee_Position, Job_Duty, \
     Appointed_Production_Task, Scheduled_Production_Task, Demand_Detail_Main, Company, Availability_Template, \
-    Employee_Availability_Templates
+    Employee_Availability_Templates, Availability_Template_Data, Planning_Method, Working_Hours_Rate, \
+    Work_Shift_Planning_Rule
 from .serializers import ProductionTaskSerializer, OrganizationSerializer, SubdivisionSerializer, EmployeeSerializer, \
     EmployeePositionSerializer, JobDutySerializer, AppointedTaskSerializer, ScheduledProductionTaskSerializer, \
     DemandMainSerializer, CompanySerializer, AvailabilityTemplateSerializer, EmployeeAvailabilityTemplatesSerializer, \
-    EmployeeAvailabilityTemplateSerializer
+    EmployeeAvailabilityTemplateSerializer, PlanningMethodSerializer, WorkingHoursRateSerializer, \
+    WorkShiftPlanningRuleSerializer
 
 
 class ProductionTaskListView(generics.ListAPIView):
@@ -164,6 +167,30 @@ class EmployeeAvailabilityTemplatesView(generics.ListAPIView):
         empl_id = self.request.query_params.get('empl_id', None)
         if empl_id is not None:
             queryset = queryset.filter(employee_id=empl_id)
+        return queryset
+
+
+class PlanningMethodView(generics.ListAPIView):
+    serializer_class = PlanningMethodSerializer
+
+    def get_queryset(self):
+        queryset = Planning_Method.objects.all()
+        return queryset
+
+
+class WorkingHoursRateView(generics.ListAPIView):
+    serializer_class = WorkingHoursRateSerializer
+
+    def get_queryset(self):
+        queryset = Working_Hours_Rate.objects.all()
+        return queryset
+
+
+class WorkShiftPlanningRuleView(generics.ListAPIView):
+    serializer_class = WorkShiftPlanningRuleSerializer
+
+    def get_queryset(self):
+        queryset = Work_Shift_Planning_Rule.objects.all()
         return queryset
 
 
@@ -357,6 +384,17 @@ def availability_template_detail(request, pk):
         return JsonResponse({'message': 'Organization was deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
 
 
+@api_view(['DELETE'])
+def availability_template_data_detail(request, pk):
+    try:
+        availability_template_data = Availability_Template_Data.objects.get(pk=pk)
+    except Availability_Template_Data.DoesNotExist:
+        return JsonResponse({'message': 'The organization does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    if request.method == 'DELETE':
+        availability_template_data.delete()
+        return JsonResponse({'message': 'Organization was deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
+
+
 @api_view(['POST'])
 def assign_employee_availability_template(request):
     data = JSONParser().parse(request)
@@ -398,4 +436,28 @@ def recalculate_availability(request):
     if begin_date is None or end_date is None or begin_date >= end_date:
         return JsonResponse({'message': 'Wrong date parameters'}, status=status.HTTP_400_BAD_REQUEST)
     response = AvailabilityProcessing.recalculate_availability(subdivision_id, begin_date, end_date, employee_id)
+    return response
+
+
+@api_view(['POST'])
+def plan_shifts(request):
+    data = JSONParser().parse(request)
+    subdivision_id = data.get('subdivision_id')
+    employee_id = data.get('employee_id')
+    begin_date = dateutil.parser.parse(data.get('begin_date'))
+    end_date = dateutil.parser.parse(data.get('end_date'))
+    tomorrow_day = Global.get_current_midnight(datetime.datetime.now()) + datetime.timedelta(days=1)
+    begin_date = max(begin_date, tomorrow_day)
+    try:
+        subdivision = Subdivision.objects.get(pk=subdivision_id)
+    except Subdivision.DoesNotExist:
+        return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    if employee_id:
+        try:
+            employee = Employee.objects.get(pk=employee_id)
+        except Employee.DoesNotExist:
+            return JsonResponse({'message': 'The employee does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    if begin_date is None or end_date is None or begin_date >= end_date:
+        return JsonResponse({'message': 'Wrong date parameters'}, status=status.HTTP_400_BAD_REQUEST)
+    response = ShiftPlanning.plan_shifts(subdivision_id, begin_date, end_date, employee_id)
     return response

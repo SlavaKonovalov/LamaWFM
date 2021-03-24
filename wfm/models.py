@@ -319,7 +319,7 @@ class Employee(models.Model):
         ordering = ['subdivision', 'user']
 
     def __str__(self):
-        return str(self.pk)
+        return str(self.user.first_name + ' ' + self.user.last_name + ' ('+self.user.username+')')
 
     def get_duties(self):
         return ", ".join([duty.name for duty in self.duties.all()])
@@ -603,3 +603,35 @@ class Employee_Planning_Rules(models.Model):
     class Meta:
         verbose_name = 'Сотрудник - Правила планирования'
         verbose_name_plural = 'Сотрудник - Правила планирования'
+
+
+class Employee_Shift(models.Model):
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, verbose_name='Сотрудник',
+                                 related_name='shift_set')
+    subdivision = models.ForeignKey(Subdivision, on_delete=models.CASCADE, verbose_name='Подразделение',
+                                    related_name='shift_set')
+    shift_date = models.DateField('Дата смены')
+
+    class Meta:
+        verbose_name = 'Смена сотрудника'
+        verbose_name_plural = 'Смены сотрудников'
+        unique_together = ('employee', 'subdivision', 'shift_date')
+
+
+class Employee_Shift_Detail_Plan(models.Model):
+    interval_type_choices = (
+        ('job', 'Работа'),
+        ('break', 'Перерыв'),
+    )
+    shift_id = models.ForeignKey(Employee_Shift, on_delete=models.CASCADE, verbose_name='Смена',
+                                 related_name='detail_plan_set')
+    type = models.CharField('Тип интервала', max_length=20, choices=interval_type_choices, default='job')
+    time_from = models.TimeField('Время начала')
+    time_to = models.TimeField('Время окончания')
+
+
+class Employee_Shift_Detail_Fact(models.Model):
+    shift_id = models.ForeignKey(Employee_Shift, on_delete=models.CASCADE, verbose_name='Смена',
+                                 related_name='detail_fact_set')
+    time_from = models.TimeField('Время начала')
+    time_to = models.TimeField('Время окончания')
