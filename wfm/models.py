@@ -306,7 +306,7 @@ class Employee(models.Model):
         ordering = ['subdivision', 'user']
 
     def __str__(self):
-        return str(self.pk)
+        return str(self.user.first_name + ' ' + self.user.last_name + ' ('+self.user.username+')')
 
     def get_duties(self):
         return ", ".join([duty.name for duty in self.duties.all()])
