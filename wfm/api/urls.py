@@ -105,6 +105,6 @@ urlpatterns = [
          name='plan_shifts'),
 
     path('planning_method/',
-         views.planningMethodView.as_view(),
+         views.PlanningMethodView.as_view(),
          name='planning_method'),
 ]
