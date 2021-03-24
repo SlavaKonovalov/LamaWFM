@@ -434,7 +434,7 @@ class Holiday(models.Model):
 
 class Holiday_Period(models.Model):
     holiday = models.ForeignKey(Holiday, on_delete=models.CASCADE,
-                                     verbose_name='Праздник', related_name='holiday_period_set')
+                                verbose_name='Праздник', related_name='holiday_period_set')
     begin_date_time = models.DateTimeField('Дата начала')
     end_date_time = models.DateTimeField('Дата окончания')
 
@@ -519,9 +519,11 @@ class Work_Shift_Planning_Rule(models.Model):
 class Breaking_Rule(models.Model):
     break_first = models.PositiveIntegerField('Продолжительность первого перерыва', default=0)
     break_second = models.PositiveIntegerField('Продолжительность второго перерыва', default=0)
-    first_break_starting_after_going = models.PositiveIntegerField('Время от начала смены до первого перерыва', default=0)
+    first_break_starting_after_going = models.PositiveIntegerField('Время от начала смены до первого перерыва',
+                                                                   default=0)
     time_between_breaks = models.PositiveIntegerField('Время между перерывами', default=0)
-    second_break_starting_before_end = models.PositiveIntegerField('Время окончания последнего перерыва до конца смены', default=0)
+    second_break_starting_before_end = models.PositiveIntegerField('Время окончания последнего перерыва до конца смены',
+                                                                   default=0)
 
     class Meta:
         verbose_name = 'Справочник правил планирования перерывов'
@@ -537,14 +539,20 @@ class Planning_Method(models.Model):
     )
 
     shift_type = models.CharField('Тип графика', max_length=40, choices=type, default='flexible')
-    working_days_for_flexible_min = models.PositiveIntegerField('Гибкий график - рабочие дни (c)', null=True, blank=True)
-    working_days_for_flexible_max = models.PositiveIntegerField('Гибкий график - рабочие дни (по)', null=True, blank=True)
+    working_days_for_flexible_min = models.PositiveIntegerField('Гибкий график - рабочие дни (c)', null=True,
+                                                                blank=True)
+    working_days_for_flexible_max = models.PositiveIntegerField('Гибкий график - рабочие дни (по)', null=True,
+                                                                blank=True)
     weekends_for_flexible_min = models.PositiveIntegerField('Гибкий график - выходные дни (c)', null=True, blank=True)
     weekends_for_flexible_max = models.PositiveIntegerField('Гибкий график - выходные дни (по)', null=True, blank=True)
-    count_days_continuous_rest_min = models.PositiveIntegerField('Количество дней непрерывного отдыха (c)', null=True, blank=True)
-    count_days_continuous_rest_max = models.PositiveIntegerField('Количество дней непрерывного отдыха (по)', null=True, blank=True)
-    count_days_continuous_work_min = models.PositiveIntegerField('Количество дней непрерывной работы (c)', null=True, blank=True)
-    count_days_continuous_work_max = models.PositiveIntegerField('Количество дней непрерывной работы (по)', null=True, blank=True)
+    count_days_continuous_rest_min = models.PositiveIntegerField('Количество дней непрерывного отдыха (c)', null=True,
+                                                                 blank=True)
+    count_days_continuous_rest_max = models.PositiveIntegerField('Количество дней непрерывного отдыха (по)', null=True,
+                                                                 blank=True)
+    count_days_continuous_work_min = models.PositiveIntegerField('Количество дней непрерывной работы (c)', null=True,
+                                                                 blank=True)
+    count_days_continuous_work_max = models.PositiveIntegerField('Количество дней непрерывной работы (по)', null=True,
+                                                                 blank=True)
     shift_duration_min = models.PositiveIntegerField('Продолжительность смены (с)', default=0)
     shift_duration_max = models.PositiveIntegerField('Продолжительность смены (по)', default=0)
 
@@ -569,12 +577,48 @@ class Working_Hours_Rate(models.Model):
 
 
 class Employee_Planning_Rules(models.Model):
-    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, verbose_name='Сотрудник', related_name='planning_rules_set', null=True, blank=True)
-    working_hours_rate = models.ForeignKey(Working_Hours_Rate, on_delete=models.CASCADE, verbose_name='Рабочие часы', related_name='planning_rules_set', null=True, blank=True)
-    planning_methods = models.ForeignKey(Planning_Method, on_delete=models.CASCADE, verbose_name='Способы планирования смен', related_name='planning_rules_set', null=True, blank=True)
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, verbose_name='Сотрудник',
+                                 related_name='planning_rules_set', null=True, blank=True)
+    working_hours_rate = models.ForeignKey(Working_Hours_Rate, on_delete=models.CASCADE, verbose_name='Рабочие часы',
+                                           related_name='planning_rules_set', null=True, blank=True)
+    planning_methods = models.ForeignKey(Planning_Method, on_delete=models.CASCADE,
+                                         verbose_name='Способы планирования смен', related_name='planning_rules_set',
+                                         null=True, blank=True)
     date_rules_start = models.DateField('Дата начала действия правила для сотрудника')
     date_rules_end = models.DateField('Дата окончания действия правила для сотрудника')
 
     class Meta:
         verbose_name = 'Сотрудник - Правила планирования'
         verbose_name_plural = 'Сотрудник - Правила планирования'
+
+
+class Employee_Shift(models.Model):
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, verbose_name='Сотрудник',
+                                 related_name='shift_set')
+    subdivision = models.ForeignKey(Subdivision, on_delete=models.CASCADE, verbose_name='Подразделение',
+                                    related_name='shift_set')
+    shift_date = models.DateField('Дата смены')
+
+    class Meta:
+        verbose_name = 'Смена сотрудника'
+        verbose_name_plural = 'Смены сотрудников'
+        unique_together = ('employee', 'subdivision', 'shift_date')
+
+
+class Employee_Shift_Detail_Plan(models.Model):
+    interval_type_choices = (
+        ('job', 'Работа'),
+        ('break', 'Перерыв'),
+    )
+    shift_id = models.ForeignKey(Employee_Shift, on_delete=models.CASCADE, verbose_name='Смена',
+                                 related_name='detail_plan_set')
+    type = models.CharField('Тип интервала', max_length=20, choices=interval_type_choices, default='job')
+    time_from = models.TimeField('Время начала')
+    time_to = models.TimeField('Время окончания')
+
+
+class Employee_Shift_Detail_Fact(models.Model):
+    shift_id = models.ForeignKey(Employee_Shift, on_delete=models.CASCADE, verbose_name='Смена',
+                                 related_name='detail_fact_set')
+    time_from = models.TimeField('Время начала')
+    time_to = models.TimeField('Время окончания')
