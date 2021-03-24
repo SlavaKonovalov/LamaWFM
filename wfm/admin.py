@@ -18,7 +18,7 @@ class OrganizationAdmin(admin.ModelAdmin):
 
 @admin.register(Subdivision)
 class SubdivisionAdmin(admin.ModelAdmin):
-    list_display = ['name', 'external_code', 'organization', 'get_companies', 'shop_open_time', 'shop_close_time']
+    list_display = ['name', 'external_code', 'organization', 'get_companies', 'shop_open_time', 'shop_close_time', 'area_coefficient']
 
 
 # @admin.register(Department)
@@ -29,7 +29,7 @@ class SubdivisionAdmin(admin.ModelAdmin):
 @admin.register(Production_Task)
 class TaskAdmin(admin.ModelAdmin):
     list_display = ('name', 'demand_calculate', 'organization',
-                    'demand_data_source', 'work_scope_measure', 'demand_allocation_method')
+                    'demand_data_source', 'work_scope_measure', 'demand_allocation_method', 'use_area_coefficient', 'pieces_to_minutes_coefficient')
     list_filter = ('demand_calculate', 'demand_data_source', 'demand_allocation_method')
     search_fields = ['name']
 
