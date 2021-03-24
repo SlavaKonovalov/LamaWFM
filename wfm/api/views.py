@@ -13,11 +13,11 @@ from ..shiftPlanning import ShiftPlanning
 from ..taskProcessing import TaskProcessing
 from ..models import Production_Task, Organization, Subdivision, Employee, Employee_Position, Job_Duty, \
     Appointed_Production_Task, Scheduled_Production_Task, Demand_Detail_Main, Company, Availability_Template, \
-    Employee_Availability_Templates, Availability_Template_Data
+    Employee_Availability_Templates, Availability_Template_Data, Planning_Method
 from .serializers import ProductionTaskSerializer, OrganizationSerializer, SubdivisionSerializer, EmployeeSerializer, \
     EmployeePositionSerializer, JobDutySerializer, AppointedTaskSerializer, ScheduledProductionTaskSerializer, \
     DemandMainSerializer, CompanySerializer, AvailabilityTemplateSerializer, EmployeeAvailabilityTemplatesSerializer, \
-    EmployeeAvailabilityTemplateSerializer
+    EmployeeAvailabilityTemplateSerializer, PlanningMethodSerializer
 
 
 class ProductionTaskListView(generics.ListAPIView):
@@ -165,6 +165,14 @@ class EmployeeAvailabilityTemplatesView(generics.ListAPIView):
         empl_id = self.request.query_params.get('empl_id', None)
         if empl_id is not None:
             queryset = queryset.filter(employee_id=empl_id)
+        return queryset
+
+
+class PlanningMethodView(generics.ListAPIView):
+    serializer_class = PlanningMethodSerializer
+
+    def get_queryset(self):
+        queryset = Planning_Method.objects.all()
         return queryset
 
 

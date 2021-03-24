@@ -103,4 +103,8 @@ urlpatterns = [
     path('plan_shifts/',
          views.plan_shifts,
          name='plan_shifts'),
+
+    path('planning_method/',
+         views.planningMethodView.as_view(),
+         name='planning_method'),
 ]
