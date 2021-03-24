@@ -2,7 +2,7 @@ import pandas
 from django.db import transaction, connection
 import sys
 
-from LamaWFM.LamaWFM.wfm.models import Employee_Availability
+from .models import Employee_Availability
 
 sys.path.append('..')
 from LamaWFM.settings import TIME_ZONE
