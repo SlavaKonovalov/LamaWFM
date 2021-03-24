@@ -96,4 +96,8 @@ urlpatterns = [
     path('recalculate_availability/',
          views.recalculate_availability,
          name='recalculate_availability'),
+
+    path('plan_shifts/',
+         views.plan_shifts,
+         name='plan_shifts'),
 ]
