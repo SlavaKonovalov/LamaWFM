@@ -34,11 +34,26 @@ class Organization(models.Model):
         return self.name
 
 
+class Retail_Store_Format(models.Model):
+    name = models.CharField('Название', max_length=60)
+
+    class Meta:
+        verbose_name = 'Формат магазина'
+        verbose_name_plural = 'Форматы магазина'
+
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
 class Subdivision(models.Model):
     name = models.CharField('Подразделение', max_length=60)
     external_code = models.CharField('Внешний код', max_length=20, null=True, blank=True)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE,
                                      verbose_name='Организация', related_name='subdivision_set')
+    retail_store_format = models.ForeignKey(Retail_Store_Format, on_delete=models.SET_NULL, null=True, blank=True,
+                                            verbose_name='Формат магазина', related_name='subdivision_set')
     shop_open_time = models.TimeField('Время открытия магазина', null=True, blank=True)
     shop_close_time = models.TimeField('Время закрытия магазина', null=True, blank=True)
     area_coefficient = models.DecimalField(max_digits=32, decimal_places=16, verbose_name='Коэффициент площади')
