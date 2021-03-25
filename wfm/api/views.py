@@ -14,12 +14,12 @@ from ..taskProcessing import TaskProcessing
 from ..models import Production_Task, Organization, Subdivision, Employee, Employee_Position, Job_Duty, \
     Appointed_Production_Task, Scheduled_Production_Task, Demand_Detail_Main, Company, Availability_Template, \
     Employee_Availability_Templates, Availability_Template_Data, Planning_Method, Working_Hours_Rate, \
-    Work_Shift_Planning_Rule
+    Work_Shift_Planning_Rule, Breaking_Rule
 from .serializers import ProductionTaskSerializer, OrganizationSerializer, SubdivisionSerializer, EmployeeSerializer, \
     EmployeePositionSerializer, JobDutySerializer, AppointedTaskSerializer, ScheduledProductionTaskSerializer, \
     DemandMainSerializer, CompanySerializer, AvailabilityTemplateSerializer, EmployeeAvailabilityTemplatesSerializer, \
     EmployeeAvailabilityTemplateSerializer, PlanningMethodSerializer, WorkingHoursRateSerializer, \
-    WorkShiftPlanningRuleSerializer
+    WorkShiftPlanningRuleSerializer, BreakingRuleSerializer
 
 
 class ProductionTaskListView(generics.ListAPIView):
@@ -191,6 +191,14 @@ class WorkShiftPlanningRuleView(generics.ListAPIView):
 
     def get_queryset(self):
         queryset = Work_Shift_Planning_Rule.objects.all()
+        return queryset
+
+
+class BreakingRuleView(generics.ListAPIView):
+    serializer_class = BreakingRuleSerializer
+
+    def get_queryset(self):
+        queryset = Breaking_Rule.objects.all()
         return queryset
 
 

@@ -111,7 +111,8 @@ class Work_Shift_Planning_RuleAdmin(admin.ModelAdmin):
 
 @admin.register(Breaking_Rule)
 class Breaking_RuleAdmin(admin.ModelAdmin):
-    list_display = ['break_first',
+    list_display = ['name',
+                    'break_first',
                     'break_second',
                     'first_break_starting_after_going',
                     'time_between_breaks',
@@ -145,6 +146,7 @@ class Employee_Planning_RulesAdmin(admin.ModelAdmin):
     list_display = ['employee',
                     'working_hours_rate',
                     'planning_methods',
+                    'breaking_rule',
                     'date_rules_start',
                     "date_rules_end"]
 

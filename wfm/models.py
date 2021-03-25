@@ -517,6 +517,7 @@ class Work_Shift_Planning_Rule(models.Model):
 
 
 class Breaking_Rule(models.Model):
+    name = models.CharField('Название', max_length=60, default='')
     break_first = models.PositiveIntegerField('Продолжительность первого перерыва', default=0)
     break_second = models.PositiveIntegerField('Продолжительность второго перерыва', default=0)
     first_break_starting_after_going = models.PositiveIntegerField('Время от начала смены до первого перерыва',
@@ -526,8 +527,11 @@ class Breaking_Rule(models.Model):
                                                                    default=0)
 
     class Meta:
-        verbose_name = 'Справочник правил планирования перерывов'
-        verbose_name_plural = 'Справочник правил планирования перерывов'
+        verbose_name = 'Правила планирования перерывов'
+        verbose_name_plural = 'Правила планирования перерывов'
+
+    def __str__(self):
+        return self.name
 
 
 class Planning_Method(models.Model):
@@ -577,15 +581,12 @@ class Working_Hours_Rate(models.Model):
 
 
 class Employee_Planning_Rules(models.Model):
-    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, verbose_name='Сотрудник',
-                                 related_name='planning_rules_set', null=True, blank=True)
-    working_hours_rate = models.ForeignKey(Working_Hours_Rate, on_delete=models.CASCADE, verbose_name='Рабочие часы',
-                                           related_name='planning_rules_set', null=True, blank=True)
-    planning_methods = models.ForeignKey(Planning_Method, on_delete=models.CASCADE,
-                                         verbose_name='Способы планирования смен', related_name='planning_rules_set',
-                                         null=True, blank=True)
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, verbose_name='Сотрудник', related_name='planning_rules_set')
+    working_hours_rate = models.ForeignKey(Working_Hours_Rate, on_delete=models.CASCADE, verbose_name='Рабочие часы', related_name='planning_rules_set')
+    planning_methods = models.ForeignKey(Planning_Method, on_delete=models.CASCADE, verbose_name='Способы планирования смен', related_name='planning_rules_set')
+    breaking_rule = models.ForeignKey(Breaking_Rule, on_delete=models.CASCADE, verbose_name='Планирования перерывов', related_name='planning_rules_set')
     date_rules_start = models.DateField('Дата начала действия правила для сотрудника')
-    date_rules_end = models.DateField('Дата окончания действия правила для сотрудника')
+    date_rules_end = models.DateField('Дата окончания действия правила для сотрудника', null=True, blank=True)
 
     class Meta:
         verbose_name = 'Сотрудник - Правила планирования'
