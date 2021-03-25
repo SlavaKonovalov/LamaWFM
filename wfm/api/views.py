@@ -14,12 +14,12 @@ from ..taskProcessing import TaskProcessing
 from ..models import Production_Task, Organization, Subdivision, Employee, Employee_Position, Job_Duty, \
     Appointed_Production_Task, Scheduled_Production_Task, Demand_Detail_Main, Company, Availability_Template, \
     Employee_Availability_Templates, Availability_Template_Data, Planning_Method, Working_Hours_Rate, \
-    Work_Shift_Planning_Rule, Breaking_Rule
+    Work_Shift_Planning_Rule, Breaking_Rule, Employee_Planning_Rules
 from .serializers import ProductionTaskSerializer, OrganizationSerializer, SubdivisionSerializer, EmployeeSerializer, \
     EmployeePositionSerializer, JobDutySerializer, AppointedTaskSerializer, ScheduledProductionTaskSerializer, \
     DemandMainSerializer, CompanySerializer, AvailabilityTemplateSerializer, EmployeeAvailabilityTemplatesSerializer, \
     EmployeeAvailabilityTemplateSerializer, PlanningMethodSerializer, WorkingHoursRateSerializer, \
-    WorkShiftPlanningRuleSerializer, BreakingRuleSerializer
+    WorkShiftPlanningRuleSerializer, BreakingRuleSerializer, EmployeePlanningRuleSerializer
 
 
 class ProductionTaskListView(generics.ListAPIView):
@@ -164,6 +164,17 @@ class EmployeeAvailabilityTemplatesView(generics.ListAPIView):
 
     def get_queryset(self):
         queryset = Employee_Availability_Templates.objects.all()
+        empl_id = self.request.query_params.get('empl_id', None)
+        if empl_id is not None:
+            queryset = queryset.filter(employee_id=empl_id)
+        return queryset
+
+
+class EmployeePlanningRuleView(generics.ListAPIView):
+    serializer_class = EmployeePlanningRuleSerializer
+
+    def get_queryset(self):
+        queryset = Employee_Planning_Rules.objects.all()
         empl_id = self.request.query_params.get('empl_id', None)
         if empl_id is not None:
             queryset = queryset.filter(employee_id=empl_id)

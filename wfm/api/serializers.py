@@ -3,7 +3,7 @@ from rest_framework import serializers
 from ..models import Production_Task, Subdivision, Employee, Scheduled_Production_Task, Employee_Position, Job_Duty, \
     Tasks_In_Duty, Appointed_Production_Task, Organization, Demand_Detail_Main, Demand_Detail_Task, Company, \
     Availability_Template, Availability_Template_Data, Employee_Availability_Templates, Planning_Method, \
-    Working_Hours_Rate, Work_Shift_Planning_Rule, Breaking_Rule
+    Working_Hours_Rate, Work_Shift_Planning_Rule, Breaking_Rule, Employee_Planning_Rules
 
 
 class ScheduledProductionTaskSerializer(serializers.ModelSerializer):
@@ -68,6 +68,12 @@ class EmployeePositionSerializer(serializers.ModelSerializer):
 class EmployeeAvailabilityTemplatesSerializer(serializers.ModelSerializer):
     class Meta:
         model = Employee_Availability_Templates
+        fields = '__all__'
+
+
+class EmployeePlanningRuleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Employee_Planning_Rules
         fields = '__all__'
 
 
