@@ -1,3 +1,6 @@
+from decimal import Decimal
+
+from django.core.validators import MinValueValidator
 from django.db import models
 from django.contrib.auth.models import User
 from pandas import Series
@@ -31,13 +34,29 @@ class Organization(models.Model):
         return self.name
 
 
+class Retail_Store_Format(models.Model):
+    name = models.CharField('Название', max_length=60)
+
+    class Meta:
+        verbose_name = 'Формат магазина'
+        verbose_name_plural = 'Форматы магазина'
+
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
 class Subdivision(models.Model):
     name = models.CharField('Подразделение', max_length=60)
     external_code = models.CharField('Внешний код', max_length=20, null=True, blank=True)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE,
                                      verbose_name='Организация', related_name='subdivision_set')
+    retail_store_format = models.ForeignKey(Retail_Store_Format, on_delete=models.SET_NULL, null=True, blank=True,
+                                            verbose_name='Формат магазина', related_name='subdivision_set')
     shop_open_time = models.TimeField('Время открытия магазина', null=True, blank=True)
     shop_close_time = models.TimeField('Время закрытия магазина', null=True, blank=True)
+    area_coefficient = models.DecimalField(max_digits=32, decimal_places=16, verbose_name='Коэффициент площади')
 
     companies = models.ManyToManyField(Company, verbose_name='Юр. лица', null=True, blank=True)
 
@@ -101,6 +120,11 @@ class Production_Task(models.Model):
                                           choices=work_scope_measure_choices, default='minutes')
     demand_allocation_method = models.CharField('Распределение', max_length=20,
                                                 choices=demand_allocation_method_choices, default='soft')
+    use_area_coefficient = models.BooleanField('Использовать коэффициент площади', default=False)
+    pieces_to_minutes_coefficient = models.DecimalField(max_digits=32, decimal_places=16,
+                                                        verbose_name='Коэффициент перевода штук в минуты',
+                                                        validators=[MinValueValidator(Decimal('0.0000000000000001'))],
+                                                        default=1)
 
     class Meta:
         verbose_name = 'Производственная задача'
@@ -186,8 +210,12 @@ class Scheduled_Production_Task(models.Model):
         return (end_time.hour * 60 + end_time.minute) - (begin_time.hour * 60 + begin_time.minute)
 
     def work_scope_normalize(self):
-        # здесь будет вызов нормализации
-        return self.work_scope
+        work_scope = self.work_scope
+        if self.task.work_scope_measure == 'pieces':
+            work_scope = self.task.pieces_to_minutes_coefficient * work_scope
+        if self.task.use_area_coefficient:
+            work_scope = self.subdivision.area_coefficient * work_scope
+        return work_scope
 
     def get_week_series(self):
         return Series([self.day1_selection,

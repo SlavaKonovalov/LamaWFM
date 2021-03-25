@@ -1,6 +1,7 @@
 from ..models import Subdivision, Predictable_Production_Task, Production_Task_Business_Indicator, \
     Predicted_Production_Task, Business_Indicator_Norm
 from ..db import DataBase
+from ..additionalFunctions import Global
 from decimal import Decimal
 from datetime import timedelta
 
@@ -20,7 +21,7 @@ class DemandByHistoryDataCalculate:
         except Subdivision.DoesNotExist:
             return "Subdivision with id " + str(self.subdivision_id) + " not found in DB "
 
-        predictable_production_tasks = Predictable_Production_Task.objects.filter(subdivision_id=subdivision.pk)
+        predictable_production_tasks = Predictable_Production_Task.objects.select_related('task').select_related('subdivision').filter(subdivision_id=subdivision.pk)
 
         for predictable_production_task in predictable_production_tasks:
             production_task_business_indicators = Production_Task_Business_Indicator.objects.filter(
@@ -76,7 +77,15 @@ class DemandByHistoryDataCalculate:
                     predicted_production_task.begin_date_time = cur_date
                     predicted_production_task.predictable_task = predictable_production_task
                     predicted_production_task.business_indicator = business_indicator
-                    predicted_production_task.work_scope_time = int((indicator_value * business_indicator_norm.norm_value * Decimal(1.3)) / 60)
+                    work_scope_time = (indicator_value * business_indicator_norm.norm_value * Decimal(1.3)) / 60
+
+                    if predictable_production_task.task.use_area_coefficient:
+                        work_scope_time = Global.round_math(predictable_production_task.subdivision.area_coefficient * work_scope_time)
+                    if work_scope_time:
+                        predicted_production_task.work_scope_time = work_scope_time
+                    else:
+                        predicted_production_task.work_scope_time = 1
+
                     # predicted_Production_Task.work_scope_time = int((indicator_value * business_indicator_norm.norm_value) / 60)
                     predicted_production_task.save()
 
