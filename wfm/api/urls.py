@@ -103,4 +103,32 @@ urlpatterns = [
     path('plan_shifts/',
          views.plan_shifts,
          name='plan_shifts'),
+
+    path('planning_method/',
+         views.PlanningMethodView.as_view(),
+         name='planning_method'),
+
+    path('working_hours_rate/',
+         views.WorkingHoursRateView.as_view(),
+         name='working_hours_rate'),
+
+    path('work_shift_planning_rule/',
+         views.WorkShiftPlanningRuleView.as_view(),
+         name='work_shift_planning_rule'),
+
+    path('breaking_rule/',
+         views.BreakingRuleView.as_view(),
+         name='breaking_rule'),
+
+    path('employee_planning_rules/',
+         views.EmployeePlanningRuleView.as_view(),
+         name='employee_planning_rules'),
+
+    path('assign_employee_planning_rules/',
+         views.assign_employee_planning_rules,
+         name='assign_employee_planning_rules'),
+
+    path('employee_availability/',
+         views.EmployeeAvailabilityView.as_view(),
+         name='employee_availability'),
 ]

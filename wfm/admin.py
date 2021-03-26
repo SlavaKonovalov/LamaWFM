@@ -3,7 +3,7 @@ from .forms import EmployeeForm
 from .models import Organization, Production_Task, Subdivision, Scheduled_Production_Task, Employee, \
     Business_Indicator, Company, Job_Duty, Tasks_In_Duty, Employee_Position, Predictable_Production_Task, \
     Work_Shift_Planning_Rule, Breaking_Rule, Planning_Method, Working_Hours_Rate, Employee_Planning_Rules, \
-    Production_Task_Business_Indicator, Business_Indicator_Norm, Holiday, Holiday_Period
+    Production_Task_Business_Indicator, Business_Indicator_Norm, Holiday, Holiday_Period, Retail_Store_Format
 
 
 @admin.register(Company)
@@ -16,9 +16,14 @@ class OrganizationAdmin(admin.ModelAdmin):
     list_display = ['name']
 
 
+@admin.register(Retail_Store_Format)
+class RetailStoreFormatAdmin(admin.ModelAdmin):
+    list_display = ['name']
+
+
 @admin.register(Subdivision)
 class SubdivisionAdmin(admin.ModelAdmin):
-    list_display = ['name', 'external_code', 'organization', 'get_companies', 'shop_open_time', 'shop_close_time']
+    list_display = ['name', 'external_code', 'organization', 'retail_store_format', 'get_companies', 'shop_open_time', 'shop_close_time', 'area_coefficient']
 
 
 # @admin.register(Department)
@@ -29,7 +34,7 @@ class SubdivisionAdmin(admin.ModelAdmin):
 @admin.register(Production_Task)
 class TaskAdmin(admin.ModelAdmin):
     list_display = ('name', 'demand_calculate', 'organization',
-                    'demand_data_source', 'work_scope_measure', 'demand_allocation_method')
+                    'demand_data_source', 'work_scope_measure', 'demand_allocation_method', 'use_area_coefficient', 'pieces_to_minutes_coefficient')
     list_filter = ('demand_calculate', 'demand_data_source', 'demand_allocation_method')
     search_fields = ['name']
 
@@ -111,7 +116,8 @@ class Work_Shift_Planning_RuleAdmin(admin.ModelAdmin):
 
 @admin.register(Breaking_Rule)
 class Breaking_RuleAdmin(admin.ModelAdmin):
-    list_display = ['break_first',
+    list_display = ['name',
+                    'break_first',
                     'break_second',
                     'first_break_starting_after_going',
                     'time_between_breaks',
@@ -137,7 +143,8 @@ class Planning_MethodAdmin(admin.ModelAdmin):
 @admin.register(Working_Hours_Rate)
 class Working_Hours_RateAdmin(admin.ModelAdmin):
     list_display = ['name',
-                    'count_working_hours_in_month']
+                    'count_working_hours_in_month_min',
+                    'count_working_hours_in_month_max']
 
 
 @admin.register(Employee_Planning_Rules)
@@ -145,6 +152,7 @@ class Employee_Planning_RulesAdmin(admin.ModelAdmin):
     list_display = ['employee',
                     'working_hours_rate',
                     'planning_methods',
+                    'breaking_rule',
                     'date_rules_start',
                     "date_rules_end"]
 

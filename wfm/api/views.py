@@ -5,6 +5,7 @@ from rest_framework import generics, status
 from rest_framework.decorators import api_view
 from rest_framework.parsers import JSONParser
 
+from ..PlanningRulesProcessing import PlanningRulesProcessing
 from ..additionalFunctions import Global
 from ..availabilityProcessing import AvailabilityProcessing
 from ..demandProcessing import DemandProcessing
@@ -13,11 +14,14 @@ from ..shiftPlanning import ShiftPlanning
 from ..taskProcessing import TaskProcessing
 from ..models import Production_Task, Organization, Subdivision, Employee, Employee_Position, Job_Duty, \
     Appointed_Production_Task, Scheduled_Production_Task, Demand_Detail_Main, Company, Availability_Template, \
-    Employee_Availability_Templates, Availability_Template_Data
+    Employee_Availability_Templates, Availability_Template_Data, Planning_Method, Working_Hours_Rate, \
+    Work_Shift_Planning_Rule, Breaking_Rule, Employee_Planning_Rules, Employee_Availability
 from .serializers import ProductionTaskSerializer, OrganizationSerializer, SubdivisionSerializer, EmployeeSerializer, \
     EmployeePositionSerializer, JobDutySerializer, AppointedTaskSerializer, ScheduledProductionTaskSerializer, \
     DemandMainSerializer, CompanySerializer, AvailabilityTemplateSerializer, EmployeeAvailabilityTemplatesSerializer, \
-    EmployeeAvailabilityTemplateSerializer
+    EmployeeAvailabilityTemplateSerializer, PlanningMethodSerializer, WorkingHoursRateSerializer, \
+    WorkShiftPlanningRuleSerializer, BreakingRuleSerializer, EmployeePlanningRuleSerializer, \
+    AssignEmployeePlanningRulesSerializer, EmployeeAvailabilitySerializer
 
 
 class ProductionTaskListView(generics.ListAPIView):
@@ -165,6 +169,65 @@ class EmployeeAvailabilityTemplatesView(generics.ListAPIView):
         empl_id = self.request.query_params.get('empl_id', None)
         if empl_id is not None:
             queryset = queryset.filter(employee_id=empl_id)
+        return queryset
+
+
+class EmployeeAvailabilityView(generics.ListAPIView):
+    serializer_class = EmployeeAvailabilitySerializer
+
+    def get_queryset(self):
+        queryset = Employee_Availability.objects.all()
+        employee_id = self.request.query_params.get('employee_id', None)
+        subdivision_id = self.request.query_params.get('subdivision_id', None)
+        if employee_id is not None and subdivision_id is not None:
+            queryset = queryset.filter(employee_id=employee_id, subdivision_id=subdivision_id)
+        elif employee_id is not None and subdivision_id is None:
+            queryset = queryset.filter(employee_id=employee_id)
+        elif employee_id is None and subdivision_id is not None:
+            queryset = queryset.filter(subdivision_id=subdivision_id)
+        return queryset
+
+
+class EmployeePlanningRuleView(generics.ListAPIView):
+    serializer_class = EmployeePlanningRuleSerializer
+
+    def get_queryset(self):
+        queryset = Employee_Planning_Rules.objects.all()
+        empl_id = self.request.query_params.get('empl_id', None)
+        if empl_id is not None:
+            queryset = queryset.filter(employee_id=empl_id)
+        return queryset
+
+
+class PlanningMethodView(generics.ListAPIView):
+    serializer_class = PlanningMethodSerializer
+
+    def get_queryset(self):
+        queryset = Planning_Method.objects.all()
+        return queryset
+
+
+class WorkingHoursRateView(generics.ListAPIView):
+    serializer_class = WorkingHoursRateSerializer
+
+    def get_queryset(self):
+        queryset = Working_Hours_Rate.objects.all()
+        return queryset
+
+
+class WorkShiftPlanningRuleView(generics.ListAPIView):
+    serializer_class = WorkShiftPlanningRuleSerializer
+
+    def get_queryset(self):
+        queryset = Work_Shift_Planning_Rule.objects.all()
+        return queryset
+
+
+class BreakingRuleView(generics.ListAPIView):
+    serializer_class = BreakingRuleSerializer
+
+    def get_queryset(self):
+        queryset = Breaking_Rule.objects.all()
         return queryset
 
 
@@ -387,6 +450,37 @@ def assign_employee_availability_template(request):
         response = AvailabilityProcessing.assign_availability_template(eat_serializer)
         return response
     return JsonResponse(eat_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+def assign_employee_planning_rules(request):
+    data = JSONParser().parse(request)
+    epr_serializer = AssignEmployeePlanningRulesSerializer(data=data)
+    if epr_serializer.is_valid():
+        employee_id = data.get('employee')
+        working_hours_rate_id = data.get('working_hours_rate')
+        planning_methods_id = data.get('planning_methods')
+        breaking_rule_id = data.get('breaking_rule')
+        try:
+            employee = Employee.objects.get(pk=employee_id)
+        except Employee.DoesNotExist:
+            return JsonResponse({'message': 'The employee does not exist'}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            working = Working_Hours_Rate.objects.get(pk=working_hours_rate_id)
+        except Working_Hours_Rate.DoesNotExist:
+            return JsonResponse({'message': 'The workingHoursRate does not exist'}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            planning = Planning_Method.objects.get(pk=planning_methods_id)
+        except Planning_Method.DoesNotExist:
+            return JsonResponse({'message': 'The planningMethod does not exist'}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            breaking = Breaking_Rule.objects.get(pk=breaking_rule_id)
+        except Breaking_Rule.DoesNotExist:
+            return JsonResponse({'message': 'The breakingRule does not exist'}, status=status.HTTP_404_NOT_FOUND)
+        response = PlanningRulesProcessing.assign_employee_planning_rules(epr_serializer)
+        return response
+    return JsonResponse(epr_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 @api_view(['POST'])

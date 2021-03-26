@@ -1,3 +1,6 @@
+from decimal import Decimal
+
+from django.core.validators import MinValueValidator
 from django.db import models
 from django.contrib.auth.models import User
 from pandas import Series
@@ -31,13 +34,29 @@ class Organization(models.Model):
         return self.name
 
 
+class Retail_Store_Format(models.Model):
+    name = models.CharField('Название', max_length=60)
+
+    class Meta:
+        verbose_name = 'Формат магазина'
+        verbose_name_plural = 'Форматы магазина'
+
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
 class Subdivision(models.Model):
     name = models.CharField('Подразделение', max_length=60)
     external_code = models.CharField('Внешний код', max_length=20, null=True, blank=True)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE,
                                      verbose_name='Организация', related_name='subdivision_set')
+    retail_store_format = models.ForeignKey(Retail_Store_Format, on_delete=models.SET_NULL, null=True, blank=True,
+                                            verbose_name='Формат магазина', related_name='subdivision_set')
     shop_open_time = models.TimeField('Время открытия магазина', null=True, blank=True)
     shop_close_time = models.TimeField('Время закрытия магазина', null=True, blank=True)
+    area_coefficient = models.DecimalField(max_digits=32, decimal_places=16, verbose_name='Коэффициент площади')
 
     companies = models.ManyToManyField(Company, verbose_name='Юр. лица', null=True, blank=True)
 
@@ -101,6 +120,11 @@ class Production_Task(models.Model):
                                           choices=work_scope_measure_choices, default='minutes')
     demand_allocation_method = models.CharField('Распределение', max_length=20,
                                                 choices=demand_allocation_method_choices, default='soft')
+    use_area_coefficient = models.BooleanField('Использовать коэффициент площади', default=False)
+    pieces_to_minutes_coefficient = models.DecimalField(max_digits=32, decimal_places=16,
+                                                        verbose_name='Коэффициент перевода штук в минуты',
+                                                        validators=[MinValueValidator(Decimal('0.0000000000000001'))],
+                                                        default=1)
 
     class Meta:
         verbose_name = 'Производственная задача'
@@ -186,8 +210,12 @@ class Scheduled_Production_Task(models.Model):
         return (end_time.hour * 60 + end_time.minute) - (begin_time.hour * 60 + begin_time.minute)
 
     def work_scope_normalize(self):
-        # здесь будет вызов нормализации
-        return self.work_scope
+        work_scope = self.work_scope
+        if self.task.work_scope_measure == 'pieces':
+            work_scope = self.task.pieces_to_minutes_coefficient * work_scope
+        if self.task.use_area_coefficient:
+            work_scope = self.subdivision.area_coefficient * work_scope
+        return work_scope
 
     def get_week_series(self):
         return Series([self.day1_selection,
@@ -308,7 +336,7 @@ class Employee(models.Model):
         ordering = ['subdivision', 'user']
 
     def __str__(self):
-        return str(self.pk)
+        return str(self.user.first_name + ' ' + self.user.last_name + ' ('+self.user.username+')')
 
     def get_duties(self):
         return ", ".join([duty.name for duty in self.duties.all()])
@@ -510,7 +538,7 @@ class Employee_Availability(models.Model):
 
 
 class Work_Shift_Planning_Rule(models.Model):
-    time_between_shift = models.PositiveIntegerField('Время между сменами', default=0)
+    time_between_shift = models.PositiveIntegerField('Минимальное время между сменами', default=0)
     continuous_weekly_rest = models.PositiveIntegerField('Еженедельный непрерывный отдых', default=0)
 
     class Meta:
@@ -519,6 +547,7 @@ class Work_Shift_Planning_Rule(models.Model):
 
 
 class Breaking_Rule(models.Model):
+    name = models.CharField('Название', max_length=60, default='')
     break_first = models.PositiveIntegerField('Продолжительность первого перерыва', default=0)
     break_second = models.PositiveIntegerField('Продолжительность второго перерыва', default=0)
     first_break_starting_after_going = models.PositiveIntegerField('Время от начала смены до первого перерыва',
@@ -528,8 +557,11 @@ class Breaking_Rule(models.Model):
                                                                    default=0)
 
     class Meta:
-        verbose_name = 'Справочник правил планирования перерывов'
-        verbose_name_plural = 'Справочник правил планирования перерывов'
+        verbose_name = 'Правила планирования перерывов'
+        verbose_name_plural = 'Правила планирования перерывов'
+
+    def __str__(self):
+        return self.name
 
 
 class Planning_Method(models.Model):
@@ -568,7 +600,8 @@ class Planning_Method(models.Model):
 
 class Working_Hours_Rate(models.Model):
     name = models.CharField('Название', max_length=100)
-    count_working_hours_in_month = models.PositiveIntegerField('Количество рабочих часов в месяц', default=0)
+    count_working_hours_in_month_min = models.PositiveIntegerField('Количество рабочих часов в месяц (с)', default=0)
+    count_working_hours_in_month_max = models.PositiveIntegerField('Количество рабочих часов в месяц (по)', default=0)
 
     class Meta:
         verbose_name = 'Рабочие часы'
@@ -579,15 +612,12 @@ class Working_Hours_Rate(models.Model):
 
 
 class Employee_Planning_Rules(models.Model):
-    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, verbose_name='Сотрудник',
-                                 related_name='planning_rules_set', null=True, blank=True)
-    working_hours_rate = models.ForeignKey(Working_Hours_Rate, on_delete=models.CASCADE, verbose_name='Рабочие часы',
-                                           related_name='planning_rules_set', null=True, blank=True)
-    planning_methods = models.ForeignKey(Planning_Method, on_delete=models.CASCADE,
-                                         verbose_name='Способы планирования смен', related_name='planning_rules_set',
-                                         null=True, blank=True)
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, verbose_name='Сотрудник', related_name='planning_rules_set')
+    working_hours_rate = models.ForeignKey(Working_Hours_Rate, on_delete=models.CASCADE, verbose_name='Рабочие часы', related_name='planning_rules_set')
+    planning_methods = models.ForeignKey(Planning_Method, on_delete=models.CASCADE, verbose_name='Способы планирования смен', related_name='planning_rules_set')
+    breaking_rule = models.ForeignKey(Breaking_Rule, on_delete=models.CASCADE, verbose_name='Планирования перерывов', related_name='planning_rules_set')
     date_rules_start = models.DateField('Дата начала действия правила для сотрудника')
-    date_rules_end = models.DateField('Дата окончания действия правила для сотрудника')
+    date_rules_end = models.DateField('Дата окончания действия правила для сотрудника', null=True, blank=True)
 
     class Meta:
         verbose_name = 'Сотрудник - Правила планирования'
