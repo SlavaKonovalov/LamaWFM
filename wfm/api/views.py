@@ -15,13 +15,13 @@ from ..taskProcessing import TaskProcessing
 from ..models import Production_Task, Organization, Subdivision, Employee, Employee_Position, Job_Duty, \
     Appointed_Production_Task, Scheduled_Production_Task, Demand_Detail_Main, Company, Availability_Template, \
     Employee_Availability_Templates, Availability_Template_Data, Planning_Method, Working_Hours_Rate, \
-    Work_Shift_Planning_Rule, Breaking_Rule, Employee_Planning_Rules
+    Work_Shift_Planning_Rule, Breaking_Rule, Employee_Planning_Rules, Employee_Availability
 from .serializers import ProductionTaskSerializer, OrganizationSerializer, SubdivisionSerializer, EmployeeSerializer, \
     EmployeePositionSerializer, JobDutySerializer, AppointedTaskSerializer, ScheduledProductionTaskSerializer, \
     DemandMainSerializer, CompanySerializer, AvailabilityTemplateSerializer, EmployeeAvailabilityTemplatesSerializer, \
     EmployeeAvailabilityTemplateSerializer, PlanningMethodSerializer, WorkingHoursRateSerializer, \
     WorkShiftPlanningRuleSerializer, BreakingRuleSerializer, EmployeePlanningRuleSerializer, \
-    AssignEmployeePlanningRulesSerializer
+    AssignEmployeePlanningRulesSerializer, EmployeeAvailabilitySerializer
 
 
 class ProductionTaskListView(generics.ListAPIView):
@@ -169,6 +169,22 @@ class EmployeeAvailabilityTemplatesView(generics.ListAPIView):
         empl_id = self.request.query_params.get('empl_id', None)
         if empl_id is not None:
             queryset = queryset.filter(employee_id=empl_id)
+        return queryset
+
+
+class EmployeeAvailabilityView(generics.ListAPIView):
+    serializer_class = EmployeeAvailabilitySerializer
+
+    def get_queryset(self):
+        queryset = Employee_Availability.objects.all()
+        employee_id = self.request.query_params.get('employee_id', None)
+        subdivision_id = self.request.query_params.get('subdivision_id', None)
+        if employee_id is not None and subdivision_id is not None:
+            queryset = queryset.filter(employee_id=employee_id, subdivision_id=subdivision_id)
+        elif employee_id is not None and subdivision_id is None:
+            queryset = queryset.filter(employee_id=employee_id)
+        elif employee_id is None and subdivision_id is not None:
+            queryset = queryset.filter(subdivision_id=subdivision_id)
         return queryset
 
 

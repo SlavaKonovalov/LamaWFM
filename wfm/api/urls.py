@@ -127,4 +127,8 @@ urlpatterns = [
     path('assign_employee_planning_rules/',
          views.assign_employee_planning_rules,
          name='assign_employee_planning_rules'),
+
+    path('employee_availability/',
+         views.EmployeeAvailabilityView.as_view(),
+         name='employee_availability'),
 ]
