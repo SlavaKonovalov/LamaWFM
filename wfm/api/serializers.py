@@ -191,3 +191,10 @@ class EmployeeAvailabilityTemplateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Employee_Availability_Templates
         fields = '__all__'
+
+
+class AssignEmployeePlanningRulesSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Employee_Planning_Rules
+        fields = '__all__'
