@@ -71,7 +71,7 @@ class DemandProcessing:
     # 2. находим фун-ю обяз-ть с наименьшим приоритетом, связанную с этой задачей
     # 3. находим сумму потребностей внутри ФО, затем округляем. Если получаем 0, то повышаем до 1.
     # 4. находим сумму по всем ФО в разрезе часа.
-    def calculate_rounded_value(date_begin, tz):
+    def calculate_rounded_value(date_begin, tz, subdivision_id):
         cursor = connection.cursor()
         query = """
                 UPDATE wfm_demand_detail_main
@@ -81,8 +81,8 @@ class DemandProcessing:
                 FROM
                 (
                 SELECT
-                CASE WHEN ROUND(SUM(task_sum.demand_sum)) = 0 THEN 1
-                ELSE ROUND(SUM(task_sum.demand_sum))
+                CASE WHEN COALESCE(ROUND(SUM(task_sum.demand_sum)), 0) = 0 THEN 1
+                ELSE COALESCE(ROUND(SUM(task_sum.demand_sum)), 0)
                 END AS demand_sum,
                 date, hour, duty_id
                 FROM
@@ -94,6 +94,8 @@ class DemandProcessing:
                 FROM wfm_demand_detail_main ddm
                 LEFT OUTER JOIN wfm_demand_detail_task ddt
                 ON (ddm.id = ddt.demand_detail_main_id)
+                WHERE ddm.date_time_value >= '%s'
+                AND ddm.subdivision_id = '%s'
                 GROUP BY ddt.task_id,
                                 DATE_TRUNC('day', ddm.date_time_value AT TIME ZONE '%s'),
                                 EXTRACT('hour' FROM ddm.date_time_value AT TIME ZONE '%s')
@@ -116,11 +118,12 @@ class DemandProcessing:
                 LIMIT 1
                 )
                 WHERE wfm_demand_detail_main.date_time_value >= '%s'
-                """ % (tz, tz, tz, tz, tz, tz, date_begin)
+                AND wfm_demand_detail_main.subdivision_id = '%s'
+                """ % (tz, tz, date_begin, subdivision_id, tz, tz, tz, tz, date_begin, subdivision_id)
         cursor.execute(query)
 
     @staticmethod
-    def calculate_rounded_value_old(date_begin, tz):
+    def calculate_rounded_value_old(date_begin, tz, subdivision_id):
         cursor = connection.cursor()
         query = """
                     UPDATE wfm_demand_detail_main
@@ -139,7 +142,8 @@ class DemandProcessing:
                     LIMIT 1
                     )
                     WHERE wfm_demand_detail_main.date_time_value >= '%s'
-                    """ % (tz, tz, tz, tz, date_begin)
+                    AND wfm_demand_detail_main.subdivision_id = '%s'
+                    """ % (tz, tz, tz, tz, date_begin, subdivision_id)
         cursor.execute(query)
 
     @staticmethod
@@ -354,6 +358,6 @@ class DemandProcessing:
                                                              work_scope_step, work_scope_all)
 
         # собираем среднее значение потребностей и обновляем rounded_value:
-        DemandProcessing.calculate_rounded_value(date_begin, TIME_ZONE)
+        DemandProcessing.calculate_rounded_value(date_begin, TIME_ZONE, subdivision_id)
 
         return JsonResponse({'message': 'request processed'}, status=status.HTTP_204_NO_CONTENT)

@@ -291,13 +291,15 @@ class Employee(models.Model):
                                 verbose_name="Пользователь", null=True, blank=True)
     middle_name = models.CharField('Отчество', max_length=30, null=True, blank=True)
     personnel_number = models.CharField('Табельный номер', max_length=30, null=True, blank=True)
-    subdivision = models.ForeignKey(Subdivision, on_delete=models.CASCADE, verbose_name='Подразделение',
+    subdivision = models.ForeignKey(Subdivision, on_delete=models.PROTECT, verbose_name='Подразделение',
                                     related_name='employee_set', null=True, blank=True)
-    position = models.ForeignKey(Employee_Position, on_delete=models.CASCADE, verbose_name='Должность',
+    position = models.ForeignKey(Employee_Position, on_delete=models.PROTECT, verbose_name='Должность',
                                  related_name='employee_position_set', null=True, blank=True)
     duties = models.ManyToManyField(Job_Duty, verbose_name='Обязанности', null=True, blank=True)
     part_time_job_org = models.ManyToManyField(Company, verbose_name='Юр. лица (подработка)',
                                                null=True, blank=True)
+
+    objects = DataFrameManager()
 
     class Meta:
         verbose_name = 'Сотрудник'
