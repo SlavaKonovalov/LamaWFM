@@ -536,7 +536,7 @@ class Employee_Availability(models.Model):
 
 
 class Work_Shift_Planning_Rule(models.Model):
-    time_between_shift = models.PositiveIntegerField('Время между сменами', default=0)
+    time_between_shift = models.PositiveIntegerField('Минимальное время между сменами', default=0)
     continuous_weekly_rest = models.PositiveIntegerField('Еженедельный непрерывный отдых', default=0)
 
     class Meta:
@@ -598,7 +598,8 @@ class Planning_Method(models.Model):
 
 class Working_Hours_Rate(models.Model):
     name = models.CharField('Название', max_length=100)
-    count_working_hours_in_month = models.PositiveIntegerField('Количество рабочих часов в месяц', default=0)
+    count_working_hours_in_month_min = models.PositiveIntegerField('Количество рабочих часов в месяц (с)', default=0)
+    count_working_hours_in_month_max = models.PositiveIntegerField('Количество рабочих часов в месяц (по)', default=0)
 
     class Meta:
         verbose_name = 'Рабочие часы'
