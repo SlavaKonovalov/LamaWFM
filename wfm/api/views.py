@@ -15,13 +15,13 @@ from ..taskProcessing import TaskProcessing
 from ..models import Production_Task, Organization, Subdivision, Employee, Employee_Position, Job_Duty, \
     Appointed_Production_Task, Scheduled_Production_Task, Demand_Detail_Main, Company, Availability_Template, \
     Employee_Availability_Templates, Availability_Template_Data, Planning_Method, Working_Hours_Rate, \
-    Work_Shift_Planning_Rule, Breaking_Rule, Employee_Planning_Rules, Employee_Availability
+    Work_Shift_Planning_Rule, Breaking_Rule, Employee_Planning_Rules, Employee_Availability, Employee_Shift
 from .serializers import ProductionTaskSerializer, OrganizationSerializer, SubdivisionSerializer, EmployeeSerializer, \
     EmployeePositionSerializer, JobDutySerializer, AppointedTaskSerializer, ScheduledProductionTaskSerializer, \
     DemandMainSerializer, CompanySerializer, AvailabilityTemplateSerializer, EmployeeAvailabilityTemplatesSerializer, \
     EmployeeAvailabilityTemplateSerializer, PlanningMethodSerializer, WorkingHoursRateSerializer, \
     WorkShiftPlanningRuleSerializer, BreakingRuleSerializer, EmployeePlanningRuleSerializer, \
-    AssignEmployeePlanningRulesSerializer, EmployeeAvailabilitySerializer
+    AssignEmployeePlanningRulesSerializer, EmployeeAvailabilitySerializer, EmployeeShiftSerializer
 
 
 class ProductionTaskListView(generics.ListAPIView):
@@ -529,3 +529,17 @@ def plan_shifts(request):
         return JsonResponse({'message': 'Wrong date parameters'}, status=status.HTTP_400_BAD_REQUEST)
     response = ShiftPlanning.plan_shifts(subdivision_id, begin_date, end_date, employee_id)
     return response
+
+
+class EmployeeShiftView(generics.ListAPIView):
+    serializer_class = EmployeeShiftSerializer
+
+    def get_queryset(self):
+        queryset = Employee_Shift.objects.all()
+        subdivision_id = self.request.query_params.get('subdivision_id', None)
+        employee_id = self.request.query_params.get('employee_id', None)
+
+        if subdivision_id is not None and employee_id is not None:
+            queryset = queryset.filter(subdivision_id=subdivision_id, employee_id=employee_id)
+
+        return queryset

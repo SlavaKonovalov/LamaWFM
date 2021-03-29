@@ -131,4 +131,8 @@ urlpatterns = [
     path('employee_availability/',
          views.EmployeeAvailabilityView.as_view(),
          name='employee_availability'),
+
+    path('employee_shift_detail_plan/',
+         views.EmployeeShiftView.as_view(),
+         name='employee_shift_detail_plan'),
 ]
