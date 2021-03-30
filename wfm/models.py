@@ -642,7 +642,7 @@ class Employee_Shift_Detail_Plan(models.Model):
         ('job', 'Работа'),
         ('break', 'Перерыв'),
     )
-    shift_id = models.ForeignKey(Employee_Shift, on_delete=models.CASCADE, verbose_name='Смена',
+    shift = models.ForeignKey(Employee_Shift, on_delete=models.CASCADE, verbose_name='Смена',
                                  related_name='detail_plan_set')
     type = models.CharField('Тип интервала', max_length=20, choices=interval_type_choices, default='job')
     time_from = models.TimeField('Время начала')
