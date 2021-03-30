@@ -135,8 +135,4 @@ urlpatterns = [
     path('create_employees_by_uploaded_data/',
          views.create_employees_by_uploaded_data,
          name='create_employees_by_uploaded_data'),
-
-    path('employee_shift_detail_plan/',
-         views.EmployeeShiftView.as_view(),
-         name='employee_shift_detail_plan'),
 ]
