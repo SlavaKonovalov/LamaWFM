@@ -131,4 +131,8 @@ urlpatterns = [
     path('employee_availability/',
          views.EmployeeAvailabilityView.as_view(),
          name='employee_availability'),
+
+    path('create_employees_by_uploaded_data/',
+         views.create_employees_by_uploaded_data,
+         name='create_employees_by_uploaded_data'),
 ]

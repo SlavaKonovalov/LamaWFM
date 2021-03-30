@@ -43,6 +43,7 @@ class EmployeeForm(forms.ModelForm):
             'personnel_number',
             'subdivision',
             'position',
+            'pf_reg_id',
             'duties',
             'part_time_job_org'
         ]

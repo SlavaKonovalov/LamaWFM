@@ -75,6 +75,7 @@ class EmployeeAdmin(admin.ModelAdmin):
                     'subdivision',
                     'personnel_number',
                     'position',
+                    'pf_reg_id',
                     'get_duties',
                     'get_part_job_org')
 

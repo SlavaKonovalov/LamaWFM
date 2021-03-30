@@ -31,8 +31,6 @@ class DemandByHistoryDataCalculate:
                 self.calculate_predicted_production_task(production_Task_Business_Indicator.business_indicator,
                                                          predictable_production_task)
 
-        #return "Demand data by subdivision: " + subdivision.name + " success calculated !"
-
     def calculate_predicted_production_task(self, business_indicator, predictable_production_task):
 
         try:
@@ -86,7 +84,6 @@ class DemandByHistoryDataCalculate:
                     else:
                         predicted_production_task.work_scope_time = 1
 
-                    # predicted_Production_Task.work_scope_time = int((indicator_value * business_indicator_norm.norm_value) / 60)
                     predicted_production_task.save()
 
     def clear_predicted_production_task(self, predictable_task_id, business_indicator_id):

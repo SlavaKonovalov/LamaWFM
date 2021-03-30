@@ -326,6 +326,7 @@ class Employee(models.Model):
     duties = models.ManyToManyField(Job_Duty, verbose_name='Обязанности', null=True, blank=True)
     part_time_job_org = models.ManyToManyField(Company, verbose_name='Юр. лица (подработка)',
                                                null=True, blank=True)
+    pf_reg_id = models.CharField('СНИЛС', max_length=14, null=False, blank=False, unique=True)
 
     objects = DataFrameManager()
 

@@ -1,5 +1,6 @@
 import datetime as datetime
 import dateutil.parser
+from django.db import transaction
 from django.http import JsonResponse
 from rest_framework import generics, status
 from rest_framework.decorators import api_view
@@ -10,6 +11,7 @@ from ..additionalFunctions import Global
 from ..availabilityProcessing import AvailabilityProcessing
 from ..demandProcessing import DemandProcessing
 from ..integration.demand_by_history_calculate import DemandByHistoryDataCalculate
+from ..integration.integration_download_data import CreateEmployeesByUploadedData
 from ..shiftPlanning import ShiftPlanning
 from ..taskProcessing import TaskProcessing
 from ..models import Production_Task, Organization, Subdivision, Employee, Employee_Position, Job_Duty, \
@@ -529,3 +531,16 @@ def plan_shifts(request):
         return JsonResponse({'message': 'Wrong date parameters'}, status=status.HTTP_400_BAD_REQUEST)
     response = ShiftPlanning.plan_shifts(subdivision_id, begin_date, end_date, employee_id)
     return response
+
+
+@api_view(['POST'])
+def create_employees_by_uploaded_data(request):
+    try:
+        with transaction.atomic():
+            create_employees_by_uploaded_data = CreateEmployeesByUploadedData()
+            create_employees_by_uploaded_data.run()
+        return JsonResponse({'message': 'employees were loaded'}, status=status.HTTP_200_OK)
+    except BaseException as e:
+        return JsonResponse({'message': 'internal server error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
