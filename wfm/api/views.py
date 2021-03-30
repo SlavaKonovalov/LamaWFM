@@ -533,6 +533,20 @@ def plan_shifts(request):
     return response
 
 
+class EmployeeShiftView(generics.ListAPIView):
+    serializer_class = EmployeeShiftSerializer
+
+    def get_queryset(self):
+        queryset = Employee_Shift.objects.all()
+        subdivision_id = self.request.query_params.get('subdivision_id', None)
+        employee_id = self.request.query_params.get('employee_id', None)
+
+        if subdivision_id is not None and employee_id is not None:
+            queryset = queryset.filter(subdivision_id=subdivision_id, employee_id=employee_id)
+
+        return queryset
+
+
 @api_view(['POST'])
 def create_employees_by_uploaded_data(request):
     try:
