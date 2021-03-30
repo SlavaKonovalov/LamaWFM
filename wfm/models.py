@@ -614,7 +614,7 @@ class Working_Hours_Rate(models.Model):
 class Employee_Planning_Rules(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, verbose_name='Сотрудник', related_name='planning_rules_set')
     working_hours_rate = models.ForeignKey(Working_Hours_Rate, on_delete=models.CASCADE, verbose_name='Рабочие часы', related_name='planning_rules_set')
-    planning_methods = models.ForeignKey(Planning_Method, on_delete=models.CASCADE, verbose_name='Способы планирования смен', related_name='planning_rules_set')
+    planning_method = models.ForeignKey(Planning_Method, on_delete=models.CASCADE, verbose_name='Способы планирования смен', related_name='planning_rules_set')
     breaking_rule = models.ForeignKey(Breaking_Rule, on_delete=models.CASCADE, verbose_name='Планирования перерывов', related_name='planning_rules_set')
     date_rules_start = models.DateField('Дата начала действия правила для сотрудника')
     date_rules_end = models.DateField('Дата окончания действия правила для сотрудника', null=True, blank=True)

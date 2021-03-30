@@ -151,7 +151,7 @@ class Working_Hours_RateAdmin(admin.ModelAdmin):
 class Employee_Planning_RulesAdmin(admin.ModelAdmin):
     list_display = ['employee',
                     'working_hours_rate',
-                    'planning_methods',
+                    'planning_method',
                     'breaking_rule',
                     'date_rules_start',
                     "date_rules_end"]
