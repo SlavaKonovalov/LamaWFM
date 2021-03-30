@@ -459,7 +459,7 @@ def assign_employee_planning_rules(request):
     if epr_serializer.is_valid():
         employee_id = data.get('employee')
         working_hours_rate_id = data.get('working_hours_rate')
-        planning_methods_id = data.get('planning_methods')
+        planning_method_id = data.get('planning_method')
         breaking_rule_id = data.get('breaking_rule')
         try:
             employee = Employee.objects.get(pk=employee_id)
@@ -470,7 +470,7 @@ def assign_employee_planning_rules(request):
         except Working_Hours_Rate.DoesNotExist:
             return JsonResponse({'message': 'The workingHoursRate does not exist'}, status=status.HTTP_404_NOT_FOUND)
         try:
-            planning = Planning_Method.objects.get(pk=planning_methods_id)
+            planning = Planning_Method.objects.get(pk=planning_method_id)
         except Planning_Method.DoesNotExist:
             return JsonResponse({'message': 'The planningMethod does not exist'}, status=status.HTTP_404_NOT_FOUND)
         try:
