@@ -136,8 +136,11 @@ urlpatterns = [
          views.create_employees_by_uploaded_data,
          name='create_employees_by_uploaded_data'),
 
-
     path('employee_shift_detail_plan/',
          views.EmployeeShiftView.as_view(),
          name='employee_shift_detail_plan'),
+
+    path('holiday_list/',
+         views.HolidayListView.as_view(),
+         name='holiday_list'),
 ]
