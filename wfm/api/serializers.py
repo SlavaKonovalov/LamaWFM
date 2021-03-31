@@ -4,7 +4,7 @@ from ..models import Production_Task, Subdivision, Employee, Scheduled_Productio
     Tasks_In_Duty, Appointed_Production_Task, Organization, Demand_Detail_Main, Demand_Detail_Task, Company, \
     Availability_Template, Availability_Template_Data, Employee_Availability_Templates, Planning_Method, \
     Working_Hours_Rate, Work_Shift_Planning_Rule, Breaking_Rule, Employee_Planning_Rules, Employee_Availability, \
-    Employee_Shift_Detail_Plan, Employee_Shift, Holiday_Period, Holiday
+    Employee_Shift_Detail_Plan, Employee_Shift, Holiday_Period, Holiday, Retail_Store_Format
 
 
 class ScheduledProductionTaskSerializer(serializers.ModelSerializer):
@@ -235,4 +235,11 @@ class HolidaySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Holiday
+        fields = '__all__'
+
+
+class RetailStoreFormatSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Retail_Store_Format
         fields = '__all__'

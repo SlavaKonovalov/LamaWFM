@@ -17,13 +17,15 @@ from ..taskProcessing import TaskProcessing
 from ..models import Production_Task, Organization, Subdivision, Employee, Employee_Position, Job_Duty, \
     Appointed_Production_Task, Scheduled_Production_Task, Demand_Detail_Main, Company, Availability_Template, \
     Employee_Availability_Templates, Availability_Template_Data, Planning_Method, Working_Hours_Rate, \
-    Work_Shift_Planning_Rule, Breaking_Rule, Employee_Planning_Rules, Employee_Availability, Employee_Shift, Holiday
+    Work_Shift_Planning_Rule, Breaking_Rule, Employee_Planning_Rules, Employee_Availability, Employee_Shift, Holiday, \
+    Retail_Store_Format
 from .serializers import ProductionTaskSerializer, OrganizationSerializer, SubdivisionSerializer, EmployeeSerializer, \
     EmployeePositionSerializer, JobDutySerializer, AppointedTaskSerializer, ScheduledProductionTaskSerializer, \
     DemandMainSerializer, CompanySerializer, AvailabilityTemplateSerializer, EmployeeAvailabilityTemplatesSerializer, \
     EmployeeAvailabilityTemplateSerializer, PlanningMethodSerializer, WorkingHoursRateSerializer, \
     WorkShiftPlanningRuleSerializer, BreakingRuleSerializer, EmployeePlanningRuleSerializer, \
-    AssignEmployeePlanningRulesSerializer, EmployeeAvailabilitySerializer, EmployeeShiftSerializer, HolidaySerializer
+    AssignEmployeePlanningRulesSerializer, EmployeeAvailabilitySerializer, EmployeeShiftSerializer, HolidaySerializer, \
+    RetailStoreFormatSerializer
 
 
 class ProductionTaskListView(generics.ListAPIView):
@@ -561,5 +563,13 @@ class HolidayListView(generics.ListAPIView):
 
     def get_queryset(self):
         queryset = Holiday.objects.all()
+        return queryset
+
+
+class RetailStoreFormatView(generics.ListAPIView):
+    serializer_class = RetailStoreFormatSerializer
+
+    def get_queryset(self):
+        queryset = Retail_Store_Format.objects.all()
         return queryset
 

@@ -143,4 +143,8 @@ urlpatterns = [
     path('holiday_list/',
          views.HolidayListView.as_view(),
          name='holiday_list'),
+
+    path('retail_store_format/',
+         views.RetailStoreFormatView.as_view(),
+         name='retail_store_format'),
 ]
