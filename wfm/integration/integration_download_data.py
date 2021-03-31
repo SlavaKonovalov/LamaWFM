@@ -51,15 +51,15 @@ class CreateEmployeesByUploadedData:
         employees_arr = []
 
         query = "SELECT " \
-                "user_name, first_name, last_name, middle_name, " \
+                "username, first_name, last_name, middle_name, " \
                 "personnel_number, store_number, pf_reg_num, subdivision_id " \
                 "FROM public.datai_employees_data " \
                 "WHERE subdivision_id <> 0"
 
         dataframe = DataBase.get_dataframe_by_query(query)
         for index, row in dataframe.iterrows():
-            user_name = row['user_name']
-            user_fnd = User.objects.get_or_create(username=user_name, defaults={'first_name': row['first_name'],
+            username = row['username']
+            user_fnd = User.objects.get_or_create(username=username, defaults={'first_name': row['first_name'],
                                                   'last_name': row['last_name'], 'is_active': True})
             user = user_fnd[0]
             subdivision = Subdivision.objects.get(id=row['subdivision_id'])
