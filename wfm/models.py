@@ -631,6 +631,7 @@ class Employee_Shift(models.Model):
     subdivision = models.ForeignKey(Subdivision, on_delete=models.CASCADE, verbose_name='Подразделение',
                                     related_name='shift_set')
     shift_date = models.DateField('Дата смены')
+    handle_correct = models.PositiveIntegerField('Ручная корректировка смены', default=0)
 
     class Meta:
         verbose_name = 'Смена сотрудника'
