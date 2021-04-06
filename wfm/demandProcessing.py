@@ -338,7 +338,7 @@ class DemandProcessing:
                                                   month=appointed_date_time.month,
                                                   day=appointed_date_time.day,
                                                   )
-            work_scope_all = Global.toFixed(appointed_task.work_scope_time / 60, 2)
+            work_scope_all = Global.toFixed(appointed_task.work_scope_time / interval_length, 2)
             work_scope_step = Global.toFixed(
                 appointed_task.work_scope_time * interval_length / appointed_task.scheduled_task.get_task_duration() / 60,
                 2)

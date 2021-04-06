@@ -6,10 +6,12 @@ from pytz import utc
 class Global:
 
     @staticmethod
+    # Возвращает дату с текущей таймзоной
     def add_timezone(initial_date):
         return initial_date.astimezone(timezone.get_default_timezone())
 
     @staticmethod
+    # Возвращает полночное время текущего дня
     def get_current_midnight(initial_date):
         return Global.add_timezone(datetime.datetime.combine(
             Global.add_timezone(initial_date).date(),
@@ -17,10 +19,12 @@ class Global:
         ))
 
     @staticmethod
+    # Возвращает дату с текущей таймзоной
     def get_combine_datetime(initial_date, initial_time):
         return Global.add_timezone(datetime.datetime.combine(initial_date, initial_time))
 
     @staticmethod
+    # Возвращает разницу в полных неделях между датами
     def get_week_delta(date_from, date_to):
         if date_from > date_to:
             return 0
@@ -34,10 +38,12 @@ class Global:
         return int((date_to_current - date_from_current).days / 7)
 
     @staticmethod
+    # математическое округление
     def round_math(value):
         return int(value + (0.5 if value > 0 else -0.5))
 
     @staticmethod
+    # округление до digits знаков после запятой
     def toFixed(num_obj, digits=0):
         return float(f"{num_obj:.{digits}f}")
 

@@ -5,7 +5,7 @@ from django.http import JsonResponse
 from rest_framework import generics, status
 from rest_framework.decorators import api_view
 from rest_framework.parsers import JSONParser
-
+from dateutil.relativedelta import relativedelta
 from ..PlanningRulesProcessing import PlanningRulesProcessing
 from ..additionalFunctions import Global
 from ..availabilityProcessing import AvailabilityProcessing
@@ -486,7 +486,6 @@ def assign_employee_planning_rules(request):
     return JsonResponse(epr_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-
 @api_view(['POST'])
 def recalculate_availability(request):
     data = JSONParser().parse(request)
@@ -520,6 +519,10 @@ def plan_shifts(request):
     end_date = dateutil.parser.parse(data.get('end_date'))
     tomorrow_day = Global.get_current_midnight(datetime.datetime.now()) + datetime.timedelta(days=1)
     begin_date = max(begin_date, tomorrow_day)
+    # Обрезаем end_date до начала следующего месяца
+    next_month_begin = (begin_date + relativedelta(months=1)).replace(day=1)
+    if end_date > next_month_begin:
+        end_date = next_month_begin
     try:
         subdivision = Subdivision.objects.get(pk=subdivision_id)
     except Subdivision.DoesNotExist:
