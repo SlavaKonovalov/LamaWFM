@@ -5,7 +5,7 @@ from django.db import transaction, connection
 import sys
 from django.db.models import Q, Max
 from django.http import JsonResponse
-from numpy.random import random
+from random import randint
 
 from .models import Employee_Availability, Employee, Employee_Shift, Employee_Shift_Detail_Plan, Employee_Planning_Rules
 
@@ -106,7 +106,13 @@ class ShiftPlanning:
     # Планирование смен
     def plan_shifts(subdivision_id, begin_date_time, end_date_time, employee_id=None):
         # TODO Удаление данных
-
+        begin_date = begin_date_time.date()
+        employee_shift = Employee_Shift.objects.all()
+        if employee_id:
+            employee_shift = employee_shift.filter(employee_id=employee_id, subdivision_id=subdivision_id)
+        else:
+            employee_shift = employee_shift.filter(subdivision_id=subdivision_id)
+        employee_shift.filter(shift_date__gte=begin_date, shift_date__lt=end_date_time.date()).delete()
         # Получаем dataframe
         df_demand = ShiftPlanning.get_demand_dataframe(subdivision_id, begin_date_time, end_date_time, TIME_ZONE)
         # считаем сумму, затем округляем
@@ -116,12 +122,12 @@ class ShiftPlanning:
         # Задача не может иметь 0 потребность. Ставим 1, где округлилось до 0
         df_demand_unique['qty'] = df_demand_unique['qty'].apply(lambda x: 1 if x == 0 else x)
         # Вычисляем значения "Кол-во часов" и "Последний требуемый час"
-        df_demand_unique['count'] = df_demand_unique.groupby(['date', 'duty'])['hour'].transform("count")
+        df_demand_unique['count_hour'] = df_demand_unique.groupby(['date', 'duty'])['hour'].transform("count")
         df_demand_unique['last_hour'] = df_demand_unique.groupby(['date', 'duty'])['hour'].transform("max")
         # Сортируем
-        df_demand_unique = df_demand_unique.sort_values(by=['date', 'count', 'duty', 'hour'],
+        df_demand_unique = df_demand_unique.sort_values(by=['date', 'count_hour', 'duty', 'hour'],
                                                         ascending=[True, False, True, True])
-        df_demand_unique = df_demand_unique.reset_index()
+        # df_demand_unique = df_demand_unique.reset_index()
         df_demand_date = df_demand_unique[['date']].drop_duplicates()
 
         df_availability = ShiftPlanning.get_availability_dataframe(subdivision_id, begin_date_time, end_date_time,
@@ -130,7 +136,8 @@ class ShiftPlanning:
         df_availability.begin_date_time = df_availability.begin_date_time.dt.tz_convert(TIME_ZONE)
         df_availability.end_date_time = df_availability.end_date_time.dt.tz_convert(TIME_ZONE)
 
-        begin_date = begin_date_time.date().replace(day=1)
+        # сделаем begin_date началом месяца
+        begin_date = begin_date.replace(day=1)
 
         shift_detail_plan = Employee_Shift_Detail_Plan.objects.select_related('shift').filter(
             shift__subdivision_id=subdivision_id,
@@ -154,13 +161,21 @@ class ShiftPlanning:
             df_demand_on_date['covered'] = 0
             while True:
                 df_demand_on_date = df_demand_on_date[(df_demand_on_date.qty > 0)]
-                # Пересчитываем 'count' и 'last_hour'
-                df_demand_on_date['count'] = df_demand_on_date.groupby(['date', 'duty'])['hour'].transform("count")
+                # Если пусто - выходим
+                if df_demand_on_date.empty:
+                    break
+                # Пересчитываем 'count_hour' и 'last_hour'
+                df_demand_on_date['count_hour'] = df_demand_on_date.groupby(['date', 'duty'])['hour'].transform("count")
                 df_demand_on_date['last_hour'] = df_demand_on_date.groupby(['date', 'duty'])['hour'].transform("max")
-                # Сброс индекса
-                df_demand_on_date = df_demand_on_date.reset_index()
+
                 # Берем первую запись
-                row_demand = list(df_demand_on_date.itertuples())[0]
+                row_demand = df_demand_on_date.iloc[0]
+
+                # Если ФО уже покрывалась, требуется на данный час 1 сотрудник и всего непокрытых часов <= 2
+                # то прекращаем расчет остатка, выводить сотрудника не имеет смысла
+                if row_demand.qty == 1 and row_demand.count_hour <= 2 and row_demand.covered != 0:
+                    df_demand_on_date.loc[(df_demand_on_date.date == row_demand.date) &
+                                          (df_demand_on_date.duty == row_demand.duty), ['qty']] = 0
 
                 # TODO Нужно сначала проверить, есть ли уже сотрудник со сменой, можно ли продлить смену?
                 # Если нет, ищем другого сотрудника
@@ -171,18 +186,19 @@ class ShiftPlanning:
                     (df_availability.av_begin_hour <= row_demand.hour) &  # доступен в этом часу
                     (df_availability.av_end_hour - 1 > row_demand.hour) &  # может покрыть как минимум 2 часа
                     # минимальная длина смены укладывается в доступность:
-                    (df_availability.av_end_hour - df_availability.av_begin_hour >= df_availability.shift_duration_min) &
+                    (
+                                df_availability.av_end_hour - df_availability.av_begin_hour >= df_availability.shift_duration_min) &
                     (row_demand.duty == df_availability.duty)]
                 if df_res.empty:
                     # Никого не нашли - зануляем кол-во
-                    df_demand_on_date.at[0, 'qty'] = 0
+                    df_demand_on_date.iloc[0, df_demand_on_date.columns.get_loc('qty')] = 0
                 else:
                     df_res = pandas.merge(df_res, df_covering, on=['employee'], how='left')
                     df_res.hours_sum = df_res.hours_sum.fillna(0)
                     min_hours_sum = df_res.hours_sum.min()
                     df_res = df_res[(df_res.hours_sum <= min_hours_sum + 2)]  # 2 - это погрешность (в часах)
                     df_res_sample = df_res.sample()
-                    res_sample = list(df_res_sample.itertuples())[0]
+                    res_sample = df_res_sample.iloc[0]
                     shift_begin = 0
                     shift_end = 0
                     # max_hour_value - либо граница потребности, либо граница доступности
@@ -204,8 +220,8 @@ class ShiftPlanning:
                             if max_hour_value - row_demand.hour <= res_sample.shift_duration_max:  # можем покрыть всё?
                                 shift_end = max_hour_value
                             else:
-                                shift_end = shift_begin + random.randint(res_sample.shift_duration_min,
-                                                                         res_sample.shift_duration_max)
+                                shift_end = shift_begin + randint(res_sample.shift_duration_min,
+                                                                  res_sample.shift_duration_max)
                         else:
                             shift_end = shift_begin + res_sample.shift_duration_min
                     shift_length = shift_end - shift_begin
@@ -230,7 +246,7 @@ class ShiftPlanning:
                     employee_shift, created_shift = Employee_Shift.objects.get_or_create(
                         employee_id=res_sample.employee,
                         subdivision_id=subdivision_id,
-                        shift_date=begin_date_time.date()
+                        shift_date=row_demand.date.date()
                     )
                     employee_shift_detail_plan, created_shift_plan = Employee_Shift_Detail_Plan.objects.update_or_create(
                         shift_id=employee_shift.id,
@@ -240,6 +256,14 @@ class ShiftPlanning:
                             'time_to': datetime.time(int(shift_end), 0)
                         }
                     )
+                    # удаляем доступность сотрудника в этот день
+                    df_availability.drop(df_availability[(df_availability.date == row_demand.date) &
+                                                         (df_availability.employee == res_sample.employee)].index,
+                                         inplace=True)
 
-                    # TODO уменьшить qty на всём интервале!
-                    # df_demand_on_date.at[0, 'qty'] = 0
+                    # Уменьшаем qty и covered на всём интервале на 1
+                    df_demand_on_date.loc[(df_demand_on_date.date == row_demand.date) &
+                                          (df_demand_on_date.duty == row_demand.duty) &
+                                          (shift_begin <= df_demand_on_date.hour) &
+                                          (df_demand_on_date.hour < shift_end), ['qty', 'covered']] -= 1
+                    b = 1

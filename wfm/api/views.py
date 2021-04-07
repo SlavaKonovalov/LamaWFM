@@ -534,8 +534,9 @@ def plan_shifts(request):
             return JsonResponse({'message': 'The employee does not exist'}, status=status.HTTP_404_NOT_FOUND)
     if begin_date is None or end_date is None or begin_date >= end_date:
         return JsonResponse({'message': 'Wrong date parameters'}, status=status.HTTP_400_BAD_REQUEST)
-    response = ShiftPlanning.plan_shifts(subdivision_id, begin_date, end_date, employee_id)
-    return response
+    ShiftPlanning.plan_shifts(subdivision_id, begin_date, end_date, employee_id)
+    return JsonResponse({'message': 'Scheduled task was deleted successfully!'},
+                        status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(['POST'])
