@@ -373,6 +373,35 @@ class Business_Indicator_Norm(models.Model):
         verbose_name_plural = 'Нормативы по показателям бизнеса'
 
 
+class Holiday(models.Model):
+    name = models.CharField('Праздник', max_length=60)
+
+    class Meta:
+        verbose_name = 'Праздник'
+        verbose_name_plural = 'Праздники'
+
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
+class Holiday_Period(models.Model):
+    holiday = models.ForeignKey(Holiday, on_delete=models.CASCADE,
+                                verbose_name='Праздник', related_name='holiday_period_set')
+    begin_date_time = models.DateTimeField('Дата начала')
+    end_date_time = models.DateTimeField('Дата окончания')
+
+    class Meta:
+        verbose_name = 'Период праздника'
+        verbose_name_plural = 'Периоды праздников'
+
+        ordering = ['holiday', 'begin_date_time']
+
+    def __str__(self):
+        return str(self.holiday)
+
+
 class Business_Indicator_Data(models.Model):
     time_interval_length_choices = (
         (15, '15 минут'),
@@ -381,13 +410,14 @@ class Business_Indicator_Data(models.Model):
     )
     subdivision = models.ForeignKey(Subdivision, on_delete=models.CASCADE,
                                     verbose_name='Подразделение')
-
     business_indicator = models.ForeignKey(Business_Indicator, on_delete=models.CASCADE,
                                            verbose_name='Показатель бизнеса')
     begin_date_time = models.DateTimeField(verbose_name='Дата и время начала временного интервала')
     indicator_value = models.DecimalField(max_digits=32, decimal_places=16, verbose_name='Значение показателя бизнеса')
     time_interval_length = models.PositiveIntegerField(choices=time_interval_length_choices,
                                                        verbose_name='Длинна временного интервала')
+    holiday_period = models.ForeignKey(Holiday_Period, on_delete=models.SET_NULL,
+                                       verbose_name='Праздник', null=True, blank=True)
 
     def __str__(self):
         return 'Подразделение:' + self.subdivision.name \
@@ -448,36 +478,6 @@ class Predicted_Production_Task(models.Model):
         verbose_name_plural = 'Спрогнозированное задания'
 
         ordering = ['predictable_task', 'begin_date_time']
-
-
-class Holiday(models.Model):
-    name = models.CharField('Праздник', max_length=60)
-
-    class Meta:
-        verbose_name = 'Праздник'
-        verbose_name_plural = 'Праздники'
-
-        ordering = ['name']
-
-    def __str__(self):
-        return self.name
-
-
-class Holiday_Period(models.Model):
-    holiday = models.ForeignKey(Holiday, on_delete=models.CASCADE,
-                                verbose_name='Праздник', related_name='holiday_period_set')
-    begin_date_time = models.DateTimeField('Дата начала')
-    end_date_time = models.DateTimeField('Дата окончания')
-
-    class Meta:
-        verbose_name = 'Период праздника'
-        verbose_name_plural = 'Периоды праздников'
-
-        ordering = ['holiday', 'begin_date_time']
-
-    def __str__(self):
-        return str(self.holiday)
-
 
 class Availability_Template(models.Model):
     type_choices = (
