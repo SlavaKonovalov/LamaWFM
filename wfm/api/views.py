@@ -6,7 +6,7 @@ from rest_framework import generics, status
 from rest_framework.decorators import api_view
 from rest_framework.parsers import JSONParser
 from dateutil.relativedelta import relativedelta
-from ..PlanningRulesProcessing import PlanningRulesProcessing
+
 from ..additionalFunctions import Global
 from ..availabilityProcessing import AvailabilityProcessing
 from ..demandProcessing import DemandProcessing
@@ -481,7 +481,7 @@ def assign_employee_planning_rules(request):
             breaking = Breaking_Rule.objects.get(pk=breaking_rule_id)
         except Breaking_Rule.DoesNotExist:
             return JsonResponse({'message': 'The breakingRule does not exist'}, status=status.HTTP_404_NOT_FOUND)
-        response = PlanningRulesProcessing.assign_employee_planning_rules(epr_serializer)
+        response = ShiftPlanning.assign_employee_planning_rules(epr_serializer)
         return response
     return JsonResponse(epr_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
