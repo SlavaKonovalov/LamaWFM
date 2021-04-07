@@ -208,9 +208,9 @@ class PlanningMethodView(generics.ListAPIView):
 
     def get_queryset(self):
         queryset = Planning_Method.objects.all()
-        id = self.request.query_params.get('id', None)
-        if id is not None:
-            queryset = queryset.filter(id=id)
+        self_id = self.request.query_params.get('id', None)
+        if self_id is not None:
+            queryset = queryset.filter(id=self_id)
         return queryset
 
 
