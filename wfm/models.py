@@ -337,7 +337,7 @@ class Employee(models.Model):
         ordering = ['subdivision', 'user']
 
     def __str__(self):
-        return str(self.user.first_name + ' ' + self.user.last_name + ' ('+self.user.username+')')
+        return str(self.user.first_name + ' ' + self.user.last_name + ' (' + self.user.username + ')')
 
     def get_duties(self):
         return ", ".join([duty.name for duty in self.duties.all()])
@@ -613,10 +613,14 @@ class Working_Hours_Rate(models.Model):
 
 
 class Employee_Planning_Rules(models.Model):
-    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, verbose_name='Сотрудник', related_name='planning_rules_set')
-    working_hours_rate = models.ForeignKey(Working_Hours_Rate, on_delete=models.CASCADE, verbose_name='Рабочие часы', related_name='planning_rules_set')
-    planning_method = models.ForeignKey(Planning_Method, on_delete=models.CASCADE, verbose_name='Способы планирования смен', related_name='planning_rules_set')
-    breaking_rule = models.ForeignKey(Breaking_Rule, on_delete=models.CASCADE, verbose_name='Планирования перерывов', related_name='planning_rules_set')
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, verbose_name='Сотрудник',
+                                 related_name='planning_rules_set')
+    working_hours_rate = models.ForeignKey(Working_Hours_Rate, on_delete=models.CASCADE, verbose_name='Рабочие часы',
+                                           related_name='planning_rules_set')
+    planning_method = models.ForeignKey(Planning_Method, on_delete=models.CASCADE,
+                                        verbose_name='Способы планирования смен', related_name='planning_rules_set')
+    breaking_rule = models.ForeignKey(Breaking_Rule, on_delete=models.CASCADE, verbose_name='Планирования перерывов',
+                                      related_name='planning_rules_set')
     date_rules_start = models.DateField('Дата начала действия правила для сотрудника')
     date_rules_end = models.DateField('Дата окончания действия правила для сотрудника', null=True, blank=True)
 
@@ -631,6 +635,8 @@ class Employee_Shift(models.Model):
     subdivision = models.ForeignKey(Subdivision, on_delete=models.CASCADE, verbose_name='Подразделение',
                                     related_name='shift_set')
     shift_date = models.DateField('Дата смены')
+    handle_correct = models.PositiveIntegerField('Ручная корректировка смены', default=0)
+    fixed = models.PositiveIntegerField('Фиксированный', default=0)
 
     class Meta:
         verbose_name = 'Смена сотрудника'
@@ -644,14 +650,16 @@ class Employee_Shift_Detail_Plan(models.Model):
         ('break', 'Перерыв'),
     )
     shift = models.ForeignKey(Employee_Shift, on_delete=models.CASCADE, verbose_name='Смена',
-                                 related_name='detail_plan_set')
+                              related_name='detail_plan_set')
     type = models.CharField('Тип интервала', max_length=20, choices=interval_type_choices, default='job')
     time_from = models.TimeField('Время начала')
     time_to = models.TimeField('Время окончания')
 
+    objects = DataFrameManager()
+
 
 class Employee_Shift_Detail_Fact(models.Model):
-    shift_id = models.ForeignKey(Employee_Shift, on_delete=models.CASCADE, verbose_name='Смена',
-                                 related_name='detail_fact_set')
+    shift = models.ForeignKey(Employee_Shift, on_delete=models.CASCADE, verbose_name='Смена',
+                              related_name='detail_fact_set')
     time_from = models.TimeField('Время начала')
     time_to = models.TimeField('Время окончания')

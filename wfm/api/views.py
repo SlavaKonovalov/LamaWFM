@@ -5,8 +5,8 @@ from django.http import JsonResponse
 from rest_framework import generics, status
 from rest_framework.decorators import api_view
 from rest_framework.parsers import JSONParser
+from dateutil.relativedelta import relativedelta
 
-from ..PlanningRulesProcessing import PlanningRulesProcessing
 from ..additionalFunctions import Global
 from ..availabilityProcessing import AvailabilityProcessing
 from ..demandProcessing import DemandProcessing
@@ -17,13 +17,15 @@ from ..taskProcessing import TaskProcessing
 from ..models import Production_Task, Organization, Subdivision, Employee, Employee_Position, Job_Duty, \
     Appointed_Production_Task, Scheduled_Production_Task, Demand_Detail_Main, Company, Availability_Template, \
     Employee_Availability_Templates, Availability_Template_Data, Planning_Method, Working_Hours_Rate, \
-    Work_Shift_Planning_Rule, Breaking_Rule, Employee_Planning_Rules, Employee_Availability
+    Work_Shift_Planning_Rule, Breaking_Rule, Employee_Planning_Rules, Employee_Availability, Employee_Shift, Holiday, \
+    Retail_Store_Format
 from .serializers import ProductionTaskSerializer, OrganizationSerializer, SubdivisionSerializer, EmployeeSerializer, \
     EmployeePositionSerializer, JobDutySerializer, AppointedTaskSerializer, ScheduledProductionTaskSerializer, \
     DemandMainSerializer, CompanySerializer, AvailabilityTemplateSerializer, EmployeeAvailabilityTemplatesSerializer, \
     EmployeeAvailabilityTemplateSerializer, PlanningMethodSerializer, WorkingHoursRateSerializer, \
     WorkShiftPlanningRuleSerializer, BreakingRuleSerializer, EmployeePlanningRuleSerializer, \
-    AssignEmployeePlanningRulesSerializer, EmployeeAvailabilitySerializer
+    AssignEmployeePlanningRulesSerializer, EmployeeAvailabilitySerializer, EmployeeShiftSerializer, HolidaySerializer, \
+    RetailStoreFormatSerializer
 
 
 class ProductionTaskListView(generics.ListAPIView):
@@ -461,7 +463,7 @@ def assign_employee_planning_rules(request):
     if epr_serializer.is_valid():
         employee_id = data.get('employee')
         working_hours_rate_id = data.get('working_hours_rate')
-        planning_methods_id = data.get('planning_methods')
+        planning_method_id = data.get('planning_method')
         breaking_rule_id = data.get('breaking_rule')
         try:
             employee = Employee.objects.get(pk=employee_id)
@@ -472,17 +474,16 @@ def assign_employee_planning_rules(request):
         except Working_Hours_Rate.DoesNotExist:
             return JsonResponse({'message': 'The workingHoursRate does not exist'}, status=status.HTTP_404_NOT_FOUND)
         try:
-            planning = Planning_Method.objects.get(pk=planning_methods_id)
+            planning = Planning_Method.objects.get(pk=planning_method_id)
         except Planning_Method.DoesNotExist:
             return JsonResponse({'message': 'The planningMethod does not exist'}, status=status.HTTP_404_NOT_FOUND)
         try:
             breaking = Breaking_Rule.objects.get(pk=breaking_rule_id)
         except Breaking_Rule.DoesNotExist:
             return JsonResponse({'message': 'The breakingRule does not exist'}, status=status.HTTP_404_NOT_FOUND)
-        response = PlanningRulesProcessing.assign_employee_planning_rules(epr_serializer)
+        response = ShiftPlanning.assign_employee_planning_rules(epr_serializer)
         return response
     return JsonResponse(epr_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 
 @api_view(['POST'])
@@ -518,6 +519,10 @@ def plan_shifts(request):
     end_date = dateutil.parser.parse(data.get('end_date'))
     tomorrow_day = Global.get_current_midnight(datetime.datetime.now()) + datetime.timedelta(days=1)
     begin_date = max(begin_date, tomorrow_day)
+    # Обрезаем end_date до начала следующего месяца
+    next_month_begin = (begin_date + relativedelta(months=1)).replace(day=1)
+    if end_date > next_month_begin:
+        end_date = next_month_begin
     try:
         subdivision = Subdivision.objects.get(pk=subdivision_id)
     except Subdivision.DoesNotExist:
@@ -543,4 +548,31 @@ def create_employees_by_uploaded_data(request):
     except BaseException as e:
         return JsonResponse({'message': 'internal server error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+class EmployeeShiftView(generics.ListAPIView):
+    serializer_class = EmployeeShiftSerializer
+
+    def get_queryset(self):
+        queryset = Employee_Shift.objects.all()
+        subdivision_id = self.request.query_params.get('subdivision_id', None)
+        employee_id = self.request.query_params.get('employee_id', None)
+        if subdivision_id is not None and employee_id is not None:
+            queryset = queryset.filter(subdivision_id=subdivision_id, employee_id=employee_id)
+        return queryset
+
+
+class HolidayListView(generics.ListAPIView):
+    serializer_class = HolidaySerializer
+
+    def get_queryset(self):
+        queryset = Holiday.objects.all()
+        return queryset
+
+
+class RetailStoreFormatView(generics.ListAPIView):
+    serializer_class = RetailStoreFormatSerializer
+
+    def get_queryset(self):
+        queryset = Retail_Store_Format.objects.all()
+        return queryset
 

@@ -135,4 +135,16 @@ urlpatterns = [
     path('create_employees_by_uploaded_data/',
          views.create_employees_by_uploaded_data,
          name='create_employees_by_uploaded_data'),
+
+    path('employee_shift_detail_plan/',
+         views.EmployeeShiftView.as_view(),
+         name='employee_shift_detail_plan'),
+
+    path('holiday_list/',
+         views.HolidayListView.as_view(),
+         name='holiday_list'),
+
+    path('retail_store_format/',
+         views.RetailStoreFormatView.as_view(),
+         name='retail_store_format'),
 ]
