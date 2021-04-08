@@ -139,6 +139,9 @@ urlpatterns = [
     path('employee_shift_detail_plan/',
          views.EmployeeShiftView.as_view(),
          name='employee_shift_detail_plan'),
+    path('employee_shift_plan_data/<int:pk>/',
+         views.employee_shift_plan_data,
+         name='employee_shift_plan_data'),
 
     path('holiday_list/',
          views.HolidayListView.as_view(),

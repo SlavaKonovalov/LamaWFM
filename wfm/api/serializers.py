@@ -209,6 +209,7 @@ class EmployeeAvailabilitySerializer(serializers.ModelSerializer):
 
 
 class EmployeeShiftDetailPlanSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(required=False)
 
     class Meta:
         model = Employee_Shift_Detail_Plan
@@ -221,6 +222,44 @@ class EmployeeShiftSerializer(serializers.ModelSerializer):
     class Meta:
         model = Employee_Shift
         fields = '__all__'
+
+
+class EmployeeShiftSerializerForUpdate(serializers.ModelSerializer):
+    detail_plan_set = EmployeeShiftDetailPlanSerializer(many=True, required=False)
+
+    class Meta:
+        model = Employee_Shift
+        fields = '__all__'
+
+    def update(self, instance, validated_data):
+        instance.handle_correct = validated_data.get('handle_correct', instance.handle_correct)
+        instance.fixed = validated_data.get('fixed', instance.fixed)
+        instance.shift_date = validated_data.get('shift_date', instance.shift_date)
+        subdivision = validated_data.get('subdivision', None)
+        if subdivision is None:
+            instance.subdivision_id = None
+        else:
+            instance.subdivision_id = subdivision.id
+        employee = validated_data.get('employee', None)
+        if employee is None:
+            instance.employee_id = None
+        else:
+            instance.employee_id = employee.id
+        instance.save()
+
+        lines = validated_data.get('detail_plan_set')
+
+        for line_step in lines:
+            line_id = line_step.get('id', None)
+            if line_id:
+                line = Employee_Shift_Detail_Plan.objects.get(id=line_id, shift=instance)
+                line.type = line_step.get('type', line.type)
+                line.time_from = line_step.get('time_from', line.time_from)
+                line.time_to = line_step.get('time_to', line.time_to)
+                line.save()
+            else:
+                Employee_Shift_Detail_Plan.objects.create(**line_step)
+        return instance
 
 
 class HolidayPeriodSerializer(serializers.ModelSerializer):

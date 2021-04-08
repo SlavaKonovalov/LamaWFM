@@ -25,7 +25,7 @@ from .serializers import ProductionTaskSerializer, OrganizationSerializer, Subdi
     EmployeeAvailabilityTemplateSerializer, PlanningMethodSerializer, WorkingHoursRateSerializer, \
     WorkShiftPlanningRuleSerializer, BreakingRuleSerializer, EmployeePlanningRuleSerializer, \
     AssignEmployeePlanningRulesSerializer, EmployeeAvailabilitySerializer, EmployeeShiftSerializer, HolidaySerializer, \
-    RetailStoreFormatSerializer
+    RetailStoreFormatSerializer, EmployeeShiftSerializerForUpdate
 
 
 class ProductionTaskListView(generics.ListAPIView):
@@ -563,6 +563,31 @@ class EmployeeShiftView(generics.ListAPIView):
         if subdivision_id is not None and employee_id is not None:
             queryset = queryset.filter(subdivision_id=subdivision_id, employee_id=employee_id)
         return queryset
+
+
+@api_view(['GET', 'POST', 'DELETE'])
+def employee_shift_plan_data(request, pk):
+    try:
+        employee_shift_plan = Employee_Shift.objects.get(pk=pk)
+    except Employee_Shift.DoesNotExist:
+        return JsonResponse({'message': 'The shift does not exist'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        employee_shift_plan_serializer = EmployeeShiftSerializerForUpdate(employee_shift_plan)
+        return JsonResponse(employee_shift_plan_serializer.data)
+
+    elif request.method == 'POST':
+        employee_shift_plan_request = JSONParser().parse(request)
+        employee_shift_plan_serializer = EmployeeShiftSerializerForUpdate(employee_shift_plan,
+                                                                          data=employee_shift_plan_request)
+        if employee_shift_plan_serializer.is_valid():
+            employee_shift_plan_serializer.save()
+            return JsonResponse(employee_shift_plan_serializer.data)
+        return JsonResponse(employee_shift_plan_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        employee_shift_plan.delete()
+        return JsonResponse({'message': 'Shift was deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
 
 
 class HolidayListView(generics.ListAPIView):
