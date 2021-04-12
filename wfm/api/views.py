@@ -611,7 +611,7 @@ def open_shift_data(request):
 
     if request.method == 'GET':
         open_shift = Open_Shift.objects.all()
-        open_shift_serializer = OpenShiftSerializerHeader(open_shift, many=True)
+        open_shift_serializer = OpenShiftSerializer(open_shift, many=True)
         return JsonResponse(open_shift_serializer.data, safe=False)
 
     elif request.method == 'POST':
