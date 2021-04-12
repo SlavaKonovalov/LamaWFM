@@ -139,6 +139,9 @@ urlpatterns = [
     path('employee_shift_detail_plan/',
          views.EmployeeShiftView.as_view(),
          name='employee_shift_detail_plan'),
+    path('employee_shift_plan_data/<int:pk>/',
+         views.employee_shift_plan_data,
+         name='employee_shift_plan_data'),
 
     path('holiday_list/',
          views.HolidayListView.as_view(),
@@ -147,4 +150,11 @@ urlpatterns = [
     path('retail_store_format/',
          views.RetailStoreFormatView.as_view(),
          name='retail_store_format'),
+
+    path('open_shift_data/',
+         views.open_shift_data,
+         name='open_shift_data'),
+    path('open_shift_data_detail/<int:pk>/',
+         views.open_shift_data_detail,
+         name='open_shift_data_detail'),
 ]

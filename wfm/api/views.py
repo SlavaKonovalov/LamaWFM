@@ -18,14 +18,14 @@ from ..models import Production_Task, Organization, Subdivision, Employee, Emplo
     Appointed_Production_Task, Scheduled_Production_Task, Demand_Detail_Main, Company, Availability_Template, \
     Employee_Availability_Templates, Availability_Template_Data, Planning_Method, Working_Hours_Rate, \
     Work_Shift_Planning_Rule, Breaking_Rule, Employee_Planning_Rules, Employee_Availability, Employee_Shift, Holiday, \
-    Retail_Store_Format
+    Retail_Store_Format, Open_Shift
 from .serializers import ProductionTaskSerializer, OrganizationSerializer, SubdivisionSerializer, EmployeeSerializer, \
     EmployeePositionSerializer, JobDutySerializer, AppointedTaskSerializer, ScheduledProductionTaskSerializer, \
     DemandMainSerializer, CompanySerializer, AvailabilityTemplateSerializer, EmployeeAvailabilityTemplatesSerializer, \
     EmployeeAvailabilityTemplateSerializer, PlanningMethodSerializer, WorkingHoursRateSerializer, \
     WorkShiftPlanningRuleSerializer, BreakingRuleSerializer, EmployeePlanningRuleSerializer, \
     AssignEmployeePlanningRulesSerializer, EmployeeAvailabilitySerializer, EmployeeShiftSerializer, HolidaySerializer, \
-    RetailStoreFormatSerializer
+    RetailStoreFormatSerializer, EmployeeShiftSerializerForUpdate, OpenShiftSerializer, OpenShiftSerializerHeader
 
 
 class ProductionTaskListView(generics.ListAPIView):
@@ -565,6 +565,31 @@ class EmployeeShiftView(generics.ListAPIView):
         return queryset
 
 
+@api_view(['GET', 'POST', 'DELETE'])
+def employee_shift_plan_data(request, pk):
+    try:
+        employee_shift_plan = Employee_Shift.objects.get(pk=pk)
+    except Employee_Shift.DoesNotExist:
+        return JsonResponse({'message': 'The shift does not exist'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        employee_shift_plan_serializer = EmployeeShiftSerializerForUpdate(employee_shift_plan)
+        return JsonResponse(employee_shift_plan_serializer.data)
+
+    elif request.method == 'POST':
+        employee_shift_plan_request = JSONParser().parse(request)
+        employee_shift_plan_serializer = EmployeeShiftSerializerForUpdate(employee_shift_plan,
+                                                                          data=employee_shift_plan_request)
+        if employee_shift_plan_serializer.is_valid():
+            employee_shift_plan_serializer.save()
+            return JsonResponse(employee_shift_plan_serializer.data)
+        return JsonResponse(employee_shift_plan_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        employee_shift_plan.delete()
+        return JsonResponse({'message': 'Shift was deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
+
+
 class HolidayListView(generics.ListAPIView):
     serializer_class = HolidaySerializer
 
@@ -579,4 +604,48 @@ class RetailStoreFormatView(generics.ListAPIView):
     def get_queryset(self):
         queryset = Retail_Store_Format.objects.all()
         return queryset
+
+
+@api_view(['GET', 'POST'])
+def open_shift_data(request):
+
+    if request.method == 'GET':
+        subdivision_id = request.query_params.get('subdivision_id', None)
+        open_shift = Open_Shift.objects.all()
+        if subdivision_id is not None:
+            open_shift = open_shift.filter(subdivision_id=subdivision_id)
+        open_shift_serializer = OpenShiftSerializer(open_shift, many=True)
+        return JsonResponse(open_shift_serializer.data, safe=False)
+
+    elif request.method == 'POST':
+        open_shift_request = JSONParser().parse(request)
+        open_shift_serializer = OpenShiftSerializerHeader(data=open_shift_request)
+        if open_shift_serializer.is_valid():
+            open_shift_serializer.save()
+            return JsonResponse(open_shift_serializer.data)
+        return JsonResponse(open_shift_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'POST', 'DELETE'])
+def open_shift_data_detail(request, pk):
+    try:
+        open_shift = Open_Shift.objects.get(pk=pk)
+    except Open_Shift.DoesNotExist:
+        return JsonResponse({'message': 'The open shift does not exist'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        open_shift_serializer = OpenShiftSerializer(open_shift)
+        return JsonResponse(open_shift_serializer.data)
+
+    elif request.method == 'POST':
+        open_shift_request = JSONParser().parse(request)
+        open_shift_serializer = OpenShiftSerializer(open_shift, data=open_shift_request)
+        if open_shift_serializer.is_valid():
+            open_shift_serializer.save()
+            return JsonResponse(open_shift_serializer.data)
+        return JsonResponse(open_shift_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        open_shift.delete()
+        return JsonResponse({'message': 'Open shift was deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
 

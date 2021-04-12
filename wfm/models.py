@@ -663,3 +663,26 @@ class Employee_Shift_Detail_Fact(models.Model):
                               related_name='detail_fact_set')
     time_from = models.TimeField('Время начала')
     time_to = models.TimeField('Время окончания')
+
+
+class Open_Shift(models.Model):
+    subdivision = models.ForeignKey(Subdivision, on_delete=models.CASCADE, verbose_name='Подразделение',
+                                    related_name='open_shift_set')
+    shift_date = models.DateField('Дата смены')
+
+    class Meta:
+        verbose_name = 'Открытая смена'
+        verbose_name_plural = 'Открытые смены'
+
+
+class Open_Shift_Detail(models.Model):
+    interval_type_choices = (
+        ('job', 'Работа'),
+        ('break', 'Перерыв'),
+    )
+    open_shift = models.ForeignKey(Open_Shift, on_delete=models.CASCADE, verbose_name='Открытая смена', related_name='detail_open_shift_set')
+    type = models.CharField('Тип интервала', max_length=20, choices=interval_type_choices, default='job')
+    time_from = models.TimeField('Время начала')
+    time_to = models.TimeField('Время окончания')
+
+    objects = DataFrameManager()
