@@ -610,7 +610,10 @@ class RetailStoreFormatView(generics.ListAPIView):
 def open_shift_data(request):
 
     if request.method == 'GET':
+        subdivision_id = request.query_params.get('subdivision_id', None)
         open_shift = Open_Shift.objects.all()
+        if subdivision_id is not None:
+            open_shift = open_shift.filter(subdivision_id=subdivision_id)
         open_shift_serializer = OpenShiftSerializer(open_shift, many=True)
         return JsonResponse(open_shift_serializer.data, safe=False)
 
