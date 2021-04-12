@@ -150,4 +150,11 @@ urlpatterns = [
     path('retail_store_format/',
          views.RetailStoreFormatView.as_view(),
          name='retail_store_format'),
+
+    path('open_shift_data/',
+         views.open_shift_data,
+         name='open_shift_data'),
+    path('open_shift_data_detail/<int:pk>/',
+         views.open_shift_data_detail,
+         name='open_shift_data_detail'),
 ]

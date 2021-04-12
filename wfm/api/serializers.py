@@ -4,7 +4,8 @@ from ..models import Production_Task, Subdivision, Employee, Scheduled_Productio
     Tasks_In_Duty, Appointed_Production_Task, Organization, Demand_Detail_Main, Demand_Detail_Task, Company, \
     Availability_Template, Availability_Template_Data, Employee_Availability_Templates, Planning_Method, \
     Working_Hours_Rate, Work_Shift_Planning_Rule, Breaking_Rule, Employee_Planning_Rules, Employee_Availability, \
-    Employee_Shift_Detail_Plan, Employee_Shift, Holiday_Period, Holiday, Retail_Store_Format
+    Employee_Shift_Detail_Plan, Employee_Shift, Holiday_Period, Holiday, Retail_Store_Format, Open_Shift_Detail, \
+    Open_Shift
 
 
 class ScheduledProductionTaskSerializer(serializers.ModelSerializer):
@@ -282,3 +283,50 @@ class RetailStoreFormatSerializer(serializers.ModelSerializer):
     class Meta:
         model = Retail_Store_Format
         fields = '__all__'
+
+
+class OpenShiftDetailSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(required=False)
+
+    class Meta:
+        model = Open_Shift_Detail
+        fields = '__all__'
+
+
+class OpenShiftSerializerHeader(serializers.ModelSerializer):
+
+    class Meta:
+        model = Open_Shift
+        fields = '__all__'
+
+
+class OpenShiftSerializer(serializers.ModelSerializer):
+    detail_open_shift_set = OpenShiftDetailSerializer(many=True, required=False)
+
+    class Meta:
+        model = Open_Shift
+        fields = '__all__'
+
+    def update(self, instance, validated_data):
+        instance.shift_date = validated_data.get('shift_date', instance.shift_date)
+        subdivision = validated_data.get('subdivision', None)
+        if subdivision is None:
+            instance.subdivision_id = None
+        else:
+            instance.subdivision_id = subdivision.id
+        instance.save()
+
+        lines = validated_data.get('detail_open_shift_set')
+
+        for line_step in lines:
+            line_id = line_step.get('id', None)
+            if line_id:
+                line = Open_Shift_Detail.objects.get(id=line_id, open_shift=instance)
+                line.type = line_step.get('type', line.type)
+                line.time_from = line_step.get('time_from', line.time_from)
+                line.time_to = line_step.get('time_to', line.time_to)
+                line.save()
+            else:
+                Open_Shift_Detail.objects.create(**line_step)
+        return instance
+
