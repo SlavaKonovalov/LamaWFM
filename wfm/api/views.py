@@ -25,7 +25,8 @@ from .serializers import ProductionTaskSerializer, OrganizationSerializer, Subdi
     EmployeeAvailabilityTemplateSerializer, PlanningMethodSerializer, WorkingHoursRateSerializer, \
     WorkShiftPlanningRuleSerializer, BreakingRuleSerializer, EmployeePlanningRuleSerializer, \
     AssignEmployeePlanningRulesSerializer, EmployeeAvailabilitySerializer, EmployeeShiftSerializer, HolidaySerializer, \
-    RetailStoreFormatSerializer, EmployeeShiftSerializerForUpdate, OpenShiftSerializer, OpenShiftSerializerHeader
+    RetailStoreFormatSerializer, EmployeeShiftSerializerForUpdate, OpenShiftSerializer, OpenShiftSerializerHeader, \
+    EmployeeShiftSerializerHeader
 
 
 class ProductionTaskListView(generics.ListAPIView):
@@ -563,6 +564,18 @@ class EmployeeShiftView(generics.ListAPIView):
         if subdivision_id is not None and employee_id is not None:
             queryset = queryset.filter(subdivision_id=subdivision_id, employee_id=employee_id)
         return queryset
+
+
+@api_view(['POST'])
+def employee_shift_plan_create(request):
+
+    if request.method == 'POST':
+        employee_shift_plan_request = JSONParser().parse(request)
+        employee_shift_plan_serializer = EmployeeShiftSerializerHeader(data=employee_shift_plan_request)
+        if employee_shift_plan_serializer.is_valid():
+            employee_shift_plan_serializer.save()
+            return JsonResponse(employee_shift_plan_serializer.data)
+        return JsonResponse(employee_shift_plan_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET', 'POST', 'DELETE'])

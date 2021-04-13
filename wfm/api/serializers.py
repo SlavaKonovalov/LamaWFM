@@ -217,6 +217,13 @@ class EmployeeShiftDetailPlanSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class EmployeeShiftSerializerHeader(serializers.ModelSerializer):
+
+    class Meta:
+        model = Employee_Shift
+        fields = '__all__'
+
+
 class EmployeeShiftSerializer(serializers.ModelSerializer):
     detail_plan_set = EmployeeShiftDetailPlanSerializer(read_only=True, many=True)
 
