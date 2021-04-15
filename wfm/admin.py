@@ -107,7 +107,7 @@ class Holiday(admin.ModelAdmin):
 
 @admin.register(Holiday_Period)
 class HolidayPeriod(admin.ModelAdmin):
-    list_display = ['holiday', 'begin_date_time', 'end_date_time']
+    list_display = ['holiday', 'begin_date_time', 'end_date_time', 'begin_date_time_for_calc', 'end_date_time_for_calc']
 
 
 @admin.register(Work_Shift_Planning_Rule)

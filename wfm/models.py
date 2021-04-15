@@ -391,6 +391,8 @@ class Holiday_Period(models.Model):
                                 verbose_name='Праздник', related_name='holiday_period_set')
     begin_date_time = models.DateTimeField('Дата начала')
     end_date_time = models.DateTimeField('Дата окончания')
+    begin_date_time_for_calc = models.DateTimeField('Дата начала для расчётов')
+    end_date_time_for_calc = models.DateTimeField('Дата окончания для расчётов')
 
     class Meta:
         verbose_name = 'Период праздника'
@@ -400,6 +402,8 @@ class Holiday_Period(models.Model):
 
     def __str__(self):
         return str(self.holiday)
+
+#class Increasing_sales_Ratio
 
 
 class Business_Indicator_Data(models.Model):

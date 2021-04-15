@@ -84,6 +84,8 @@ TEMPLATES = [
     },
 ]
 
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+
 WSGI_APPLICATION = 'LamaWFM.wsgi.application'
 
 # Database
