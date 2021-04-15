@@ -73,12 +73,16 @@ class ShiftPlanning:
         return df
 
     @staticmethod
-    def get_availability_dataframe(subdivision_id, begin_date, end_date, tz, employee_id=None):
+    def get_availability_dataframe(subdivision_id, begin_date, end_date, tz, shift_type, employee_id=None):
         query = """
                 SELECT job_duty_id as duty, wfm_employee.id as employee, begin_date_time, end_date_time,
                 DATE_TRUNC('day', begin_date_time AT TIME ZONE '%s') as date,
                 EXTRACT('hour' FROM begin_date_time AT TIME ZONE '%s') as av_begin_hour,
                 EXTRACT('hour' FROM end_date_time AT TIME ZONE '%s') as av_end_hour,
+                working_days_for_flexible_min,
+                working_days_for_flexible_max,
+                weekends_for_flexible_min,
+                weekends_for_flexible_max,
                 shift_duration_min,
                 shift_duration_max
                 FROM wfm_employee
@@ -95,17 +99,16 @@ class ShiftPlanning:
                 AND begin_date_time < '%s'
                 AND date_rules_start <= begin_date_time
                 AND (date_rules_end > begin_date_time OR date_rules_end IS NULL)
-                """ % (tz, tz, tz, subdivision_id, begin_date, end_date)
+                AND shift_type = '%s'
+                """ % (tz, tz, tz, subdivision_id, begin_date, end_date, shift_type)
         if employee_id:
             query += "AND wfm_employee.id = '%s'" % employee_id
         df = pandas.read_sql_query(query, connection)
         return df
 
     @staticmethod
-    @transaction.atomic
-    # Планирование смен
-    def plan_shifts(subdivision_id, begin_date_time, end_date_time, employee_id=None):
-        # Удаление данных
+    # Удаление смен
+    def delete_shifts(subdivision_id, begin_date_time, end_date_time, employee_id=None):
         begin_date = begin_date_time.date()
         end_date = end_date_time.date()
         employee_shift = Employee_Shift.objects.all()
@@ -114,6 +117,16 @@ class ShiftPlanning:
         else:
             employee_shift = employee_shift.filter(subdivision_id=subdivision_id)
         employee_shift.filter(shift_date__gte=begin_date, shift_date__lt=end_date).delete()
+
+    @staticmethod
+    def plan_fix_shifts(subdivision_id, begin_date_time, end_date_time, employee_id=None):
+        a = 1
+
+    @staticmethod
+    # Планирование гибких смен
+    def plan_flexible_shifts(subdivision_id, begin_date_time, end_date_time, employee_id=None):
+        begin_date = begin_date_time.date()
+        end_date = end_date_time.date()
         # Получаем dataframe для потребности
         df_demand = ShiftPlanning.get_demand_dataframe(subdivision_id, begin_date_time, end_date_time, TIME_ZONE)
         # Считаем сумму, затем округляем
@@ -130,19 +143,21 @@ class ShiftPlanning:
                                                         ascending=[True, False, True, True])
         # Получаем dataframe со списком дат
         df_demand_date = df_demand_unique[['date']].drop_duplicates()
-        # Получаем dataframe для доступности + правила планирования
+        # Получаем dataframe для доступности + правила планирования для гибких смен
         df_availability = ShiftPlanning.get_availability_dataframe(subdivision_id, begin_date_time, end_date_time,
-                                                                   TIME_ZONE,
-                                                                   employee_id)
+                                                                   TIME_ZONE, 'flexible', employee_id)
         df_availability.begin_date_time = df_availability.begin_date_time.dt.tz_convert(TIME_ZONE)
         df_availability.end_date_time = df_availability.end_date_time.dt.tz_convert(TIME_ZONE)
         df_availability['appointed'] = 0  # 1, если сотруднику назначена смена на данный день
+        # Дата для расчета смен за неделю до пересчета
+        prev_shifts_date = (begin_date_time - datetime.timedelta(days=7)).date()
         # Сделаем begin_date началом месяца
         begin_date = begin_date.replace(day=1)
+        min_date = min(begin_date, prev_shifts_date)
         # Получаем dataframe текущих смен за месяц
         shift_detail_plan = Employee_Shift_Detail_Plan.objects.select_related('shift').filter(
             shift__subdivision_id=subdivision_id,
-            shift__shift_date__gte=begin_date,
+            shift__shift_date__gte=min_date,
             shift__shift_date__lt=end_date)
         df_shift_plan = pandas.DataFrame(
             shift_detail_plan.values_list('shift__employee_id', 'shift__subdivision_id', 'shift__shift_date', 'type',
@@ -152,9 +167,56 @@ class ShiftPlanning:
         df_shift_plan['hour_to'] = pandas.to_datetime(df_shift_plan['time_to'], format='%H:%M:%S').dt.hour
         df_shift_plan['hours'] = df_shift_plan.hour_to - df_shift_plan.hour_from
         # Получаем dataframe с суммарным кол-вом часов по каждому сотруднику из df_shift_plan
-        df_covering = df_shift_plan[(df_shift_plan.type == 'job')][['employee', 'hours']]
+        df_covering = df_shift_plan[(df_shift_plan.type == 'job') &
+                                    (df_shift_plan.shift_date >= begin_date)][['employee', 'hours']]
         df_covering['hours_sum'] = df_covering.groupby('employee')['hours'].transform('sum')
         df_covering = df_covering[['employee', 'hours_sum']].drop_duplicates()
+        # Далее определяем, кто отдыхал или работал перед началом моделирования, и продолжительность периода
+        # Начало -->
+        # Находим смены за неделю до даты моделирования
+        df_prev_shift_plan = df_shift_plan[(df_shift_plan.type == 'job') &
+                                           (df_shift_plan.shift_date >= prev_shifts_date) &
+                                           (df_shift_plan.shift_date < begin_date_time.date())][
+            ['employee', 'shift_date']]
+        if not df_prev_shift_plan.empty:
+            # last_date - дата последней смены
+            df_prev_shift_plan['last_date'] = df_prev_shift_plan.groupby('employee')['shift_date'].transform("max")
+            date_step = 1
+            prev_date = (begin_date_time - datetime.timedelta(days=date_step)).date()
+            # date_diff - разница (в днях) между prev_date и last_date
+            df_prev_shift_plan['date_diff'] = (prev_date - df_prev_shift_plan.last_date).dt.days
+            # works - человек работал за день до начала пересчета? 1 - да, 0 - нет
+            df_prev_shift_plan['works'] = df_prev_shift_plan['date_diff'].apply(lambda x: 1 if x == 0 else 0)
+            # work_check - промежуточный признак для расчета рабочих дней подряд
+            df_prev_shift_plan['work_check'] = df_prev_shift_plan['works']
+
+            # Зануляем work_check для строк, если человек работал в день перед началом пересчета
+            df_prev_shift_plan.loc[(df_prev_shift_plan.work_check == 1) &
+                                   (df_prev_shift_plan.shift_date == prev_date), ['work_check']] = 0
+            # Цикл пока есть 1 в столбце work_check
+            while df_prev_shift_plan.work_check.isin([1]).any().any():
+                df_prev_shift_plan['last_date'] = df_prev_shift_plan.groupby(['employee', 'work_check'])[
+                    'shift_date'].transform("max")
+                date_step += 1
+                prev_date = (begin_date_time - datetime.timedelta(days=date_step)).date()
+                df_prev_shift_plan.loc[(df_prev_shift_plan.work_check == 1), ['date_diff']] = (
+                        prev_date - df_prev_shift_plan.last_date).dt.days
+                df_prev_shift_plan.loc[(df_prev_shift_plan.work_check == 1) &
+                                       (df_prev_shift_plan.date_diff > 0), ['date_diff']] = date_step - 1
+                df_prev_shift_plan.loc[(df_prev_shift_plan.work_check == 1) &
+                                       ((df_prev_shift_plan.date_diff > 0) |
+                                        (df_prev_shift_plan.shift_date == prev_date)), ['work_check']] = 0
+            # в qty кол-во рабочих или выходных дней подряд перед началом пересчета
+            df_prev_shift_plan['qty'] = df_prev_shift_plan.groupby('employee')['date_diff'].transform("max")
+        else:
+            df_prev_shift_plan['works'] = 0
+            df_prev_shift_plan['qty'] = 0
+        # df_shift_period - результаты
+        df_shift_period = df_prev_shift_plan[['employee', 'works', 'qty']].drop_duplicates()
+        # признак назначения смены для дневной обработки
+        df_shift_period['shift_check'] = 0
+        # <-- Конец
+
         # Цикл по датам
         for row_date in df_demand_date.itertuples():
             # Берем покрытие за выбранную дату
@@ -164,7 +226,6 @@ class ShiftPlanning:
 
             df_shift_on_date = pandas.DataFrame(columns=['employee', 'shift_id', 'hour_from',
                                                          'hour_to', 'shift_duration_max'])
-
             while True:
                 df_res_with_shifts = pandas.DataFrame()
                 # Бегаем, пока df_demand_on_date не пуст
@@ -188,10 +249,17 @@ class ShiftPlanning:
                     # минимальная длина смены укладывается в доступность:
                     (df_availability.av_end_hour - df_availability.av_begin_hour >= df_availability.shift_duration_min)
                     & (row_demand.duty == df_availability.duty)]
+                # добавляем df_shift_period, проверяем параметры продолжительности рабочих и выходных дней
+                df_res = pandas.merge(df_res, df_shift_period, on=['employee'], how='left')
+                df_res.works = df_res.works.fillna(1)  # Меняем NULL на 1 для works
+                df_res.qty = df_res.qty.fillna(0)  # Меняем NULL на 0 для qty
+                df_res = df_res[((df_res.works == 1) & (df_res.qty < df_res.working_days_for_flexible_max) |
+                                 (df_res.works == 0) & (df_res.qty >= df_res.weekends_for_flexible_min))]
 
                 # Ищем смены, которые закончились на текущем часе
                 df_shift_on_hour = df_shift_on_date[(df_shift_on_date.hour_to == row_demand.hour) &
-                                                    (df_shift_on_date.hour_to - df_shift_on_date.hour_from != df_shift_on_date.shift_duration_max)]
+                                                    (
+                                                            df_shift_on_date.hour_to - df_shift_on_date.hour_from != df_shift_on_date.shift_duration_max)]
                 if not df_shift_on_hour.empty:
                     # Находим список сотрудников, которым можно продлить смены
                     df_res_with_shifts = df_availability[
@@ -202,18 +270,16 @@ class ShiftPlanning:
                         (df_availability.shift_duration_max is not None) &  # определена верхняя граница длины смены
                         # доступность больше минимальной длины смены:
                         (
-                                    df_availability.av_end_hour - df_availability.av_begin_hour > df_availability.shift_duration_min)
+                                df_availability.av_end_hour - df_availability.av_begin_hour > df_availability.shift_duration_min)
                         & (row_demand.duty == df_availability.duty)]
                     df_res_with_shifts = pandas.merge(df_res_with_shifts, df_shift_on_hour, on=['employee'],
                                                       how='inner')
-                    df_res_with_shifts = df_res_with_shifts[(
-                            df_res_with_shifts.hour_to - df_res_with_shifts.hour_from != df_res_with_shifts.shift_duration_max)]
 
                 # Если ФО уже покрывалась, требуется на данный час 1 сотрудник и всего непокрытых часов <= 2
                 # выводить нового сотрудника не имеет смысла
                 # проверяем, можно ли продлить смену уже назначенному. Если нет, то прекращаем расчет остатка
                 row_demand_check = True if (
-                            row_demand.qty == 1 and row_demand.count_hour <= 2 and row_demand.covered != 0) else False
+                        row_demand.qty == 1 and row_demand.count_hour <= 2 and row_demand.covered != 0) else False
                 # if row_demand.qty == 1 and row_demand.count_hour <= 2 and row_demand.covered != 0:
                 if row_demand_check or df_res.empty:
                     # Если можно продлить смену
@@ -243,7 +309,8 @@ class ShiftPlanning:
                         # Уменьшаем qty (потребность) и covered на 1
                         df_demand_on_date.loc[(df_demand_on_date.date == row_demand.date) &
                                               (df_demand_on_date.duty == row_demand.duty) &
-                                              (df_demand_on_date.hour < row_demand.hour + value), ['qty', 'covered']] -= 1
+                                              (df_demand_on_date.hour < row_demand.hour + value), ['qty',
+                                                                                                   'covered']] -= 1
 
                     else:
                         if row_demand_check:
@@ -335,3 +402,29 @@ class ShiftPlanning:
                                           (df_demand_on_date.duty == row_demand.duty) &
                                           (shift_begin <= df_demand_on_date.hour) &
                                           (df_demand_on_date.hour < shift_end), ['qty', 'covered']] -= 1
+
+                    if not df_shift_period.employee.isin([res_sample.employee]).any().any():
+                        df_shift_period_row = pandas.Series(data={'employee': res_sample.employee,
+                                                                  'works': 1,
+                                                                  'qty': 0,
+                                                                  'shift_check': 1})
+                        df_shift_period = df_shift_period.append(df_shift_period_row, ignore_index=True)
+                    if not res_sample.works:
+                        df_shift_period.loc[(df_shift_period.employee == res_sample.employee), ['works']] = 1
+                        df_shift_period.loc[(df_shift_period.employee == res_sample.employee), ['qty']] = 0
+                    df_shift_period.loc[(df_shift_period.employee == res_sample.employee), ['shift_check']] = 1
+
+            # Ставим выходные, если смены не назначены
+            df_shift_period.loc[(df_shift_period.works == 1) & (df_shift_period.shift_check == 0), ['qty']] = 0
+            df_shift_period.loc[(df_shift_period.works == 1) & (df_shift_period.shift_check == 0), ['works']] = 0
+            # Инкремент qty
+            df_shift_period = df_shift_period.assign(qty=df_shift_period.qty + 1)
+            # Сбрасываем shift_check
+            df_shift_period['shift_check'] = 0
+
+    @staticmethod
+    @transaction.atomic
+    def plan_shifts(subdivision_id, begin_date_time, end_date_time, employee_id=None):
+        ShiftPlanning.delete_shifts(subdivision_id, begin_date_time, end_date_time, employee_id)
+        ShiftPlanning.plan_fix_shifts(subdivision_id, begin_date_time, end_date_time, employee_id)
+        ShiftPlanning.plan_flexible_shifts(subdivision_id, begin_date_time, end_date_time, employee_id)
