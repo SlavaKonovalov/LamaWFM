@@ -351,8 +351,15 @@ class Employee(models.Model):
 
 
 class Business_Indicator(models.Model):
+    interval_for_calculation = (
+        (15, '15 минут'),
+        (1440, '1 день'),
+    )
+
     name = models.CharField('Название', max_length=60)
     external_code = models.CharField('Внешний код', max_length=20, null=True, blank=True)
+    interval_for_calculation = models.PositiveIntegerField(choices=interval_for_calculation,
+                                                           verbose_name='Интервал времени для расчёта')
 
     class Meta:
         verbose_name = 'Показатель бизнеса'

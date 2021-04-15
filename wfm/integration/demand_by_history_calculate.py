@@ -62,7 +62,7 @@ class DemandByHistoryDataCalculate:
             avg_by_dayofweek = df.groupby(['dayofweek', 'begin_time_in_sec'])['indicator_value'].median().reset_index()
             cur_date = self.from_date
             while cur_date < self.to_date:
-                cur_date = cur_date + timedelta(minutes=15)
+                cur_date = cur_date + timedelta(minutes=business_indicator.interval_for_calculation)
                 time_in_sec = cur_date.hour * 3600 + cur_date.minute * 60 + cur_date.second
 
                 weekday = cur_date.isoweekday()

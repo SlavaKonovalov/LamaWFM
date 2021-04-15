@@ -82,7 +82,7 @@ class EmployeeAdmin(admin.ModelAdmin):
 
 @admin.register(Business_Indicator)
 class OrganizationAdmin(admin.ModelAdmin):
-    list_display = ['name']
+    list_display = ['name', 'interval_for_calculation']
 
 
 @admin.register(Predictable_Production_Task)
