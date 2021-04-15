@@ -539,8 +539,8 @@ class Employee_Availability(models.Model):
 
 
 class Work_Shift_Planning_Rule(models.Model):
-    time_between_shift = models.PositiveIntegerField('Минимальное время между сменами', default=0)
-    continuous_weekly_rest = models.PositiveIntegerField('Еженедельный непрерывный отдых', default=0)
+    time_between_shift = models.PositiveIntegerField('Минимальное время между сменами, ч.', default=0)
+    continuous_weekly_rest = models.PositiveIntegerField('Еженедельный непрерывный отдых, ч.', default=0)
 
     class Meta:
         verbose_name = 'Справочник правил планирования смен'
@@ -549,12 +549,12 @@ class Work_Shift_Planning_Rule(models.Model):
 
 class Breaking_Rule(models.Model):
     name = models.CharField('Название', max_length=60, default='')
-    break_first = models.PositiveIntegerField('Продолжительность первого перерыва', default=0)
-    break_second = models.PositiveIntegerField('Продолжительность второго перерыва', default=0)
-    first_break_starting_after_going = models.PositiveIntegerField('Время от начала смены до первого перерыва',
+    break_first = models.PositiveIntegerField('Продолжительность первого перерыва, мин.', default=0)
+    break_second = models.PositiveIntegerField('Продолжительность второго перерыва, мин.', default=0)
+    first_break_starting_after_going = models.PositiveIntegerField('Время от начала смены до первого перерыва, мин.',
                                                                    default=0)
-    time_between_breaks = models.PositiveIntegerField('Время между перерывами', default=0)
-    second_break_starting_before_end = models.PositiveIntegerField('Время окончания последнего перерыва до конца смены',
+    time_between_breaks = models.PositiveIntegerField('Время между перерывами, мин.', default=0)
+    second_break_starting_before_end = models.PositiveIntegerField('Время окончания последнего перерыва до конца смены, мин.',
                                                                    default=0)
 
     class Meta:
@@ -574,22 +574,22 @@ class Planning_Method(models.Model):
     )
 
     shift_type = models.CharField('Тип графика', max_length=40, choices=type, default='flexible')
-    working_days_for_flexible_min = models.PositiveIntegerField('Гибкий график - рабочие дни (c)', null=True,
+    working_days_for_flexible_min = models.PositiveIntegerField('Гибкий график - рабочие дни (от)', null=True,
                                                                 blank=True)
-    working_days_for_flexible_max = models.PositiveIntegerField('Гибкий график - рабочие дни (по)', null=True,
+    working_days_for_flexible_max = models.PositiveIntegerField('Гибкий график - рабочие дни (до)', null=True,
                                                                 blank=True)
-    weekends_for_flexible_min = models.PositiveIntegerField('Гибкий график - выходные дни (c)', null=True, blank=True)
-    weekends_for_flexible_max = models.PositiveIntegerField('Гибкий график - выходные дни (по)', null=True, blank=True)
-    count_days_continuous_rest_min = models.PositiveIntegerField('Количество дней непрерывного отдыха (c)', null=True,
+    weekends_for_flexible_min = models.PositiveIntegerField('Гибкий график - выходные дни (от)', null=True, blank=True)
+    weekends_for_flexible_max = models.PositiveIntegerField('Гибкий график - выходные дни (до)', null=True, blank=True)
+    count_days_continuous_rest_min = models.PositiveIntegerField('Количество дней непрерывного отдыха (от)', null=True,
                                                                  blank=True)
-    count_days_continuous_rest_max = models.PositiveIntegerField('Количество дней непрерывного отдыха (по)', null=True,
+    count_days_continuous_rest_max = models.PositiveIntegerField('Количество дней непрерывного отдыха (до)', null=True,
                                                                  blank=True)
-    count_days_continuous_work_min = models.PositiveIntegerField('Количество дней непрерывной работы (c)', null=True,
+    count_days_continuous_work_min = models.PositiveIntegerField('Количество дней непрерывной работы (от)', null=True,
                                                                  blank=True)
-    count_days_continuous_work_max = models.PositiveIntegerField('Количество дней непрерывной работы (по)', null=True,
+    count_days_continuous_work_max = models.PositiveIntegerField('Количество дней непрерывной работы (до)', null=True,
                                                                  blank=True)
-    shift_duration_min = models.PositiveIntegerField('Продолжительность смены (с)', default=0)
-    shift_duration_max = models.PositiveIntegerField('Продолжительность смены (по)', default=0)
+    shift_duration_min = models.PositiveIntegerField('Продолжительность смены (от)', default=0)
+    shift_duration_max = models.PositiveIntegerField('Продолжительность смены (до)', default=0)
 
     class Meta:
         verbose_name = 'Способ планирования смен'
@@ -601,8 +601,8 @@ class Planning_Method(models.Model):
 
 class Working_Hours_Rate(models.Model):
     name = models.CharField('Название', max_length=100)
-    count_working_hours_in_month_min = models.PositiveIntegerField('Количество рабочих часов в месяц (с)', default=0)
-    count_working_hours_in_month_max = models.PositiveIntegerField('Количество рабочих часов в месяц (по)', default=0)
+    count_working_hours_in_month_min = models.PositiveIntegerField('Количество рабочих часов в месяц (от)', default=0)
+    count_working_hours_in_month_max = models.PositiveIntegerField('Количество рабочих часов в месяц (до)', default=0)
 
     class Meta:
         verbose_name = 'Рабочие часы'
