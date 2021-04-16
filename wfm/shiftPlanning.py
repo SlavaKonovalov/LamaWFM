@@ -107,20 +107,63 @@ class ShiftPlanning:
         return df
 
     @staticmethod
+    # Создание смены
+    def add_shift(subdivision_id, employee_id, shift_date, shift_type, shift_begin, shift_end):
+        employee_shift, created_shift = Employee_Shift.objects.get_or_create(
+            employee_id=employee_id,
+            subdivision_id=subdivision_id,
+            shift_date=shift_date
+        )
+        employee_shift_detail_plan, created_shift_plan = Employee_Shift_Detail_Plan.objects.update_or_create(
+            shift_id=employee_shift.id,
+            type=shift_type,
+            defaults={
+                'time_from': datetime.time(int(shift_begin), 0),
+                'time_to': datetime.time(int(shift_end), 0)
+            }
+        )
+        return employee_shift.id
+
+    @staticmethod
     # Удаление смен
     def delete_shifts(subdivision_id, begin_date_time, end_date_time, employee_id=None):
         begin_date = begin_date_time.date()
         end_date = end_date_time.date()
         employee_shift = Employee_Shift.objects.all()
         if employee_id:
-            employee_shift = employee_shift.filter(employee_id=employee_id, subdivision_id=subdivision_id)
+            employee_shift = employee_shift.filter(subdivision_id=subdivision_id, employee_id=employee_id)
         else:
             employee_shift = employee_shift.filter(subdivision_id=subdivision_id)
         employee_shift.filter(shift_date__gte=begin_date, shift_date__lt=end_date).delete()
 
     @staticmethod
     def plan_fix_shifts(subdivision_id, begin_date_time, end_date_time, employee_id=None):
-        a = 1
+        begin_date = begin_date_time.date()
+        end_date = end_date_time.date()
+        # Получаем dataframe для доступности + правила планирования для фиксированных смен
+        df_availability = ShiftPlanning.get_availability_dataframe(subdivision_id, begin_date_time, end_date_time,
+                                                                   TIME_ZONE, 'fix', employee_id)
+        if df_availability.empty:
+            return
+        df_availability['shift_date'] = df_availability.date.dt.date
+        df_availability = df_availability[['employee', 'shift_date', 'av_begin_hour', 'av_end_hour']].drop_duplicates()
+        # Фиксированные смены
+        employee_shift = Employee_Shift.objects.filter(subdivision_id=subdivision_id, shift_date__gte=begin_date,
+                                                       shift_date__lt=end_date)
+        if employee_id:
+            employee_shift = employee_shift.filter(employee_id=employee_id)
+        df_employee_shift = pandas.DataFrame(
+            employee_shift.values_list('employee_id', 'shift_date', 'fixed'),
+            columns=['employee', 'shift_date', 'fixed'])
+
+        df_availability = pandas.merge(df_availability, df_employee_shift, how='left',
+                                       left_on=['employee', 'shift_date'],
+                                       right_on=['employee', 'shift_date'])
+        # Исключаем доступность с существующими сменами
+        df_availability = df_availability[(df_availability.fixed.isna())]
+        for row_availability in df_availability.itertuples():
+            ShiftPlanning.add_shift(subdivision_id, row_availability.employee, row_availability.shift_date,
+                                    'job', row_availability.av_begin_hour, row_availability.av_end_hour)
 
     @staticmethod
     # Планирование гибких смен
@@ -372,23 +415,12 @@ class ShiftPlanning:
                                                               'hours_sum': shift_length})
                         df_covering = df_covering.append(df_covering_row, ignore_index=True)
 
-                    employee_shift, created_shift = Employee_Shift.objects.get_or_create(
-                        employee_id=res_sample.employee,
-                        subdivision_id=subdivision_id,
-                        shift_date=row_demand.date.date()
-                    )
-                    employee_shift_detail_plan, created_shift_plan = Employee_Shift_Detail_Plan.objects.update_or_create(
-                        shift_id=employee_shift.id,
-                        type='job',
-                        defaults={
-                            'time_from': datetime.time(int(shift_begin), 0),
-                            'time_to': datetime.time(int(shift_end), 0)
-                        }
-                    )
+                    employee_shift_id = ShiftPlanning.add_shift(subdivision_id, res_sample.employee,
+                                                                row_demand.date.date(), 'job', shift_begin, shift_end)
 
                     shift_duration_max = res_sample.shift_duration_max if res_sample.shift_duration_max else res_sample.shift_duration_min
                     df_shift_on_date_row = pandas.Series(data={'employee': res_sample.employee,
-                                                               'shift_id': employee_shift.id,
+                                                               'shift_id': employee_shift_id,
                                                                'hour_from': shift_begin,
                                                                'hour_to': shift_end,
                                                                'shift_duration_max': shift_duration_max})

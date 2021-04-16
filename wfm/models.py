@@ -649,6 +649,8 @@ class Employee_Shift(models.Model):
     handle_correct = models.PositiveIntegerField('Ручная корректировка смены', default=0)
     fixed = models.PositiveIntegerField('Фиксированный', default=0)
 
+    objects = DataFrameManager()
+
     class Meta:
         verbose_name = 'Смена сотрудника'
         verbose_name_plural = 'Смены сотрудников'
