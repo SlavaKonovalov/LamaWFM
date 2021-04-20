@@ -45,6 +45,9 @@ urlpatterns = [
     path('employees/<int:pk>/',
          views.EmployeeDetailView.as_view(),
          name='employee_detail'),
+    path('employees_update/<int:pk>/',
+         views.employees_update,
+         name='employees_update'),
 
     path('scheduled_tasks/',
          views.scheduled_task_list,
