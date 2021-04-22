@@ -1,4 +1,5 @@
 from decimal import Decimal
+from datetime import datetime
 
 from django.core.validators import MinValueValidator
 from django.db import models
@@ -350,6 +351,19 @@ class Employee(models.Model):
     get_part_job_org.short_description = 'Юр. лица (подработка)'
 
 
+class Business_Indicator_Category(models.Model):
+    name = models.CharField('Категория показателя бизнеса', max_length=60)
+
+    class Meta:
+        verbose_name = 'Категория показателя бизнеса'
+        verbose_name_plural = 'Категории показателей бизнеса'
+
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
 class Business_Indicator(models.Model):
     interval_for_calculation = (
         (15, '15 минут'),
@@ -360,6 +374,8 @@ class Business_Indicator(models.Model):
     external_code = models.CharField('Внешний код', max_length=20, null=True, blank=True)
     interval_for_calculation = models.PositiveIntegerField(choices=interval_for_calculation,
                                                            verbose_name='Интервал времени для расчёта')
+    business_indicator_category = models.ForeignKey(Business_Indicator_Category, on_delete=models.SET_NULL, null=True, blank=True,
+                                                    verbose_name='Категория показателя бизнеса', related_name='business_indicator_set')
 
     class Meta:
         verbose_name = 'Показатель бизнеса'
@@ -398,8 +414,6 @@ class Holiday_Period(models.Model):
                                 verbose_name='Праздник', related_name='holiday_period_set')
     begin_date_time = models.DateTimeField('Дата начала')
     end_date_time = models.DateTimeField('Дата окончания')
-    begin_date_time_for_calc = models.DateTimeField('Дата начала для расчётов')
-    end_date_time_for_calc = models.DateTimeField('Дата окончания для расчётов')
 
     class Meta:
         verbose_name = 'Период праздника'
@@ -408,9 +422,31 @@ class Holiday_Period(models.Model):
         ordering = ['holiday', 'begin_date_time']
 
     def __str__(self):
-        return str(self.holiday)
+        if self.begin_date_time != self.end_date_time:
+            date_period = ' (' + Global.add_timezone(self.begin_date_time).strftime("%d.%m.%Y") + '-' \
+                          + Global.add_timezone(self.end_date_time).strftime("%d.%m.%Y") + ')'
+        else:
+            date_period = ' (' + Global.add_timezone(self.begin_date_time).strftime("%d.%m.%Y") + ')'
 
-#class Increasing_sales_Ratio
+        return str(self.holiday) + date_period
+
+
+class Holiday_Period_For_Calc(models.Model):
+    holiday_period = models.ForeignKey(Holiday_Period, on_delete=models.CASCADE,
+                                       verbose_name='Период праздника', related_name='holiday_period_for_calc_set')
+    business_indicator_category = models.ForeignKey(Business_Indicator_Category, on_delete=models.CASCADE, null=True, blank=True,
+                                                    verbose_name='Категория показателя бизнеса', related_name='holiday_period_for_calc_set')
+    begin_date_time = models.DateTimeField('Дата начала')
+    end_date_time = models.DateTimeField('Дата окончания')
+
+    class Meta:
+        verbose_name = 'Период праздника для расчётов'
+        verbose_name_plural = 'Периоды праздников для расчётов'
+
+        ordering = ['holiday_period', 'business_indicator_category', 'begin_date_time']
+
+    def __str__(self):
+        return str(self.holiday_period)
 
 
 class Business_Indicator_Data(models.Model):
@@ -427,8 +463,8 @@ class Business_Indicator_Data(models.Model):
     indicator_value = models.DecimalField(max_digits=32, decimal_places=16, verbose_name='Значение показателя бизнеса')
     time_interval_length = models.PositiveIntegerField(choices=time_interval_length_choices,
                                                        verbose_name='Длинна временного интервала')
-    holiday_period = models.ForeignKey(Holiday_Period, on_delete=models.SET_NULL,
-                                       verbose_name='Праздник', null=True, blank=True)
+    holiday_period_for_calc = models.ForeignKey(Holiday_Period_For_Calc, on_delete=models.SET_NULL,
+                                                verbose_name='Пероид праздника', null=True, blank=True)
 
     def __str__(self):
         return 'Подразделение:' + self.subdivision.name \

@@ -55,7 +55,7 @@ class DemandByHistoryDataCalculate:
                 + " AND business_indicator_id = " + str(business_indicator.pk) \
                 + " AND begin_date_time >= '" + str(self.history_from_date) + "'" \
                 + " AND begin_date_time <= '" + str(self.history_to_date) + "'" \
-                + " AND holiday_period_id is NULL"
+                + " AND holiday_period_for_calc_id is NULL"
 
         df = DataBase.get_dataframe_by_query(query)
         if not df.empty:
