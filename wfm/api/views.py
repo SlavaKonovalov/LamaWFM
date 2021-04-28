@@ -26,7 +26,7 @@ from .serializers import ProductionTaskSerializer, OrganizationSerializer, Subdi
     WorkShiftPlanningRuleSerializer, BreakingRuleSerializer, EmployeePlanningRuleSerializer, \
     AssignEmployeePlanningRulesSerializer, EmployeeAvailabilitySerializer, EmployeeShiftSerializer, HolidaySerializer, \
     RetailStoreFormatSerializer, EmployeeShiftSerializerForUpdate, OpenShiftSerializer, OpenShiftSerializerHeader, \
-    EmployeeShiftSerializerHeader
+    EmployeeShiftSerializerHeader, EmployeeUpdateSerializer
 
 
 class ProductionTaskListView(generics.ListAPIView):
@@ -665,4 +665,20 @@ def open_shift_data_detail(request, pk):
     elif request.method == 'DELETE':
         open_shift.delete()
         return JsonResponse({'message': 'Open shift was deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['POST'])
+def employees_update(request, pk):
+    try:
+        employee = Employee.objects.get(pk=pk)
+    except employee.DoesNotExist:
+        return JsonResponse({'message': 'The employee does not exist'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'POST':
+        employee_request = JSONParser().parse(request)
+        employee_serializer = EmployeeUpdateSerializer(employee, employee_request)
+        if employee_serializer.is_valid():
+            employee_serializer.save()
+            return JsonResponse(employee_serializer.data)
+        return JsonResponse(employee_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

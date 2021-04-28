@@ -3,7 +3,8 @@ from .forms import EmployeeForm
 from .models import Organization, Production_Task, Subdivision, Scheduled_Production_Task, Employee, \
     Business_Indicator, Company, Job_Duty, Tasks_In_Duty, Employee_Position, Predictable_Production_Task, \
     Work_Shift_Planning_Rule, Breaking_Rule, Planning_Method, Working_Hours_Rate, Employee_Planning_Rules, \
-    Production_Task_Business_Indicator, Business_Indicator_Norm, Holiday, Holiday_Period, Retail_Store_Format
+    Production_Task_Business_Indicator, Business_Indicator_Norm, Holiday, Holiday_Period, Retail_Store_Format, \
+    Holiday_Period_For_Calc, Business_Indicator_Category
 
 
 @admin.register(Company)
@@ -82,7 +83,7 @@ class EmployeeAdmin(admin.ModelAdmin):
 
 @admin.register(Business_Indicator)
 class OrganizationAdmin(admin.ModelAdmin):
-    list_display = ['name', 'interval_for_calculation']
+    list_display = ['name', 'business_indicator_category', 'interval_for_calculation']
 
 
 @admin.register(Predictable_Production_Task)
@@ -107,7 +108,17 @@ class Holiday(admin.ModelAdmin):
 
 @admin.register(Holiday_Period)
 class HolidayPeriod(admin.ModelAdmin):
-    list_display = ['holiday', 'begin_date_time', 'end_date_time', 'begin_date_time_for_calc', 'end_date_time_for_calc']
+    list_display = ['holiday', 'begin_date_time', 'end_date_time']
+
+
+@admin.register(Business_Indicator_Category)
+class HolidayPeriod(admin.ModelAdmin):
+    list_display = ['name']
+
+
+@admin.register(Holiday_Period_For_Calc)
+class HolidayPeriod(admin.ModelAdmin):
+    list_display = ['holiday_period', 'business_indicator_category', 'begin_date_time', 'end_date_time']
 
 
 @admin.register(Work_Shift_Planning_Rule)
