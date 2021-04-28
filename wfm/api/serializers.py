@@ -357,3 +357,54 @@ class OpenShiftSerializer(serializers.ModelSerializer):
                 Open_Shift_Detail.objects.create(**line_step)
         return instance
 
+
+class EmployeeUpdateSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Employee
+        fields = ['id', 'subdivision', 'middle_name', 'personnel_number', 'pf_reg_id', 'position', 'duties', 'part_time_job_org']
+
+    def update(self, instance, validated_data):
+        subdivision = validated_data.get('subdivision', None)
+        if subdivision is None:
+            instance.subdivision_id = None
+        else:
+            instance.subdivision_id = subdivision.id
+        instance.id = validated_data.get('id', instance.id)
+        instance.middle_name = validated_data.get('middle_name', instance.middle_name)
+        instance.personnel_number = validated_data.get('personnel_number', instance.personnel_number)
+        instance.pf_reg_id = validated_data.get('pf_reg_id', instance.pf_reg_id)
+        position = validated_data.get('position', None)
+        if position is None:
+            instance.position_id = None
+        else:
+            instance.position_id = position.id
+
+        instance.save()
+
+        cursor = connection.cursor()
+        query = "DELETE FROM wfm_employee_duties WHERE employee_id = %i " % (instance.id)
+        cursor.execute(query)
+
+        lines = validated_data.get("duties")
+
+        for line_step in lines:
+            cursor = connection.cursor()
+            query = "INSERT INTO public.wfm_employee_duties(employee_id, job_duty_id) VALUES (%i, %i) " % (instance.id, line_step.id)
+            cursor.execute(query)
+
+        cursor = connection.cursor()
+        query = "DELETE FROM wfm_employee_part_time_job_org WHERE employee_id = %i " % (instance.id)
+        cursor.execute(query)
+
+        lines = validated_data.get("part_time_job_org")
+
+        for line_step in lines:
+            cursor = connection.cursor()
+            query = "INSERT INTO public.wfm_employee_part_time_job_org(employee_id, company_id) VALUES (%i, %i) " % (instance.id, line_step.id)
+            cursor.execute(query)
+
+        return instance
+
+
+
