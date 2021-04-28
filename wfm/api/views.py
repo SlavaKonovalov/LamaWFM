@@ -518,7 +518,7 @@ def recalculate_availability(request):
 def plan_shifts(request):
     data = JSONParser().parse(request)
     subdivision_id = data.get('subdivision_id')
-    employee_id = data.get('employee_id')
+    employees = data.get('employees')
     begin_date = dateutil.parser.parse(data.get('begin_date'))
     end_date = dateutil.parser.parse(data.get('end_date'))
     tomorrow_day = Global.get_current_midnight(datetime.datetime.now()) + datetime.timedelta(days=1)
@@ -531,14 +531,18 @@ def plan_shifts(request):
         subdivision = Subdivision.objects.get(pk=subdivision_id)
     except Subdivision.DoesNotExist:
         return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_404_NOT_FOUND)
-    if employee_id:
-        try:
-            employee = Employee.objects.get(pk=employee_id)
-        except Employee.DoesNotExist:
-            return JsonResponse({'message': 'The employee does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    employee_list = []
+    if employees:
+        for employee_step in employees:
+            employee_id = employee_step.get('employee_id')
+            try:
+                employee = Employee.objects.get(pk=employee_id)
+                employee_list.append(employee_id)
+            except Employee.DoesNotExist:
+                return JsonResponse({'message': 'The employee does not exist'}, status=status.HTTP_404_NOT_FOUND)
     if begin_date is None or end_date is None or begin_date >= end_date:
         return JsonResponse({'message': 'Wrong date parameters'}, status=status.HTTP_400_BAD_REQUEST)
-    ShiftPlanning.plan_shifts(subdivision_id, begin_date, end_date, employee_id)
+    ShiftPlanning.plan_shifts(subdivision_id, begin_date, end_date, employee_list)
     return JsonResponse({'message': 'Scheduled task was deleted successfully!'},
                         status=status.HTTP_204_NO_CONTENT)
 

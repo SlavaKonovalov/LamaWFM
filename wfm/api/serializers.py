@@ -243,6 +243,7 @@ class EmployeeShiftSerializerForUpdate(serializers.ModelSerializer):
         instance.handle_correct = validated_data.get('handle_correct', instance.handle_correct)
         instance.fixed = validated_data.get('fixed', instance.fixed)
         instance.shift_date = validated_data.get('shift_date', instance.shift_date)
+        instance.shift_type = validated_data.get('shift_type', instance.shift_type)
         subdivision = validated_data.get('subdivision', None)
         if subdivision is None:
             instance.subdivision_id = None

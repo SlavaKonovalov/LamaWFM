@@ -410,7 +410,8 @@ class Holiday_Period(models.Model):
     def __str__(self):
         return str(self.holiday)
 
-#class Increasing_sales_Ratio
+
+# class Increasing_sales_Ratio
 
 
 class Business_Indicator_Data(models.Model):
@@ -490,6 +491,7 @@ class Predicted_Production_Task(models.Model):
 
         ordering = ['predictable_task', 'begin_date_time']
 
+
 class Availability_Template(models.Model):
     type_choices = (
         ('week', 'Неделя'),
@@ -565,8 +567,9 @@ class Breaking_Rule(models.Model):
     first_break_starting_after_going = models.PositiveIntegerField('Время от начала смены до первого перерыва, мин.',
                                                                    default=0)
     time_between_breaks = models.PositiveIntegerField('Время между перерывами, мин.', default=0)
-    second_break_starting_before_end = models.PositiveIntegerField('Время окончания последнего перерыва до конца смены, мин.',
-                                                                   default=0)
+    second_break_starting_before_end = models.PositiveIntegerField(
+        'Время окончания последнего перерыва до конца смены, мин.',
+        default=0)
 
     class Meta:
         verbose_name = 'Правила планирования перерывов'
@@ -648,6 +651,7 @@ class Employee_Shift(models.Model):
     shift_date = models.DateField('Дата смены')
     handle_correct = models.PositiveIntegerField('Ручная корректировка смены', default=0)
     fixed = models.PositiveIntegerField('Фиксированный', default=0)
+    shift_type = models.CharField('Тип графика', max_length=40, default='flexible')
 
     objects = DataFrameManager()
 
@@ -693,9 +697,40 @@ class Open_Shift_Detail(models.Model):
         ('job', 'Работа'),
         ('break', 'Перерыв'),
     )
-    open_shift = models.ForeignKey(Open_Shift, on_delete=models.CASCADE, verbose_name='Открытая смена', related_name='detail_open_shift_set')
+    open_shift = models.ForeignKey(Open_Shift, on_delete=models.CASCADE, verbose_name='Открытая смена',
+                                   related_name='detail_open_shift_set')
     type = models.CharField('Тип интервала', max_length=20, choices=interval_type_choices, default='job')
     time_from = models.TimeField('Время начала')
     time_to = models.TimeField('Время окончания')
 
     objects = DataFrameManager()
+
+
+class Demand_Hour_Main(models.Model):
+    subdivision = models.ForeignKey(Subdivision, on_delete=models.CASCADE, verbose_name='Подразделение',
+                                    related_name='demand_hour_set')
+    demand_date = models.DateField('Дата')
+    demand_hour = models.PositiveIntegerField('Час')
+    duty = models.ForeignKey(Job_Duty, on_delete=models.CASCADE,
+                             verbose_name='Обязанность', related_name='demand_hour_set')
+    demand_value = models.PositiveIntegerField('Значение потребности (чел.)')
+    covering_value = models.PositiveIntegerField('Покрытие потребности (чел.)')
+
+    objects = DataFrameManager()
+
+    class Meta:
+        verbose_name = 'Почасовая потребность по ФО'
+        verbose_name_plural = 'Почасовая потребность по ФО'
+        unique_together = ('subdivision', 'demand_date', 'demand_hour', 'duty')
+
+
+class Demand_Hour_Shift(models.Model):
+    demand_hour_main = models.ForeignKey(Demand_Hour_Main, on_delete=models.CASCADE,
+                                         related_name='demand_hour_shift_set')
+    shift = models.ForeignKey(Employee_Shift, on_delete=models.CASCADE, verbose_name='Смена',
+                              related_name='demand_hour_shift_set')
+
+    class Meta:
+        verbose_name = 'Смена, покрывающая потребность'
+        verbose_name_plural = 'Смены, покрывающие потребность'
+        unique_together = ('demand_hour_main', 'shift')

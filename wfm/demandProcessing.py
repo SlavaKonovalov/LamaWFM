@@ -1,13 +1,14 @@
 import pandas
 from django.db import transaction, connection
-from django.db.models import Sum, OuterRef, F, Exists
+from django.db.models import Sum, OuterRef, F, Exists, Count, Subquery
 from django.db.models.functions import Coalesce
 from django.http import JsonResponse
 from rest_framework import status
 
 from .additionalFunctions import Global
 from .models import Demand_Detail_Main, Demand_Detail_Task, Global_Parameters, \
-    Appointed_Production_Task, Predicted_Production_Task, Production_Task, Tasks_In_Duty
+    Appointed_Production_Task, Predicted_Production_Task, Production_Task, Tasks_In_Duty, Demand_Hour_Main, \
+    Demand_Hour_Shift
 import datetime as datetime
 import sys
 
@@ -58,7 +59,7 @@ class DemandProcessing:
             demand_detail_main, create_main = Demand_Detail_Main.objects.get_or_create(
                 subdivision_id=subdivision_id,
                 date_time_value=Global.add_timezone(predicted_task.get('begin_date_time')),
-                rounded_value=0
+                defaults={'rounded_value': 0}
             )
             Demand_Detail_Task.objects.create(
                 demand_detail_main_id=demand_detail_main.id,
@@ -123,27 +124,51 @@ class DemandProcessing:
         cursor.execute(query)
 
     @staticmethod
-    def calculate_rounded_value_old(date_begin, tz, subdivision_id):
+    def recreate_demand_hour_main(date_begin, tz, subdivision_id):
+        # Удаление записей по подразделению с завтрашнего числа
+        Demand_Hour_Main.objects.filter(subdivision_id=subdivision_id) \
+            .filter(demand_date__gte=date_begin.date()).delete()
+        # Добавление записей в таблицу на основании потребности
         cursor = connection.cursor()
         query = """
-                    UPDATE wfm_demand_detail_main
-                    SET rounded_value =
+                INSERT INTO wfm_demand_hour_main(subdivision_id, demand_date, demand_hour, duty_id, demand_value, covering_value)
+                (
+                    SELECT
+                    '%s' as subdivision_id,
+                    date,
+                    hour,
+                    duty_id,
+                    CASE WHEN COALESCE(ROUND(SUM(task_sum.demand_sum)), 0) = 0 THEN 1
+                    ELSE COALESCE(ROUND(SUM(task_sum.demand_sum)), 0)
+                    END AS demand_value,
+                    0
+                    FROM
                     (
-                    SELECT COALESCE(ROUND(AVG(ddt.demand_value)), 0) AS demand_sum
-                    FROM wfm_demand_detail_main ddm
-                    LEFT OUTER JOIN wfm_demand_detail_task ddt
-                    ON (ddm.id = ddt.demand_detail_main_id)
-                    WHERE (
-                        DATE_TRUNC('day', ddm.date_time_value AT TIME ZONE '%s') = DATE_TRUNC('day', wfm_demand_detail_main.date_time_value AT TIME ZONE '%s')
-                        AND EXTRACT('hour' FROM ddm.date_time_value AT TIME ZONE '%s') = EXTRACT('hour' FROM wfm_demand_detail_main.date_time_value AT TIME ZONE '%s')
-                        )
-                    GROUP BY DATE_TRUNC('day', ddm.date_time_value AT TIME ZONE 'Asia/Tomsk'),
-                             EXTRACT('hour' FROM ddm.date_time_value AT TIME ZONE 'Asia/Tomsk')
-                    LIMIT 1
-                    )
-                    WHERE wfm_demand_detail_main.date_time_value >= '%s'
-                    AND wfm_demand_detail_main.subdivision_id = '%s'
-                    """ % (tz, tz, tz, tz, date_begin, subdivision_id)
+                        SELECT task_id,
+                        AVG(ddt.demand_value) AS demand_sum,
+                        DATE_TRUNC('day', ddm.date_time_value AT TIME ZONE '%s') as date,
+                        EXTRACT('hour' FROM ddm.date_time_value AT TIME ZONE '%s') as hour
+                        FROM wfm_demand_detail_main ddm
+                        LEFT OUTER JOIN wfm_demand_detail_task ddt
+                        ON (ddm.id = ddt.demand_detail_main_id)
+                        WHERE ddm.date_time_value >= '%s'
+                        AND ddm.subdivision_id = '%s'
+                        GROUP BY ddt.task_id,
+                            DATE_TRUNC('day', ddm.date_time_value AT TIME ZONE '%s'),
+                            EXTRACT('hour' FROM ddm.date_time_value AT TIME ZONE '%s')
+                    ) AS task_sum
+                    LEFT OUTER JOIN 
+                    (
+                        SELECT tid1.task_id, tid1.duty_id FROM wfm_tasks_in_duty AS tid1
+                        LEFT OUTER JOIN wfm_tasks_in_duty AS tid2
+                        ON tid1.task_id = tid2.task_id AND tid1.priority > tid2.priority
+                        WHERE tid2.task_id IS NULL
+                    ) as tid
+                    ON task_sum.task_id = tid.task_id
+                    WHERE duty_id IS NOT NULL
+                    GROUP BY date, duty_id, hour
+                )
+                """ % (subdivision_id, tz, tz, date_begin, subdivision_id, tz, tz)
         cursor.execute(query)
 
     @staticmethod
@@ -359,5 +384,32 @@ class DemandProcessing:
 
         # собираем среднее значение потребностей и обновляем rounded_value:
         DemandProcessing.calculate_rounded_value(date_begin, TIME_ZONE, subdivision_id)
+        # пересоздаём Почасовую потребность по ФО
+        DemandProcessing.recreate_demand_hour_main(date_begin, TIME_ZONE, subdivision_id)
 
         return JsonResponse({'message': 'request processed'}, status=status.HTTP_204_NO_CONTENT)
+
+    @staticmethod
+    # Пересчёт покрытия потребности
+    def recalculate_covering(subdivision_id, date_begin):
+        Demand_Hour_Main.objects.filter(subdivision_id=subdivision_id, demand_date__gte=date_begin).update(
+            covering_value=Subquery(
+                Demand_Hour_Main.objects.filter(
+                    id=OuterRef('id'), subdivision_id=subdivision_id, demand_date__gte=date_begin
+                ).annotate(
+                    Count('demand_hour_shift_set')
+                ).values('demand_hour_shift_set__count')[:1]
+            )
+        )
+
+    @staticmethod
+    # Добавление смены за период (покрытие потребности)
+    def add_shift_to_demand(subdivision_id, demand_date, duty_id, shift_id, hour_from, hour_to):
+        demand_hour_main = Demand_Hour_Main.objects.filter(subdivision_id=subdivision_id, demand_date=demand_date,
+                                                           duty_id=duty_id,
+                                                           demand_hour__gte=hour_from, demand_hour__lt=hour_to)
+        for dhm in demand_hour_main.iterator():
+            Demand_Hour_Shift.objects.get_or_create(
+                demand_hour_main_id=dhm.id,
+                shift_id=shift_id
+            )
