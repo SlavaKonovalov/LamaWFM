@@ -6,7 +6,7 @@ from ..models import Production_Task, Subdivision, Employee, Scheduled_Productio
     Availability_Template, Availability_Template_Data, Employee_Availability_Templates, Planning_Method, \
     Working_Hours_Rate, Work_Shift_Planning_Rule, Breaking_Rule, Employee_Planning_Rules, Employee_Availability, \
     Employee_Shift_Detail_Plan, Employee_Shift, Holiday_Period, Holiday, Retail_Store_Format, Open_Shift_Detail, \
-    Open_Shift
+    Open_Shift, Demand_Hour_Shift, Demand_Hour_Main
 
 
 class ScheduledProductionTaskSerializer(serializers.ModelSerializer):
@@ -225,8 +225,25 @@ class EmployeeShiftSerializerHeader(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class DemandHourMainSerializer(serializers.ModelSerializer):
+    duty = JobDutySerializer(read_only=True, many=False)
+
+    class Meta:
+        model = Demand_Hour_Main
+        fields = '__all__'
+
+
+class DemandHourShiftSerializer(serializers.ModelSerializer):
+    demand_hour_main = DemandHourMainSerializer(many=False)
+
+    class Meta:
+        model = Demand_Hour_Shift
+        fields = '__all__'
+
+
 class EmployeeShiftSerializer(serializers.ModelSerializer):
     detail_plan_set = EmployeeShiftDetailPlanSerializer(read_only=True, many=True)
+    demand_hour_shift_set = DemandHourShiftSerializer(read_only=True, many=True)
 
     class Meta:
         model = Employee_Shift
@@ -234,7 +251,8 @@ class EmployeeShiftSerializer(serializers.ModelSerializer):
 
 
 class EmployeeShiftSerializerForUpdate(serializers.ModelSerializer):
-    detail_plan_set = EmployeeShiftDetailPlanSerializer(many=True, required=False)
+    detail_plan_set = EmployeeShiftDetailPlanSerializer(required=False, many=True)
+    demand_hour_shift_set = DemandHourShiftSerializer(required=False, many=True)
 
     class Meta:
         model = Employee_Shift
@@ -338,55 +356,4 @@ class OpenShiftSerializer(serializers.ModelSerializer):
             else:
                 Open_Shift_Detail.objects.create(**line_step)
         return instance
-
-
-class EmployeeUpdateSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = Employee
-        fields = ['id', 'subdivision', 'middle_name', 'personnel_number', 'pf_reg_id', 'position', 'duties', 'part_time_job_org']
-
-    def update(self, instance, validated_data):
-        subdivision = validated_data.get('subdivision', None)
-        if subdivision is None:
-            instance.subdivision_id = None
-        else:
-            instance.subdivision_id = subdivision.id
-        instance.id = validated_data.get('id', instance.id)
-        instance.middle_name = validated_data.get('middle_name', instance.middle_name)
-        instance.personnel_number = validated_data.get('personnel_number', instance.personnel_number)
-        instance.pf_reg_id = validated_data.get('pf_reg_id', instance.pf_reg_id)
-        position = validated_data.get('position', None)
-        if position is None:
-            instance.position_id = None
-        else:
-            instance.position_id = position.id
-
-        instance.save()
-
-        cursor = connection.cursor()
-        query = "DELETE FROM wfm_employee_duties WHERE employee_id = %i " % (instance.id)
-        cursor.execute(query)
-
-        lines = validated_data.get("duties")
-
-        for line_step in lines:
-            cursor = connection.cursor()
-            query = "INSERT INTO public.wfm_employee_duties(employee_id, job_duty_id) VALUES (%i, %i) " % (instance.id, line_step.id)
-            cursor.execute(query)
-
-        cursor = connection.cursor()
-        query = "DELETE FROM wfm_employee_part_time_job_org WHERE employee_id = %i " % (instance.id)
-        cursor.execute(query)
-
-        lines = validated_data.get("part_time_job_org")
-
-        for line_step in lines:
-            cursor = connection.cursor()
-            query = "INSERT INTO public.wfm_employee_part_time_job_org(employee_id, company_id) VALUES (%i, %i) " % (instance.id, line_step.id)
-            cursor.execute(query)
-
-        return instance
-
-
 
