@@ -1,6 +1,7 @@
 from decimal import Decimal
 from datetime import datetime
 
+from colorfield.fields import ColorField
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.contrib.auth.models import User
@@ -267,6 +268,7 @@ class Job_Duty(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE,
                                      verbose_name='Организация', related_name='duty_set')
     name = models.CharField('Название', max_length=60)
+    color = ColorField(default='#FF0000')
 
     class Meta:
         verbose_name = 'Функциональная обязанность'
