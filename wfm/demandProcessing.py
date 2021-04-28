@@ -124,7 +124,16 @@ class DemandProcessing:
         cursor.execute(query)
 
     @staticmethod
+    @transaction.atomic
     def recreate_demand_hour_main(date_begin, tz, subdivision_id):
+        demand_hour_shift = Demand_Hour_Shift.objects.select_related('demand_hour_main').filter(
+            demand_hour_main__subdivision_id=subdivision_id,
+            demand_hour_main__demand_date__gte=date_begin.date())
+        df_demand_hour_shift_prev = pandas.DataFrame(
+            demand_hour_shift.values_list('demand_hour_main__subdivision_id', 'demand_hour_main__demand_date',
+                                          'demand_hour_main__demand_hour', 'demand_hour_main__duty_id', 'shift_id'),
+            columns=['subdivision_id', 'demand_date', 'demand_hour', 'duty_id', 'shift_id'])
+
         # Удаление записей по подразделению с завтрашнего числа
         Demand_Hour_Main.objects.filter(subdivision_id=subdivision_id) \
             .filter(demand_date__gte=date_begin.date()).delete()
@@ -170,6 +179,26 @@ class DemandProcessing:
                 )
                 """ % (subdivision_id, tz, tz, date_begin, subdivision_id, tz, tz)
         cursor.execute(query)
+
+        # Восстанавливаем смены (какие сможем)
+        demand_hour_main = Demand_Hour_Main.objects.filter(subdivision_id=subdivision_id) \
+            .filter(demand_date__gte=date_begin.date())
+        df_demand_hour_main = pandas.DataFrame(
+            demand_hour_main.values_list('id', 'subdivision_id', 'demand_date', 'demand_hour', 'duty_id'),
+            columns=['id', 'subdivision_id', 'demand_date', 'demand_hour', 'duty_id'])
+        df_demand_hour_main = pandas.merge(df_demand_hour_main, df_demand_hour_shift_prev, how='left',
+                                           left_on=['subdivision_id', 'demand_date', 'demand_hour', 'duty_id'],
+                                           right_on=['subdivision_id', 'demand_date', 'demand_hour', 'duty_id'])
+        df_demand_hour_main = df_demand_hour_main[(df_demand_hour_main.shift_id.notna())]
+        objects = []
+        for row_main in df_demand_hour_main.itertuples():
+            line = Demand_Hour_Shift(
+                demand_hour_main_id=row_main.id,
+                shift_id=row_main.shift_id
+            )
+            objects.append(line)
+
+        Demand_Hour_Shift.objects.bulk_create(objects, ignore_conflicts=True)
 
     @staticmethod
     # Расчет потребности для задач со равномерным распределением
@@ -403,13 +432,31 @@ class DemandProcessing:
         )
 
     @staticmethod
+    # Пересчёт покрытия потребности за определенный день
+    def recalculate_covering_on_date(subdivision_id, date_begin):
+        Demand_Hour_Main.objects.filter(subdivision_id=subdivision_id, demand_date=date_begin).update(
+            covering_value=Subquery(
+                Demand_Hour_Main.objects.filter(
+                    id=OuterRef('id'), subdivision_id=subdivision_id, demand_date=date_begin
+                ).annotate(
+                    Count('demand_hour_shift_set')
+                ).values('demand_hour_shift_set__count')[:1]
+            )
+        )
+
+    @staticmethod
     # Добавление смены за период (покрытие потребности)
     def add_shift_to_demand(subdivision_id, demand_date, duty_id, shift_id, hour_from, hour_to):
         demand_hour_main = Demand_Hour_Main.objects.filter(subdivision_id=subdivision_id, demand_date=demand_date,
                                                            duty_id=duty_id,
                                                            demand_hour__gte=hour_from, demand_hour__lt=hour_to)
+        objects = []
         for dhm in demand_hour_main.iterator():
-            Demand_Hour_Shift.objects.get_or_create(
+            line = Demand_Hour_Shift(
                 demand_hour_main_id=dhm.id,
                 shift_id=shift_id
             )
+            objects.append(line)
+
+        if objects:
+            Demand_Hour_Shift.objects.bulk_create(objects, ignore_conflicts=True)

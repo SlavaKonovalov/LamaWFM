@@ -767,6 +767,8 @@ class Demand_Hour_Shift(models.Model):
     shift = models.ForeignKey(Employee_Shift, on_delete=models.CASCADE, verbose_name='Смена',
                               related_name='demand_hour_shift_set')
 
+    objects = DataFrameManager()
+
     class Meta:
         verbose_name = 'Смена, покрывающая потребность'
         verbose_name_plural = 'Смены, покрывающие потребность'
