@@ -697,6 +697,8 @@ class Employee_Shift(models.Model):
         verbose_name_plural = 'Смены сотрудников'
         unique_together = ('employee', 'subdivision', 'shift_date')
 
+        ordering = ['shift_date', 'employee', 'subdivision']
+
 
 class Employee_Shift_Detail_Plan(models.Model):
     interval_type_choices = (
