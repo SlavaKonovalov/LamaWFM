@@ -564,9 +564,17 @@ class EmployeeShiftView(generics.ListAPIView):
     def get_queryset(self):
         queryset = Employee_Shift.objects.all()
         subdivision_id = self.request.query_params.get('subdivision_id', None)
+        if subdivision_id is not None:
+            queryset = queryset.filter(subdivision_id=subdivision_id)
         employee_id = self.request.query_params.get('employee_id', None)
-        if subdivision_id is not None and employee_id is not None:
-            queryset = queryset.filter(subdivision_id=subdivision_id, employee_id=employee_id)
+        if employee_id is not None:
+            queryset = queryset.filter(employee_id=employee_id)
+        date_from_str = self.request.query_params.get('date_from', None)
+        date_to_str = self.request.query_params.get('date_to', None)
+        if date_from_str is not None and date_to_str is not None:
+            date_from = datetime.datetime.strptime(date_from_str, "%Y-%m-%d").date()
+            date_to = datetime.datetime.strptime(date_to_str, "%Y-%m-%d").date()
+            queryset = queryset.filter(shift_date__range=[date_from, date_to])
         return queryset
 
 
