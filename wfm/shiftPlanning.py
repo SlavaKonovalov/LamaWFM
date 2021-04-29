@@ -7,7 +7,7 @@ from django.http import JsonResponse
 from random import randint
 from .demandProcessing import DemandProcessing
 from .models import Employee_Shift, Employee_Shift_Detail_Plan, Employee_Planning_Rules, Demand_Hour_Main, \
-    Demand_Hour_Shift
+    Open_Shift
 
 sys.path.append('..')
 from LamaWFM.settings import TIME_ZONE
@@ -135,7 +135,12 @@ class ShiftPlanning:
             employee_shift = employee_shift.filter(subdivision_id=subdivision_id, employee_id__in=employees)
         else:
             employee_shift = employee_shift.filter(subdivision_id=subdivision_id)
+        # Удаляем смены
         employee_shift.filter(fixed=0, shift_date__gte=begin_date, shift_date__lt=end_date).delete()
+        # Удаляем открытые смены
+        if not employees:
+            Open_Shift.objects.filter(subdivision_id=subdivision_id, shift_date__gte=begin_date,
+                                      shift_date__lt=end_date).delete()
 
     @staticmethod
     def plan_fix_shifts(subdivision_id, begin_date_time, end_date_time, employees=None):

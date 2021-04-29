@@ -58,7 +58,7 @@ class Subdivision(models.Model):
                                             verbose_name='Формат магазина', related_name='subdivision_set')
     shop_open_time = models.TimeField('Время открытия магазина', null=True, blank=True)
     shop_close_time = models.TimeField('Время закрытия магазина', null=True, blank=True)
-    area_coefficient = models.DecimalField(max_digits=32, decimal_places=16, verbose_name='Коэффициент площади')
+    area_coefficient = models.DecimalField(max_digits=7, decimal_places=3, verbose_name='Коэффициент площади')
 
     companies = models.ManyToManyField(Company, verbose_name='Юр. лица', null=True, blank=True)
 
@@ -123,9 +123,9 @@ class Production_Task(models.Model):
     demand_allocation_method = models.CharField('Распределение', max_length=20,
                                                 choices=demand_allocation_method_choices, default='soft')
     use_area_coefficient = models.BooleanField('Использовать коэффициент площади', default=False)
-    pieces_to_minutes_coefficient = models.DecimalField(max_digits=32, decimal_places=16,
+    pieces_to_minutes_coefficient = models.DecimalField(max_digits=7, decimal_places=3,
                                                         verbose_name='Коэффициент перевода штук в минуты',
-                                                        validators=[MinValueValidator(Decimal('0.0000000000000001'))],
+                                                        validators=[MinValueValidator(Decimal('0.001'))],
                                                         default=1)
 
     class Meta:
@@ -391,7 +391,7 @@ class Business_Indicator_Norm(models.Model):
     business_indicator = models.ForeignKey(Business_Indicator, on_delete=models.CASCADE,
                                            verbose_name='Бизнес показатель')
 
-    norm_value = models.DecimalField(max_digits=32, decimal_places=16, verbose_name='Значение норматива (в секундах)')
+    norm_value = models.DecimalField(max_digits=7, decimal_places=3, verbose_name='Значение норматива (в секундах)')
 
     class Meta:
         verbose_name = 'Норматив по показателям бизнеса'
@@ -462,7 +462,7 @@ class Business_Indicator_Data(models.Model):
     business_indicator = models.ForeignKey(Business_Indicator, on_delete=models.CASCADE,
                                            verbose_name='Показатель бизнеса')
     begin_date_time = models.DateTimeField(verbose_name='Дата и время начала временного интервала')
-    indicator_value = models.DecimalField(max_digits=32, decimal_places=16, verbose_name='Значение показателя бизнеса')
+    indicator_value = models.DecimalField(max_digits=10, decimal_places=3, verbose_name='Значение показателя бизнеса')
     time_interval_length = models.PositiveIntegerField(choices=time_interval_length_choices,
                                                        verbose_name='Длинна временного интервала')
     holiday_period_for_calc = models.ForeignKey(Holiday_Period_For_Calc, on_delete=models.SET_NULL,
@@ -480,7 +480,7 @@ class Demand_Detail_Main(models.Model):
     subdivision = models.ForeignKey(Subdivision, on_delete=models.CASCADE, verbose_name='Подразделение',
                                     related_name='demand_detail_set')
     date_time_value = models.DateTimeField()
-    rounded_value = models.DecimalField(max_digits=32, decimal_places=16, verbose_name='Значение потребности')
+    rounded_value = models.DecimalField(max_digits=10, decimal_places=3, verbose_name='Значение потребности')
 
     objects = DataFrameManager()
 
@@ -494,7 +494,7 @@ class Demand_Detail_Task(models.Model):
     demand_detail_main = models.ForeignKey(Demand_Detail_Main, on_delete=models.CASCADE,
                                            related_name='demand_detail_task_set')
     task = models.ForeignKey(Production_Task, on_delete=models.SET_NULL, null=True)
-    demand_value = models.DecimalField(max_digits=32, decimal_places=16, verbose_name='Значение потребности')
+    demand_value = models.DecimalField(max_digits=10, decimal_places=3, verbose_name='Значение потребности')
 
 
 class Global_Parameters(models.Model):
@@ -751,7 +751,7 @@ class Demand_Hour_Main(models.Model):
     duty = models.ForeignKey(Job_Duty, on_delete=models.CASCADE,
                              verbose_name='Обязанность', related_name='demand_hour_set')
     demand_value = models.PositiveIntegerField('Значение потребности (чел.)')
-    covering_value = models.PositiveIntegerField('Покрытие потребности (чел.)')
+    covering_value = models.DecimalField(max_digits=10, decimal_places=3, verbose_name='Покрытие потребности (чел.)')
 
     objects = DataFrameManager()
 
