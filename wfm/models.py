@@ -752,8 +752,8 @@ class Demand_Hour_Main(models.Model):
     demand_hour = models.PositiveIntegerField('Час')
     duty = models.ForeignKey(Job_Duty, on_delete=models.CASCADE,
                              verbose_name='Обязанность', related_name='demand_hour_set')
-    demand_value = models.PositiveIntegerField('Значение потребности (чел.)')
-    covering_value = models.DecimalField(max_digits=10, decimal_places=3, verbose_name='Покрытие потребности (чел.)')
+    demand_value = models.PositiveIntegerField('Значение потребности (чел.)', default=0)
+    covering_value = models.DecimalField('Покрытие потребности (чел.)', max_digits=10, decimal_places=3, default=0)
 
     objects = DataFrameManager()
 

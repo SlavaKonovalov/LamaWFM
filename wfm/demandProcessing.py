@@ -436,7 +436,7 @@ class DemandProcessing:
     def recalculate_covering_on_date(subdivision_id, date_begin):
         Demand_Hour_Main.objects.filter(subdivision_id=subdivision_id, demand_date=date_begin).update(
             covering_value=Subquery(
-                Demand_Hour_Main.objects.filter(
+                Demand_Hour_Main.objects.prefetch_related('demand_hour_shift_set').filter(
                     id=OuterRef('id'), subdivision_id=subdivision_id, demand_date=date_begin
                 ).annotate(
                     Count('demand_hour_shift_set')
@@ -451,12 +451,39 @@ class DemandProcessing:
                                                            duty_id=duty_id,
                                                            demand_hour__gte=hour_from, demand_hour__lt=hour_to)
         objects = []
+        hours_main = []
+        hours_list = []
         for dhm in demand_hour_main.iterator():
             line = Demand_Hour_Shift(
                 demand_hour_main_id=dhm.id,
                 shift_id=shift_id
             )
             objects.append(line)
+            hours_main.append(dhm.demand_hour)
 
         if objects:
             Demand_Hour_Shift.objects.bulk_create(objects, ignore_conflicts=True)
+
+        if (hour_to - hour_from) != len(hours_main):
+            hour_step = hour_from
+            while hour_step < hour_to:
+                if not hours_main.count(hour_step):
+                    hours_list.append(hour_step)
+                hour_step += 1
+        return hours_list
+
+    @staticmethod
+    # Добавление смены за час (покрытие потребности)
+    def add_shift_to_demand_on_hour(subdivision_id, demand_date, duty_id, shift_id, hour):
+        demand_hour_main, dhm_create = Demand_Hour_Main.objects.get_or_create(
+            subdivision_id=subdivision_id,
+            demand_date=demand_date,
+            duty_id=duty_id,
+            demand_hour=hour
+        )
+        dhm_id = demand_hour_main.id
+
+        Demand_Hour_Shift.objects.get_or_create(
+            demand_hour_main_id=dhm_id,
+            shift_id=shift_id
+        )

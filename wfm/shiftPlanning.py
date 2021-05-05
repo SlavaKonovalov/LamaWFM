@@ -5,9 +5,11 @@ import sys
 from django.db.models import Q, F
 from django.http import JsonResponse
 from random import randint
+
+from .additionalFunctions import Global
 from .demandProcessing import DemandProcessing
 from .models import Employee_Shift, Employee_Shift_Detail_Plan, Employee_Planning_Rules, Demand_Hour_Main, \
-    Open_Shift
+    Open_Shift, Demand_Hour_Shift
 
 sys.path.append('..')
 from LamaWFM.settings import TIME_ZONE
@@ -193,7 +195,7 @@ class ShiftPlanning:
         df_demand_unique['last_hour'] = df_demand_unique.groupby(['date', 'duty'])['hour'].transform("max")
         # Сортируем
         df_demand_unique = df_demand_unique.sort_values(by=['date', 'count_hour', 'duty', 'hour'],
-                                                        ascending=[True, False, True, True])
+                                                        ascending=[True, True, True, True])
         # Получаем dataframe со списком дат
         df_demand_date = df_demand_unique[['date']].drop_duplicates()
 
@@ -446,8 +448,28 @@ class ShiftPlanning:
                                                                 'flexible', 'job', shift_begin, shift_end)
 
                     # добавление смены в Demand_Hour_Shift
-                    DemandProcessing.add_shift_to_demand(subdivision_id, row_demand.date, row_demand.duty,
-                                                         employee_shift_id, shift_begin, shift_end)
+                    empty_hours_list = DemandProcessing.add_shift_to_demand(subdivision_id, row_demand.date,
+                                                                            row_demand.duty, employee_shift_id,
+                                                                            shift_begin, shift_end)
+                    # empty_hours_list - часы без потребности
+                    if empty_hours_list:
+                        # нужно занять сотрудника на эти часы
+                        for empty_hours_value in empty_hours_list:
+                            # берем любую потребность на выбранный час для любой другой ФО
+                            df_demand_to_cover = df_demand_on_date[df_demand_on_date['hour'].isin([empty_hours_value])
+                                                                   & (df_demand_on_date.duty != row_demand.duty)
+                                                                   & (df_demand_on_date.qty > 0)]
+                            if not df_demand_to_cover.empty:
+                                row_to_cover = df_demand_to_cover.iloc[0]
+
+                                DemandProcessing.add_shift_to_demand_on_hour(subdivision_id, row_to_cover.date,
+                                                                             row_to_cover.duty, employee_shift_id,
+                                                                             empty_hours_value)
+
+                                df_demand_on_date.loc[(df_demand_on_date.date == row_to_cover.date) &
+                                                      (df_demand_on_date.duty == row_to_cover.duty) &
+                                                      (df_demand_on_date.hour == empty_hours_value),
+                                                      ['qty', 'covered']] -= 1
 
                     shift_duration_max = res_sample.shift_duration_max if res_sample.shift_duration_max else res_sample.shift_duration_min
                     df_shift_on_date_row = pandas.Series(data={'employee': res_sample.employee,
@@ -511,6 +533,109 @@ class ShiftPlanning:
             df_shift_period['shift_check'] = 0
 
     @staticmethod
+    def get_shift_for_break_dataframe(subdivision_id, begin_date, end_date, employees=None):
+        query = """
+                SELECT employee_shift.id,
+                employee_shift.employee_id,
+                employee_shift.subdivision_id,
+                employee_shift.shift_date,
+                employee_shift.shift_type,
+                employee_shift.row_count,
+                shift_plan.type,
+                shift_plan.time_from,
+                shift_plan.time_to,
+                wfm_breaking_rule.break_first,
+                wfm_breaking_rule.break_second,
+                wfm_breaking_rule.first_break_starting_after_going as time_before_first,
+                wfm_breaking_rule.time_between_breaks as time_between,
+                wfm_breaking_rule.second_break_starting_before_end as time_after_second
+                FROM
+                (
+                    SELECT
+                    wfm_employee_shift.id,
+                    wfm_employee_shift.employee_id,
+                    wfm_employee_shift.subdivision_id,
+                    wfm_employee_shift.shift_date,
+                    wfm_employee_shift.shift_type,
+                    COUNT(wfm_employee_shift_detail_plan.id) AS row_count
+                    FROM wfm_employee_shift
+                    INNER JOIN wfm_employee_shift_detail_plan
+                    ON (wfm_employee_shift.id = wfm_employee_shift_detail_plan.shift_id)
+                    WHERE (wfm_employee_shift.subdivision_id = %s
+                           AND wfm_employee_shift.shift_date >= '%s'
+                           AND wfm_employee_shift.shift_date < '%s'
+                          )
+                    GROUP BY wfm_employee_shift.id
+                ) as employee_shift
+                INNER JOIN wfm_employee_shift_detail_plan as shift_plan
+                ON (employee_shift.id = shift_plan.shift_id)
+                INNER JOIN wfm_employee_planning_rules
+                ON employee_shift.employee_id = wfm_employee_planning_rules.employee_id
+                AND date_rules_start <= employee_shift.shift_date
+                AND (date_rules_end > employee_shift.shift_date OR date_rules_end IS NULL)
+                INNER JOIN wfm_breaking_rule
+                ON wfm_employee_planning_rules.breaking_rule_id = wfm_breaking_rule.id
+                """ % (subdivision_id, begin_date, end_date)
+
+        if employees:
+            query += "AND employee_shift.employee_id in (%s)" % str(employees).strip('[]')
+        df = pandas.read_sql_query(query, connection)
+        return df
+
+    @staticmethod
+    def get_demand_for_break_dataframe(subdivision_id, begin_date, end_date):
+        query = """
+                SELECT shift_id, demand_date, demand_hour, duty_id, demand_value, covering_value
+                FROM
+                wfm_demand_hour_main
+                LEFT OUTER JOIN wfm_demand_hour_shift
+                ON wfm_demand_hour_shift.demand_hour_main_id = wfm_demand_hour_main.id
+                WHERE wfm_demand_hour_main.subdivision_id = %s
+                AND wfm_demand_hour_main.demand_date >= '%s'
+                AND wfm_demand_hour_main.demand_date < '%s'
+                """ % (subdivision_id, begin_date, end_date)
+
+        df = pandas.read_sql_query(query, connection)
+        return df
+
+    @staticmethod
+    # Планирование перерывов
+    def plan_flexible_shift_breaks(subdivision_id, begin_date_time, end_date_time, employees=None):
+        begin_date = datetime.date(2021, 5, 15)
+        end_date = datetime.date(2021, 5, 16)
+
+        df_plan = ShiftPlanning.get_shift_for_break_dataframe(subdivision_id, begin_date, end_date, employees)
+        df_plan['hour_from'] = pandas.to_datetime(df_plan['time_from'], format='%H:%M:%S').dt.hour
+        df_plan['hour_to'] = pandas.to_datetime(df_plan['time_to'], format='%H:%M:%S').dt.hour
+        df_plan['hours'] = df_plan.hour_to - df_plan.hour_from
+        df_shift_for_calc = df_plan[(df_plan.row_count == 1) & (df_plan.type == 'job')]
+        df_date = df_shift_for_calc[['shift_date']].drop_duplicates()
+
+        df_demand_hour_main = ShiftPlanning.get_demand_for_break_dataframe(subdivision_id, begin_date, end_date)
+
+        # Цикл по датам
+        for row_date in df_date.itertuples():
+            df_shift_for_calc_on_date = df_shift_for_calc[(df_shift_for_calc.shift_date == row_date.shift_date)]
+            for row_shift in df_shift_for_calc_on_date.itertuples():
+                df_hour = pandas.DataFrame([row_shift.hour_from + x for x in range(row_shift.hours)],
+                                           columns=['demand_hour'])
+                df_hour['shift_id'] = row_shift.id
+
+                hours_before_first = Global.round_math(row_shift.time_before_first / 60)
+                hours_after_second = Global.round_math(row_shift.time_after_second / 60)
+                df_hour = df_hour[(df_hour.demand_hour >= row_shift.hour_from + hours_before_first)
+                                  & (df_hour.demand_hour < row_shift.hour_to - hours_after_second)]
+
+                df_hour = pandas.merge(df_hour, df_demand_hour_main, how='left',
+                                       left_on=['shift_id', 'demand_hour'],
+                                       right_on=['shift_id', 'demand_hour'])
+
+                df_hour.demand_value = df_hour.demand_value.fillna(0)
+                # Надо найти минимальную потребность, исключая 1: 0, 2, 3, 4...
+                # b = 1
+        # a = 1
+
+    @staticmethod
     @transaction.atomic
     def plan_shifts(subdivision_id, begin_date_time, end_date_time, employees=None):
         ShiftPlanning.delete_shifts(subdivision_id, begin_date_time, end_date_time, employees)
@@ -518,3 +643,4 @@ class ShiftPlanning:
         ShiftPlanning.plan_fix_shifts(subdivision_id, begin_date_time, end_date_time, employees)
         ShiftPlanning.plan_flexible_shifts(subdivision_id, begin_date_time, end_date_time, employees)
         DemandProcessing.recalculate_covering(subdivision_id, begin_date_time.date())
+        # ShiftPlanning.plan_flexible_shift_breaks(subdivision_id, begin_date_time, end_date_time, employees)
