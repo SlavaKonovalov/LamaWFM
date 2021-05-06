@@ -11,7 +11,3 @@ class DemandByHistoryCalculateForm(forms.Form):
                                     widget=forms.widgets.DateInput(attrs={'type': 'date'}))
     to_date = forms.DateTimeField(label='По', help_text='Выберите конечную дату планирования',
                                   widget=forms.widgets.DateInput(attrs={'type': 'date'}))
-    history_from_date = forms.DateTimeField(label='С', help_text='Выберите начальную дату истории',
-                                    widget=forms.widgets.DateInput(attrs={'type': 'date'}))
-    history_to_date = forms.DateTimeField(label='По', help_text='Выберите конечную дату истории',
-                                  widget=forms.widgets.DateInput(attrs={'type': 'date'}))
