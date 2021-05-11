@@ -754,6 +754,8 @@ class Demand_Hour_Main(models.Model):
                              verbose_name='Обязанность', related_name='demand_hour_set')
     demand_value = models.PositiveIntegerField('Значение потребности (чел.)', default=0)
     covering_value = models.DecimalField('Покрытие потребности (чел.)', max_digits=10, decimal_places=3, default=0)
+    breaks_value = models.DecimalField('Продолжительность обедов сотрудников (часы)',
+                                       max_digits=4, decimal_places=2, default=0)
 
     objects = DataFrameManager()
 
@@ -768,6 +770,7 @@ class Demand_Hour_Shift(models.Model):
                                          related_name='demand_hour_shift_set')
     shift = models.ForeignKey(Employee_Shift, on_delete=models.CASCADE, verbose_name='Смена',
                               related_name='demand_hour_shift_set')
+    break_value = models.DecimalField('Продолжительность обеда (часы)', max_digits=4, decimal_places=2, default=0)
 
     objects = DataFrameManager()
 

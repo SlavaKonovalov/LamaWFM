@@ -2,7 +2,8 @@ import datetime
 import pandas
 from django.db import transaction, connection
 import sys
-from django.db.models import Q, F
+from django.db.models import Q, F, OuterRef, Sum
+from django.db.models.functions import Coalesce
 from django.http import JsonResponse
 from random import randint
 
@@ -110,7 +111,7 @@ class ShiftPlanning:
 
     @staticmethod
     # Создание смены
-    def add_shift(subdivision_id, employee_id, shift_date, shift_type, interval_type, shift_begin, shift_end):
+    def add_shift(subdivision_id, employee_id, shift_date, shift_type, shift_begin, shift_end):
         employee_shift, created_shift = Employee_Shift.objects.get_or_create(
             employee_id=employee_id,
             subdivision_id=subdivision_id,
@@ -119,13 +120,24 @@ class ShiftPlanning:
         )
         employee_shift_detail_plan, created_shift_plan = Employee_Shift_Detail_Plan.objects.update_or_create(
             shift_id=employee_shift.id,
-            type=interval_type,
+            type='job',
             defaults={
                 'time_from': datetime.time(int(shift_begin), 0),
                 'time_to': datetime.time(int(shift_end), 0)
             }
         )
         return employee_shift.id
+
+    @staticmethod
+    # Добавление перерыва в смену
+    def add_shift_break(shift_id, shift_begin_hour, shift_begin_min, shift_end_hour, shift_end_min):
+        employee_shift_detail_plan = Employee_Shift_Detail_Plan.objects.create(
+            shift_id=shift_id,
+            type='break',
+            time_from=datetime.time(int(shift_begin_hour), shift_begin_min),
+            time_to=datetime.time(int(shift_end_hour), shift_end_min)
+        )
+        return employee_shift_detail_plan.id
 
     @staticmethod
     # Удаление смен
@@ -171,7 +183,7 @@ class ShiftPlanning:
         df_availability = df_availability[(df_availability.fixed.isna())]
         for row_availability in df_availability.itertuples():
             ShiftPlanning.add_shift(subdivision_id, row_availability.employee, row_availability.shift_date,
-                                    'fix', 'job', row_availability.av_begin_hour, row_availability.av_end_hour)
+                                    'fix', row_availability.av_begin_hour, row_availability.av_end_hour)
 
     @staticmethod
     # Планирование гибких смен
@@ -445,7 +457,7 @@ class ShiftPlanning:
                         df_covering = df_covering.append(df_covering_row, ignore_index=True)
 
                     employee_shift_id = ShiftPlanning.add_shift(subdivision_id, res_sample.employee, row_demand.date,
-                                                                'flexible', 'job', shift_begin, shift_end)
+                                                                'flexible', shift_begin, shift_end)
 
                     # добавление смены в Demand_Hour_Shift
                     empty_hours_list = DemandProcessing.add_shift_to_demand(subdivision_id, row_demand.date,
@@ -537,7 +549,6 @@ class ShiftPlanning:
         query = """
                 SELECT employee_shift.id,
                 employee_shift.employee_id,
-                employee_shift.subdivision_id,
                 employee_shift.shift_date,
                 employee_shift.shift_type,
                 employee_shift.row_count,
@@ -585,7 +596,7 @@ class ShiftPlanning:
     @staticmethod
     def get_demand_for_break_dataframe(subdivision_id, begin_date, end_date):
         query = """
-                SELECT shift_id, demand_date, demand_hour, duty_id, demand_value, covering_value
+                SELECT shift_id, demand_date, demand_hour, duty_id, demand_value, covering_value, breaks_value
                 FROM
                 wfm_demand_hour_main
                 LEFT OUTER JOIN wfm_demand_hour_shift
@@ -597,6 +608,43 @@ class ShiftPlanning:
 
         df = pandas.read_sql_query(query, connection)
         return df
+
+    @staticmethod
+    # Поиск часа для назначения перерыва
+    def find_hour_for_break(df_hour_break):
+        df_hour_first_step_row = pandas.Series()
+
+        # Сначала ищем 0 потребность.
+        df_hour_break_step = df_hour_break[(df_hour_break.demand_value == 0)]
+        if not df_hour_break_step.empty:
+            df_hour_first_step_row = df_hour_break_step.iloc[0]
+
+        # Если таких нет, то ищем qty_max для строк с demand_value > 0 и qty > 0
+        if df_hour_first_step_row.empty:
+            df_hour_break_step = df_hour_break[(df_hour_break.demand_value > 0) & (df_hour_break.qty > 0)]
+            if not df_hour_break_step.empty:
+                df_hour_break_step = df_hour_break_step[
+                    (df_hour_break_step.qty == df_hour_break_step.qty.max())]
+                df_hour_first_step_row = df_hour_break_step.iloc[0]
+        # Если таких нет, то ищем строку с demand_value > 1 и qty = 0
+        if df_hour_first_step_row.empty:
+            df_hour_break_step = df_hour_break[(df_hour_break.demand_value > 1) & (df_hour_break.qty == 0)]
+            if not df_hour_break_step.empty:
+                df_hour_first_step_row = df_hour_break_step.iloc[0]
+        # Если таких нет, то ищем строку с demand_value = 1 и qty = 0
+        if df_hour_first_step_row.empty:
+            df_hour_break_step = df_hour_break[(df_hour_break.demand_value == 1) & (df_hour_break.qty == 0)]
+            if not df_hour_break_step.empty:
+                df_hour_first_step_row = df_hour_break_step.iloc[0]
+        # Если таких нет, то ищем первую строку с demand_value = 1 и qty_max
+        if df_hour_first_step_row.empty:
+            df_hour_break_step = df_hour_break[(df_hour_break.demand_value == 1)]
+            if not df_hour_break_step.empty:
+                df_hour_break_step = df_hour_break_step[
+                    (df_hour_break_step.qty == df_hour_break_step.qty.max())]
+                df_hour_first_step_row = df_hour_break_step.iloc[0]
+
+        return df_hour_first_step_row
 
     @staticmethod
     # Планирование перерывов
@@ -611,36 +659,171 @@ class ShiftPlanning:
         df_shift_for_calc = df_plan[(df_plan.row_count == 1) & (df_plan.type == 'job')]
         df_date = df_shift_for_calc[['shift_date']].drop_duplicates()
 
+        df_existing_breaks = df_plan[(df_plan.type == 'break')][['shift_date', 'time_from']]
+        df_existing_breaks['hour'] = pandas.to_datetime(df_existing_breaks['time_from'], format='%H:%M:%S').dt.hour
+        df_existing_breaks['minute_begin'] = pandas.to_datetime(df_existing_breaks['time_from'],
+                                                                format='%H:%M:%S').dt.minute
+        df_existing_breaks['break_qty'] = df_existing_breaks.groupby(['shift_date', 'hour', 'minute_begin'])['time_from'].transform("count")
+
         df_demand_hour_main = ShiftPlanning.get_demand_for_break_dataframe(subdivision_id, begin_date, end_date)
+        df_demand_hour_main['qty'] = df_demand_hour_main.covering_value - df_demand_hour_main.demand_value - df_demand_hour_main.breaks_value
 
         # Цикл по датам
         for row_date in df_date.itertuples():
             df_shift_for_calc_on_date = df_shift_for_calc[(df_shift_for_calc.shift_date == row_date.shift_date)]
+            df_existing_breaks_on_date = df_existing_breaks[(df_existing_breaks.shift_date == row_date.shift_date)][['hour', 'minute_begin', 'break_qty']]
+            df_break_list = pandas.DataFrame([x for x in range(24)],
+                                             columns=['hour'])
+            df_break_list['minute_begin'] = 0
+            df_break_list_30 = df_break_list.copy()
+            df_break_list_30.minute_begin = 30
+            df_break_list = df_break_list.append(df_break_list_30, ignore_index=True)
+            df_break_list = pandas.merge(df_break_list, df_existing_breaks_on_date, how='left',
+                                         left_on=['hour', 'minute_begin'],
+                                         right_on=['hour', 'minute_begin'])
+            df_break_list.break_qty = df_break_list.break_qty.fillna(0)
+
             for row_shift in df_shift_for_calc_on_date.itertuples():
+                # hour_from   hours   id
                 df_hour = pandas.DataFrame([row_shift.hour_from + x for x in range(row_shift.hours)],
                                            columns=['demand_hour'])
                 df_hour['shift_id'] = row_shift.id
 
+                break_first = row_shift.break_first
+                break_second = row_shift.break_second
                 hours_before_first = Global.round_math(row_shift.time_before_first / 60)
                 hours_after_second = Global.round_math(row_shift.time_after_second / 60)
+                time_between = Global.round_math(row_shift.time_between / 60)
+
                 df_hour = df_hour[(df_hour.demand_hour >= row_shift.hour_from + hours_before_first)
                                   & (df_hour.demand_hour < row_shift.hour_to - hours_after_second)]
 
-                df_hour = pandas.merge(df_hour, df_demand_hour_main, how='left',
-                                       left_on=['shift_id', 'demand_hour'],
-                                       right_on=['shift_id', 'demand_hour'])
+                df_hour_break = df_hour[(df_hour.demand_hour < row_shift.hour_to - hours_after_second - time_between)]
 
-                df_hour.demand_value = df_hour.demand_value.fillna(0)
-                # Надо найти минимальную потребность, исключая 1: 0, 2, 3, 4...
-                # b = 1
-        # a = 1
+                if df_hour_break.empty:
+                    continue
+
+                df_hour_break = pandas.merge(df_hour_break, df_demand_hour_main, how='left',
+                                             left_on=['shift_id', 'demand_hour'],
+                                             right_on=['shift_id', 'demand_hour'])
+
+                df_hour_break.demand_value = df_hour_break.demand_value.fillna(0)
+                df_hour_break.covering_value = df_hour_break.covering_value.fillna(0)
+                df_hour_break.qty = df_hour_break.qty.fillna(0)
+
+                # TODO shift_type == 'fix'
+                if row_shift.shift_type == 'fix':
+                    continue
+
+                df_hour_first_step_row = ShiftPlanning.find_hour_for_break(df_hour_break)
+
+                if not df_hour_first_step_row.empty:
+                    df_break_list_on_hour = df_break_list[
+                        (df_break_list.hour == df_hour_first_step_row.demand_hour)]
+                    df_break_list_on_hour = df_break_list_on_hour[
+                        (df_break_list_on_hour.break_qty == df_break_list_on_hour.break_qty.min())]
+                    df_break_list_on_hour_row = df_break_list_on_hour.iloc[0]
+
+                    shift_begin_hour = df_break_list_on_hour_row.hour
+                    shift_begin_min = df_break_list_on_hour_row.minute_begin
+                    shift_end_hour = int((shift_begin_hour * 60 + shift_begin_min + 30) / 60)
+                    shift_end_min = (shift_begin_min + 30) % 60
+
+                    df_break_list.loc[(df_break_list.hour == shift_begin_hour)
+                                      & (df_break_list.minute_begin == shift_begin_min),
+                                      ['break_qty']] += 1
+
+                    df_demand_hour_main.loc[(df_demand_hour_main.demand_date == df_hour_first_step_row.demand_date)
+                                            & (df_demand_hour_main.demand_hour == df_hour_first_step_row.demand_hour)
+                                            & (df_demand_hour_main.duty_id == df_hour_first_step_row.duty_id),
+                                            ['qty']] -= 0.5
+
+                    DemandProcessing.add_shift_break_value(subdivision_id, row_date.shift_date,
+                                                           shift_begin_hour, df_hour_first_step_row.shift_id)
+
+                    ShiftPlanning.add_shift_break(df_hour_first_step_row.shift_id, shift_begin_hour,
+                                                  shift_begin_min, shift_end_hour, shift_end_min)
+
+                    # Если смена 60 минут, то уменьшаем покрытие и увеличиваем кол-во отдыхающих на втором получасе
+                    if break_first == 60:
+                        shift_begin_hour_dop = (shift_begin_hour + 1) if shift_begin_min == 30 else shift_begin_hour
+                        shift_begin_min_dop = 0 if shift_begin_min == 30 else 30
+                        shift_end_hour_dop = int((shift_begin_hour * 60 + shift_begin_min + break_first) / 60)
+                        shift_end_min_dop = (shift_begin_min + break_first) % 60
+
+                        df_break_list.loc[(df_break_list.hour == shift_begin_hour_dop)
+                                          & (df_break_list.minute_begin == shift_begin_min_dop),
+                                          ['break_qty']] += 1
+
+                        df_demand_hour_main.loc[(df_demand_hour_main.demand_date == df_hour_first_step_row.demand_date)
+                                                & (df_demand_hour_main.demand_hour == shift_begin_hour_dop)
+                                                & (df_demand_hour_main.duty_id == df_hour_first_step_row.duty_id),
+                                                ['qty']] -= 0.5
+
+                        DemandProcessing.add_shift_break_value(subdivision_id, row_date.shift_date,
+                                                               shift_begin_hour_dop, df_hour_first_step_row.shift_id)
+
+                        ShiftPlanning.add_shift_break(df_hour_first_step_row.shift_id, shift_begin_hour,
+                                                      shift_begin_min, shift_end_hour_dop, shift_end_min_dop)
+
+                    # Обработка второго перерыва
+                    if break_second == 30:
+                        df_hour_break = df_hour[(df_hour.demand_hour >= shift_begin_hour + time_between)
+                                                & (df_hour.demand_hour < row_shift.hour_to - hours_after_second)]
+                        if df_hour_break.empty:
+                            continue
+
+                        df_hour_break = pandas.merge(df_hour_break, df_demand_hour_main, how='left',
+                                                     left_on=['shift_id', 'demand_hour'],
+                                                     right_on=['shift_id', 'demand_hour'])
+
+                        df_hour_break.demand_value = df_hour_break.demand_value.fillna(0)
+                        df_hour_break.covering_value = df_hour_break.covering_value.fillna(0)
+                        df_hour_break.qty = df_hour_break.qty.fillna(0)
+
+                        df_hour_first_step_row = ShiftPlanning.find_hour_for_break(df_hour_break)
+
+                        if not df_hour_first_step_row.empty:
+                            # Если разница между часами = time_between, то берем начало с 30 минут.
+                            if df_hour_first_step_row.demand_hour - time_between == shift_begin_hour:
+                                shift_begin_min = 30
+                            else:
+                                df_break_list_on_hour = df_break_list[
+                                    (df_break_list.hour == df_hour_first_step_row.demand_hour)]
+                                df_break_list_on_hour = df_break_list_on_hour[
+                                    (df_break_list_on_hour.break_qty == df_break_list_on_hour.break_qty.min())]
+                                df_break_list_on_hour_row = df_break_list_on_hour.iloc[0]
+
+                                shift_begin_min = df_break_list_on_hour_row.minute_begin
+
+                            shift_begin_hour = df_hour_first_step_row.demand_hour
+                            shift_end_hour = int((shift_begin_hour * 60 + shift_begin_min + break_second) / 60)
+                            shift_end_min = (shift_begin_min + break_second) % 60
+
+                            df_break_list.loc[(df_break_list.hour == shift_begin_hour)
+                                              & (df_break_list.minute_begin == shift_begin_min),
+                                              ['break_qty']] += 1
+
+                            df_demand_hour_main.loc[
+                                (df_demand_hour_main.demand_date == df_hour_first_step_row.demand_date)
+                                & (df_demand_hour_main.demand_hour == df_hour_first_step_row.demand_hour)
+                                & (df_demand_hour_main.duty_id == df_hour_first_step_row.duty_id),
+                                ['qty']] -= 0.5
+
+                            ShiftPlanning.add_shift_break(df_hour_first_step_row.shift_id, shift_begin_hour,
+                                                          shift_begin_min, shift_end_hour, shift_end_min)
+                            DemandProcessing.add_shift_break_value(subdivision_id, row_date.shift_date,
+                                                                   shift_begin_hour, df_hour_first_step_row.shift_id)
+            b = 2
+        a = 1
 
     @staticmethod
     @transaction.atomic
     def plan_shifts(subdivision_id, begin_date_time, end_date_time, employees=None):
-        ShiftPlanning.delete_shifts(subdivision_id, begin_date_time, end_date_time, employees)
-        DemandProcessing.recalculate_covering(subdivision_id, begin_date_time.date())
-        ShiftPlanning.plan_fix_shifts(subdivision_id, begin_date_time, end_date_time, employees)
-        ShiftPlanning.plan_flexible_shifts(subdivision_id, begin_date_time, end_date_time, employees)
-        DemandProcessing.recalculate_covering(subdivision_id, begin_date_time.date())
-        # ShiftPlanning.plan_flexible_shift_breaks(subdivision_id, begin_date_time, end_date_time, employees)
+        # ShiftPlanning.delete_shifts(subdivision_id, begin_date_time, end_date_time, employees)
+        # DemandProcessing.recalculate_covering(subdivision_id, begin_date_time.date())
+        # ShiftPlanning.plan_fix_shifts(subdivision_id, begin_date_time, end_date_time, employees)
+        # ShiftPlanning.plan_flexible_shifts(subdivision_id, begin_date_time, end_date_time, employees)
+        # DemandProcessing.recalculate_covering(subdivision_id, begin_date_time.date())
+        ShiftPlanning.plan_flexible_shift_breaks(subdivision_id, begin_date_time, end_date_time, employees)
+        DemandProcessing.recalculate_breaks_value(subdivision_id, begin_date_time.date())

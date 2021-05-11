@@ -487,3 +487,43 @@ class DemandProcessing:
             demand_hour_main_id=dhm_id,
             shift_id=shift_id
         )
+
+    @staticmethod
+    # Добавление значения продолжительности обеденного перерыва
+    def add_shift_break_value(subdivision_id, demand_date, hour, shift_id):
+        dhs = Demand_Hour_Shift.objects.select_related('demand_hour_main').filter(
+            shift_id=shift_id,
+            demand_hour_main__subdivision_id=subdivision_id,
+            demand_hour_main__demand_date=demand_date,
+            demand_hour_main__demand_hour=hour
+        )
+        rec = dhs.first()
+        if rec:
+            rec.break_value = float(rec.break_value) + 0.5
+            rec.save(update_fields=['break_value'])
+
+    @staticmethod
+    # Пересчёт значения продолжительности обеденных перерывов
+    def recalculate_breaks_value(subdivision_id, date_begin):
+        Demand_Hour_Main.objects.filter(subdivision_id=subdivision_id, demand_date__gte=date_begin).update(
+            breaks_value=Subquery(
+                Demand_Hour_Main.objects.prefetch_related('demand_hour_shift_set').filter(
+                    id=OuterRef('id'), subdivision_id=subdivision_id, demand_date__gte=date_begin
+                ).annotate(
+                    Sum('demand_hour_shift_set__break_value')
+                ).values('demand_hour_shift_set__break_value__sum')[:1]
+            )
+        )
+
+    @staticmethod
+    # Пересчёт значения продолжительности обеденных перерывов за определенную дату
+    def recalculate_breaks_value_on_date(subdivision_id, date_begin):
+        Demand_Hour_Main.objects.filter(subdivision_id=subdivision_id, demand_date=date_begin).update(
+            breaks_value=Subquery(
+                Demand_Hour_Main.objects.prefetch_related('demand_hour_shift_set').filter(
+                    id=OuterRef('id'), subdivision_id=subdivision_id, demand_date=date_begin
+                ).annotate(
+                    break_value_sum=Coalesce(Sum('demand_hour_shift_set__break_value'), 0)
+                ).values('break_value_sum')[:1]
+            )
+        )
