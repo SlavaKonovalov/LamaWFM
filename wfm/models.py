@@ -38,6 +38,10 @@ class Organization(models.Model):
 
 class Retail_Store_Format(models.Model):
     name = models.CharField('Название', max_length=60)
+    queue_coefficient = models.DecimalField(max_digits=7, decimal_places=3,
+                                            verbose_name='Коэффициент очередей',
+                                            validators=[MinValueValidator(Decimal('0.001'))],
+                                            default=1)
 
     class Meta:
         verbose_name = 'Формат магазина'
@@ -376,8 +380,11 @@ class Business_Indicator(models.Model):
     external_code = models.CharField('Внешний код', max_length=20, null=True, blank=True)
     interval_for_calculation = models.PositiveIntegerField(choices=interval_for_calculation,
                                                            verbose_name='Интервал времени для расчёта')
+    history_period = models.PositiveIntegerField('Исторический период (дней)', validators=[MinValueValidator(Decimal('7'))], default=30)
     business_indicator_category = models.ForeignKey(Business_Indicator_Category, on_delete=models.SET_NULL, null=True, blank=True,
                                                     verbose_name='Категория показателя бизнеса', related_name='business_indicator_set')
+    use_queue_coefficient = models.BooleanField('Использовать коэффициент очередей', default=False)
+    is_calculated = models.BooleanField('Загружается спланированным', default=False)
 
     class Meta:
         verbose_name = 'Показатель бизнеса'

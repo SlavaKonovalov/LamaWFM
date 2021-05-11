@@ -327,22 +327,14 @@ def recalculate_history_demand(request):
     to_date_str = data.get('to_date')
     to_date = datetime.datetime.strptime(to_date_str, "%Y-%m-%d")
     datetime.datetime.combine(to_date, datetime.time.max)
-    history_from_date_str = data.get('history_from_date')
-    history_from_date = datetime.datetime.strptime(history_from_date_str, "%Y-%m-%d")
-    datetime.datetime.combine(history_from_date, datetime.time.min)
-    history_to_date_str = data.get('history_to_date')
-    history_to_date = datetime.datetime.strptime(history_to_date_str, "%Y-%m-%d")
-    datetime.datetime.combine(history_to_date, datetime.time.max)
     try:
-        subdivision = Subdivision.objects.get(pk=subdivision_id)
+        Subdivision.objects.get(pk=subdivision_id)
     except Subdivision.DoesNotExist:
         return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_404_NOT_FOUND)
 
     demand_by_history_data_calculate = DemandByHistoryDataCalculate(subdivision_id,
                                                                     from_date,
-                                                                    to_date,
-                                                                    history_from_date,
-                                                                    history_to_date)
+                                                                    to_date)
     demand_by_history_data_calculate.run()
 
     return JsonResponse({'message': 'request processed'}, status=status.HTTP_204_NO_CONTENT)

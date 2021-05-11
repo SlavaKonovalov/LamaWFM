@@ -19,7 +19,7 @@ class OrganizationAdmin(admin.ModelAdmin):
 
 @admin.register(Retail_Store_Format)
 class RetailStoreFormatAdmin(admin.ModelAdmin):
-    list_display = ['name']
+    list_display = ['name', 'queue_coefficient']
 
 
 @admin.register(Subdivision)
@@ -83,7 +83,7 @@ class EmployeeAdmin(admin.ModelAdmin):
 
 @admin.register(Business_Indicator)
 class OrganizationAdmin(admin.ModelAdmin):
-    list_display = ['name', 'business_indicator_category', 'interval_for_calculation']
+    list_display = ['name', 'business_indicator_category', 'interval_for_calculation', 'history_period']
 
 
 @admin.register(Predictable_Production_Task)
