@@ -510,8 +510,8 @@ class DemandProcessing:
                 Demand_Hour_Main.objects.prefetch_related('demand_hour_shift_set').filter(
                     id=OuterRef('id'), subdivision_id=subdivision_id, demand_date__gte=date_begin
                 ).annotate(
-                    Sum('demand_hour_shift_set__break_value')
-                ).values('demand_hour_shift_set__break_value__sum')[:1]
+                    break_value_sum=Coalesce(Sum('demand_hour_shift_set__break_value'), 0)
+                ).values('break_value_sum')[:1]
             )
         )
 
