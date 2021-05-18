@@ -18,7 +18,7 @@ from ..models import Production_Task, Organization, Subdivision, Employee, Emplo
     Appointed_Production_Task, Scheduled_Production_Task, Demand_Detail_Main, Company, Availability_Template, \
     Employee_Availability_Templates, Availability_Template_Data, Planning_Method, Working_Hours_Rate, \
     Work_Shift_Planning_Rule, Breaking_Rule, Employee_Planning_Rules, Employee_Availability, Employee_Shift, Holiday, \
-    Retail_Store_Format, Open_Shift
+    Retail_Store_Format, Open_Shift, Demand_Hour_Main, Demand_Hour_Shift
 from .serializers import ProductionTaskSerializer, OrganizationSerializer, SubdivisionSerializer, EmployeeSerializer, \
     EmployeePositionSerializer, JobDutySerializer, AppointedTaskSerializer, ScheduledProductionTaskSerializer, \
     DemandMainSerializer, CompanySerializer, AvailabilityTemplateSerializer, EmployeeAvailabilityTemplatesSerializer, \
@@ -710,6 +710,18 @@ def add_shift_to_demand_on_hour(request):
     return JsonResponse({'message': 'Succses'}, status=status.HTTP_201_CREATED)
 
 
+@api_view(['DELETE'])
+def delete_shift_to_demand(request, pk):
+    #data = JSONParser().parse(request)
+    #demand_hour_shift_set_id = data.get('demand_hour_shift_set_id')
+
+    if request.method == 'DELETE':
+        try:
+            demand_hour_shift = Demand_Hour_Shift.objects.get(pk=pk)
+        except demand_hour_shift.DoesNotExist:
+            return JsonResponse({'message': 'The demand_hour_shift does not exist'}, status=status.HTTP_404_NOT_FOUND)
+        demand_hour_shift.delete()
+        return JsonResponse({'message': 'demand_hour_shift was deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
 
 
 

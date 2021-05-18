@@ -167,4 +167,8 @@ urlpatterns = [
     path('add_shift_to_demand_on_hour/',
          views.add_shift_to_demand_on_hour,
          name='add_shift_to_demand_on_hour'),
+
+    path('delete_shift_to_demand/<int:pk>/',
+         views.delete_shift_to_demand,
+         name='delete_shift_to_demand'),
 ]
