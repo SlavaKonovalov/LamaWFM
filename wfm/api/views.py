@@ -7,6 +7,7 @@ from rest_framework.decorators import api_view
 from rest_framework.parsers import JSONParser
 from dateutil.relativedelta import relativedelta
 
+from .. import shiftPlanning
 from ..additionalFunctions import Global
 from ..availabilityProcessing import AvailabilityProcessing
 from ..demandProcessing import DemandProcessing
@@ -707,7 +708,7 @@ def add_shift_to_demand_on_hour(request):
         DemandProcessing.add_shift_to_demand_on_hour(subdivision_id, demand_date, duty_id, shift_id, hour)
     except Exception:
         return JsonResponse({'message': 'Error'}, status=status.HTTP_400_BAD_REQUEST)
-    return JsonResponse({'message': 'Succses'}, status=status.HTTP_201_CREATED)
+    return JsonResponse({'message': 'Succses'}, status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(['DELETE'])
@@ -735,7 +736,7 @@ def recalculate_covering_on_date(request):
         DemandProcessing.recalculate_covering_on_date(subdivision_id, demand_date)
     except Exception:
         return JsonResponse({'message': 'Error'}, status=status.HTTP_400_BAD_REQUEST)
-    return JsonResponse({'message': 'Succses'}, status=status.HTTP_201_CREATED)
+    return JsonResponse({'message': 'Succses'}, status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(['POST'])
@@ -751,8 +752,30 @@ def recalculate_breaks_value_on_date(request):
         DemandProcessing.recalculate_breaks_value_on_date(subdivision_id, demand_date)
     except Exception:
         return JsonResponse({'message': 'Error'}, status=status.HTTP_400_BAD_REQUEST)
-    return JsonResponse({'message': 'Succses'}, status=status.HTTP_201_CREATED)
+    return JsonResponse({'message': 'Succses'}, status=status.HTTP_204_NO_CONTENT)
 
 
+@api_view(['POST'])
+def plan_shift_breaks(request):
+    data = JSONParser().parse(request)
+    subdivision_id = data.get('subdivision_id')
+    try:
+        subdivision = Subdivision.objects.get(pk=subdivision_id)
+    except subdivision.DoesNotExist:
+        return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_404_NOT_FOUND)
 
+    begin_date_time = dateutil.parser.parse(data.get('begin_date_time')) #data.get('begin_date_time', None)
+    end_date_time = dateutil.parser.parse(data.get('end_date_time')) #data.get('end_date_time', None)
+    employee_id = data.get('employee_id')
+    list_empl = []
+    try:
+        employee = Employee.objects.get(pk=employee_id)
+        list_empl.append(employee_id)
+    except employee.DoesNotExist:
+        return JsonResponse({'message': 'The employee does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    try:
+        ShiftPlanning.plan_shift_breaks(subdivision_id, begin_date_time, end_date_time, list_empl)
+    except Exception:
+        return JsonResponse({'message': 'Error'}, status=status.HTTP_400_BAD_REQUEST)
+    return JsonResponse({'message': 'Succses'}, status=status.HTTP_204_NO_CONTENT)
 

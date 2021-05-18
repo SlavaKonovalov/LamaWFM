@@ -179,4 +179,8 @@ urlpatterns = [
     path('recalculate_breaks_value_on_date/',
          views.recalculate_breaks_value_on_date,
          name='recalculate_breaks_value_on_date'),
+
+    path('plan_shift_breaks/',
+         views.plan_shift_breaks,
+         name='plan_shift_breaks'),
 ]
