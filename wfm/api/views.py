@@ -682,3 +682,39 @@ def employees_update(request, pk):
             return JsonResponse(employee_serializer.data)
         return JsonResponse(employee_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+@api_view(['POST'])
+def add_shift_to_demand_on_hour(request):
+    data = JSONParser().parse(request)
+    subdivision_id = data.get('subdivision_id')
+    try:
+        subdivision = Subdivision.objects.get(pk=subdivision_id)
+    except subdivision.DoesNotExist:
+        return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    demand_date = data.get('demand_date', None)
+    duty_id = data.get('duty_id')
+    try:
+        duty = Job_Duty.objects.get(pk=duty_id)
+    except duty.DoesNotExist:
+        return JsonResponse({'message': 'The duty does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    shift_id = data.get('shift_id')
+    try:
+        shift = Employee_Shift.objects.get(pk=shift_id)
+    except shift.DoesNotExist:
+        return JsonResponse({'message': 'The shift does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    hour = data.get('hour', None)
+    try:
+        DemandProcessing.add_shift_to_demand_on_hour(subdivision_id, demand_date, duty_id, shift_id, hour)
+    except Exception:
+        return JsonResponse({'message': 'Error'}, status=status.HTTP_400_BAD_REQUEST)
+    return JsonResponse({'message': 'Succses'}, status=status.HTTP_201_CREATED)
+
+
+
+
+
+
+
+
+
+

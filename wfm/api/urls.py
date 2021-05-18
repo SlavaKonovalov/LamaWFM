@@ -163,4 +163,8 @@ urlpatterns = [
     path('open_shift_data_detail/<int:pk>/',
          views.open_shift_data_detail,
          name='open_shift_data_detail'),
+
+    path('add_shift_to_demand_on_hour/',
+         views.add_shift_to_demand_on_hour,
+         name='add_shift_to_demand_on_hour'),
 ]
