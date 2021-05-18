@@ -175,4 +175,8 @@ urlpatterns = [
     path('recalculate_covering_on_date/',
          views.recalculate_covering_on_date,
          name='recalculate_covering_on_date'),
+
+    path('recalculate_breaks_value_on_date/',
+         views.recalculate_breaks_value_on_date,
+         name='recalculate_breaks_value_on_date'),
 ]
