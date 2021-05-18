@@ -171,4 +171,8 @@ urlpatterns = [
     path('delete_shift_to_demand/<int:pk>/',
          views.delete_shift_to_demand,
          name='delete_shift_to_demand'),
+
+    path('recalculate_covering_on_date/',
+         views.recalculate_covering_on_date,
+         name='recalculate_covering_on_date'),
 ]

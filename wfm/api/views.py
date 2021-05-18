@@ -712,8 +712,6 @@ def add_shift_to_demand_on_hour(request):
 
 @api_view(['DELETE'])
 def delete_shift_to_demand(request, pk):
-    #data = JSONParser().parse(request)
-    #demand_hour_shift_set_id = data.get('demand_hour_shift_set_id')
 
     if request.method == 'DELETE':
         try:
@@ -723,6 +721,21 @@ def delete_shift_to_demand(request, pk):
         demand_hour_shift.delete()
         return JsonResponse({'message': 'demand_hour_shift was deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
 
+
+@api_view(['POST'])
+def recalculate_covering_on_date(request):
+    data = JSONParser().parse(request)
+    subdivision_id = data.get('subdivision_id')
+    try:
+        subdivision = Subdivision.objects.get(pk=subdivision_id)
+    except subdivision.DoesNotExist:
+        return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    demand_date = data.get('demand_date', None)
+    try:
+        DemandProcessing.recalculate_covering_on_date(subdivision_id, demand_date)
+    except Exception:
+        return JsonResponse({'message': 'Error'}, status=status.HTTP_400_BAD_REQUEST)
+    return JsonResponse({'message': 'Succses'}, status=status.HTTP_201_CREATED)
 
 
 
