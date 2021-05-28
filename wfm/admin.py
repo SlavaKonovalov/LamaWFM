@@ -1,4 +1,7 @@
 from django.contrib import admin
+from django.contrib.admin.widgets import AdminDateWidget
+from django.db.models import DateTimeField
+
 from .forms import EmployeeForm
 from .models import Organization, Production_Task, Subdivision, Scheduled_Production_Task, Employee, \
     Business_Indicator, Company, Job_Duty, Tasks_In_Duty, Employee_Position, Predictable_Production_Task, \
@@ -42,6 +45,11 @@ class TaskAdmin(admin.ModelAdmin):
 
 @admin.register(Scheduled_Production_Task)
 class ScheduledTaskAdmin(admin.ModelAdmin):
+    """
+    formfield_overrides = {
+        DateTimeField: {'widget': AdminDateWidget},
+    }
+    """
     list_display = ('task', 'subdivision', 'begin_date_format',
                     'begin_time_format', 'end_time_format', 'end_date_format', 'work_scope')
     list_filter = ('task', 'subdivision')

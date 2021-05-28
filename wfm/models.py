@@ -105,6 +105,7 @@ class Production_Task(models.Model):
     demand_data_source_choices = (
         ('scheduler', 'Планировщик'),
         ('statistical_data', 'Статистика'),
+        ('statistical_scheduler', 'Планирование+Статистика'),
     )
     work_scope_measure_choices = (
         ('minutes', 'Минуты'),
@@ -120,7 +121,7 @@ class Production_Task(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE,
                                      verbose_name='Организация', related_name='task_set')
     demand_calculate = models.BooleanField('Расчет потребности', default=False)
-    demand_data_source = models.CharField('Источник данных', max_length=20,
+    demand_data_source = models.CharField('Источник данных', max_length=25,
                                           choices=demand_data_source_choices, default='scheduler')
     work_scope_measure = models.CharField('Мера объема работ', max_length=20,
                                           choices=work_scope_measure_choices, default='minutes')
@@ -264,7 +265,7 @@ class Appointed_Production_Task(models.Model):
         return Appointed_Production_Task.objects.create(
             scheduled_task_id=scheduled_task_id,
             date=date,
-            work_scope_time=work_scope
+            work_scope_time=int(work_scope)
         )
 
 

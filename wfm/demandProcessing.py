@@ -1,6 +1,6 @@
 import pandas
 from django.db import transaction, connection
-from django.db.models import Sum, OuterRef, F, Exists, Count, Subquery
+from django.db.models import Sum, OuterRef, F, Exists, Count, Subquery, Q
 from django.db.models.functions import Coalesce
 from django.http import JsonResponse
 from rest_framework import status
@@ -48,24 +48,36 @@ class DemandProcessing:
     @staticmethod
     # Копирование статистических данных
     def copy_statistical_data(subdivision_id, date_begin):
-        predicted_tasks = Predicted_Production_Task.objects.select_related('predictable_task') \
+        predicted_tasks = Predicted_Production_Task.objects.select_related('predictable_task__task') \
             .filter(begin_date_time__gte=date_begin) \
             .filter(predictable_task__subdivision_id=subdivision_id) \
             .annotate(task_id=F('predictable_task__task')) \
-            .values('begin_date_time', 'task_id') \
+            .annotate(source_type=F('predictable_task__task__demand_data_source')) \
+            .values('begin_date_time', 'task_id', 'source_type') \
             .annotate(demand_sum=Coalesce(Sum("work_scope_time"), 0))
 
         for predicted_task in predicted_tasks.iterator():
-            demand_detail_main, create_main = Demand_Detail_Main.objects.get_or_create(
-                subdivision_id=subdivision_id,
-                date_time_value=Global.add_timezone(predicted_task.get('begin_date_time')),
-                defaults={'rounded_value': 0}
-            )
-            Demand_Detail_Task.objects.create(
-                demand_detail_main_id=demand_detail_main.id,
-                task_id=predicted_task.get('task_id'),
-                demand_value=Global.toFixed(predicted_task.get('demand_sum') / 15, 2)
-            )
+            source_type = predicted_task.get('source_type')
+            if source_type == 'statistical_data':
+                # Прямая заливка статистики
+                demand_detail_main, create_main = Demand_Detail_Main.objects.get_or_create(
+                    subdivision_id=subdivision_id,
+                    date_time_value=Global.add_timezone(predicted_task.get('begin_date_time')),
+                    defaults={'rounded_value': 0}
+                )
+                Demand_Detail_Task.objects.create(
+                    demand_detail_main_id=demand_detail_main.id,
+                    task_id=predicted_task.get('task_id'),
+                    demand_value=Global.toFixed(predicted_task.get('demand_sum') / 15, 2)
+                )
+            if source_type == 'statistical_scheduler':
+                appointed_production_task = Appointed_Production_Task.objects.select_related(
+                    'scheduled_task__task').filter(scheduled_task__task_id=predicted_task.get('task_id')).filter(
+                    date=predicted_task.get('begin_date_time')).first()
+
+                if appointed_production_task:
+                    appointed_production_task.work_scope_time = float(predicted_task.get('demand_sum'))
+                    appointed_production_task.save(update_fields=['work_scope_time'])
 
     @staticmethod
     # 1. находим среднее значение потребности по каждой задаче в разрезе часа
@@ -131,8 +143,9 @@ class DemandProcessing:
             demand_hour_main__demand_date__gte=date_begin.date())
         df_demand_hour_shift_prev = pandas.DataFrame(
             demand_hour_shift.values_list('demand_hour_main__subdivision_id', 'demand_hour_main__demand_date',
-                                          'demand_hour_main__demand_hour', 'demand_hour_main__duty_id', 'shift_id'),
-            columns=['subdivision_id', 'demand_date', 'demand_hour', 'duty_id', 'shift_id'])
+                                          'demand_hour_main__demand_hour', 'demand_hour_main__duty_id',
+                                          'shift_id', 'break_value'),
+            columns=['subdivision_id', 'demand_date', 'demand_hour', 'duty_id', 'shift_id', 'break_value'])
 
         # Удаление записей по подразделению с завтрашнего числа
         Demand_Hour_Main.objects.filter(subdivision_id=subdivision_id) \
@@ -140,7 +153,7 @@ class DemandProcessing:
         # Добавление записей в таблицу на основании потребности
         cursor = connection.cursor()
         query = """
-                INSERT INTO wfm_demand_hour_main(subdivision_id, demand_date, demand_hour, duty_id, demand_value, covering_value)
+                INSERT INTO wfm_demand_hour_main(subdivision_id, demand_date, demand_hour, duty_id, demand_value, covering_value, breaks_value)
                 (
                     SELECT
                     '%s' as subdivision_id,
@@ -150,6 +163,7 @@ class DemandProcessing:
                     CASE WHEN COALESCE(ROUND(SUM(task_sum.demand_sum)), 0) = 0 THEN 1
                     ELSE COALESCE(ROUND(SUM(task_sum.demand_sum)), 0)
                     END AS demand_value,
+                    0,
                     0
                     FROM
                     (
@@ -194,11 +208,14 @@ class DemandProcessing:
         for row_main in df_demand_hour_main.itertuples():
             line = Demand_Hour_Shift(
                 demand_hour_main_id=row_main.id,
-                shift_id=row_main.shift_id
+                shift_id=row_main.shift_id,
+                break_value=row_main.break_value
             )
             objects.append(line)
 
         Demand_Hour_Shift.objects.bulk_create(objects, ignore_conflicts=True)
+
+        DemandProcessing.recalculate_breaks_value(subdivision_id, date_begin.date())
 
     @staticmethod
     # Расчет потребности для задач со равномерным распределением
@@ -364,9 +381,11 @@ class DemandProcessing:
 
         # Закачиваем статистику
         DemandProcessing.copy_statistical_data(subdivision_id, date_begin)
+
         appointed_tasks = Appointed_Production_Task.objects.select_related('scheduled_task__task') \
             .filter(scheduled_task__subdivision_id=subdivision_id) \
             .filter(date__gte=date_begin) \
+            .filter(~Q(work_scope_time=0)) \
             .order_by('scheduled_task__task__demand_allocation_method', 'date', 'scheduled_task__begin_time__time')
 
         interval_length = Global_Parameters.objects.all().first().demand_detail_interval_length
