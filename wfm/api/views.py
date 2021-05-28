@@ -7,6 +7,7 @@ from rest_framework.decorators import api_view
 from rest_framework.parsers import JSONParser
 from dateutil.relativedelta import relativedelta
 
+from .. import shiftPlanning
 from ..additionalFunctions import Global
 from ..availabilityProcessing import AvailabilityProcessing
 from ..demandProcessing import DemandProcessing
@@ -18,7 +19,7 @@ from ..models import Production_Task, Organization, Subdivision, Employee, Emplo
     Appointed_Production_Task, Scheduled_Production_Task, Demand_Detail_Main, Company, Availability_Template, \
     Employee_Availability_Templates, Availability_Template_Data, Planning_Method, Working_Hours_Rate, \
     Work_Shift_Planning_Rule, Breaking_Rule, Employee_Planning_Rules, Employee_Availability, Employee_Shift, Holiday, \
-    Retail_Store_Format, Open_Shift
+    Retail_Store_Format, Open_Shift, Demand_Hour_Main, Demand_Hour_Shift
 from .serializers import ProductionTaskSerializer, OrganizationSerializer, SubdivisionSerializer, EmployeeSerializer, \
     EmployeePositionSerializer, JobDutySerializer, AppointedTaskSerializer, ScheduledProductionTaskSerializer, \
     DemandMainSerializer, CompanySerializer, AvailabilityTemplateSerializer, EmployeeAvailabilityTemplatesSerializer, \
@@ -681,4 +682,100 @@ def employees_update(request, pk):
             employee_serializer.save()
             return JsonResponse(employee_serializer.data)
         return JsonResponse(employee_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+def add_shift_to_demand_on_hour(request):
+    data = JSONParser().parse(request)
+    subdivision_id = data.get('subdivision_id')
+    try:
+        subdivision = Subdivision.objects.get(pk=subdivision_id)
+    except subdivision.DoesNotExist:
+        return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    demand_date = data.get('demand_date', None)
+    duty_id = data.get('duty_id')
+    try:
+        duty = Job_Duty.objects.get(pk=duty_id)
+    except duty.DoesNotExist:
+        return JsonResponse({'message': 'The duty does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    shift_id = data.get('shift_id')
+    try:
+        shift = Employee_Shift.objects.get(pk=shift_id)
+    except shift.DoesNotExist:
+        return JsonResponse({'message': 'The shift does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    hour = data.get('hour', None)
+    try:
+        DemandProcessing.add_shift_to_demand_on_hour(subdivision_id, demand_date, duty_id, shift_id, hour)
+    except Exception:
+        return JsonResponse({'message': 'Error'}, status=status.HTTP_400_BAD_REQUEST)
+    return JsonResponse({'message': 'Succses'}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['DELETE'])
+def delete_shift_to_demand(request, pk):
+
+    if request.method == 'DELETE':
+        try:
+            demand_hour_shift = Demand_Hour_Shift.objects.get(pk=pk)
+        except demand_hour_shift.DoesNotExist:
+            return JsonResponse({'message': 'The demand_hour_shift does not exist'}, status=status.HTTP_404_NOT_FOUND)
+        demand_hour_shift.delete()
+        return JsonResponse({'message': 'demand_hour_shift was deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['POST'])
+def recalculate_covering_on_date(request):
+    data = JSONParser().parse(request)
+    subdivision_id = data.get('subdivision_id')
+    try:
+        subdivision = Subdivision.objects.get(pk=subdivision_id)
+    except subdivision.DoesNotExist:
+        return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    demand_date = data.get('demand_date', None)
+    try:
+        DemandProcessing.recalculate_covering_on_date(subdivision_id, demand_date)
+    except Exception:
+        return JsonResponse({'message': 'Error'}, status=status.HTTP_400_BAD_REQUEST)
+    return JsonResponse({'message': 'Succses'}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['POST'])
+def recalculate_breaks_value_on_date(request):
+    data = JSONParser().parse(request)
+    subdivision_id = data.get('subdivision_id')
+    try:
+        subdivision = Subdivision.objects.get(pk=subdivision_id)
+    except subdivision.DoesNotExist:
+        return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    demand_date = data.get('demand_date', None)
+    try:
+        DemandProcessing.recalculate_breaks_value_on_date(subdivision_id, demand_date)
+    except Exception:
+        return JsonResponse({'message': 'Error'}, status=status.HTTP_400_BAD_REQUEST)
+    return JsonResponse({'message': 'Succses'}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['POST'])
+def plan_shift_breaks(request):
+    data = JSONParser().parse(request)
+    subdivision_id = data.get('subdivision_id')
+    try:
+        subdivision = Subdivision.objects.get(pk=subdivision_id)
+    except subdivision.DoesNotExist:
+        return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_404_NOT_FOUND)
+
+    begin_date_time = dateutil.parser.parse(data.get('begin_date_time')) #data.get('begin_date_time', None)
+    end_date_time = dateutil.parser.parse(data.get('end_date_time')) #data.get('end_date_time', None)
+    employee_id = data.get('employee_id')
+    list_empl = []
+    try:
+        employee = Employee.objects.get(pk=employee_id)
+        list_empl.append(employee_id)
+    except employee.DoesNotExist:
+        return JsonResponse({'message': 'The employee does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    try:
+        ShiftPlanning.plan_shift_breaks(subdivision_id, begin_date_time, end_date_time, list_empl)
+    except Exception:
+        return JsonResponse({'message': 'Error'}, status=status.HTTP_400_BAD_REQUEST)
+    return JsonResponse({'message': 'Succses'}, status=status.HTTP_204_NO_CONTENT)
 

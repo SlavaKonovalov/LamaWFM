@@ -163,4 +163,24 @@ urlpatterns = [
     path('open_shift_data_detail/<int:pk>/',
          views.open_shift_data_detail,
          name='open_shift_data_detail'),
+
+    path('add_shift_to_demand_on_hour/',
+         views.add_shift_to_demand_on_hour,
+         name='add_shift_to_demand_on_hour'),
+
+    path('delete_shift_to_demand/<int:pk>/',
+         views.delete_shift_to_demand,
+         name='delete_shift_to_demand'),
+
+    path('recalculate_covering_on_date/',
+         views.recalculate_covering_on_date,
+         name='recalculate_covering_on_date'),
+
+    path('recalculate_breaks_value_on_date/',
+         views.recalculate_breaks_value_on_date,
+         name='recalculate_breaks_value_on_date'),
+
+    path('plan_shift_breaks/',
+         views.plan_shift_breaks,
+         name='plan_shift_breaks'),
 ]
