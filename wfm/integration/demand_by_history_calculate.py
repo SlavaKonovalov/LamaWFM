@@ -39,8 +39,6 @@ class DemandByHistoryDataCalculate:
                 task_id=predictable_production_task.task)
 
             for production_Task_Business_Indicator in production_task_business_indicators:
-                if production_Task_Business_Indicator.business_indicator.external_code != 'inventory':
-                    continue
                 self.calculate_predicted_production_task(production_Task_Business_Indicator.business_indicator,
                                                          predictable_production_task)
 
