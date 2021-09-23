@@ -185,12 +185,20 @@ class EmployeeAvailabilityView(generics.ListAPIView):
         queryset = Employee_Availability.objects.all()
         employee_id = self.request.query_params.get('employee_id', None)
         subdivision_id = self.request.query_params.get('subdivision_id', None)
+        date_from_str = self.request.query_params.get('date_from', None)
+        date_to_str = self.request.query_params.get('date_to', None)
+
+        date_from = datetime.datetime.strptime(date_from_str, "%Y-%m-%d").date()
+        date_to = datetime.datetime.strptime(date_to_str, "%Y-%m-%d").date()
         if employee_id is not None and subdivision_id is not None:
             queryset = queryset.filter(employee_id=employee_id, subdivision_id=subdivision_id)
         elif employee_id is not None and subdivision_id is None:
             queryset = queryset.filter(employee_id=employee_id)
         elif employee_id is None and subdivision_id is not None:
             queryset = queryset.filter(subdivision_id=subdivision_id)
+        if date_from is not None and date_to is not None:
+            queryset = queryset.filter(begin_date_time__range=[datetime.datetime.combine(date_from, datetime.time.min),
+                                                               datetime.datetime.combine(date_to, datetime.time.max)])
         return queryset
 
 
