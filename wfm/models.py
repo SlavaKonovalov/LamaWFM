@@ -183,8 +183,8 @@ class Scheduled_Production_Task(models.Model):
         return str(self.pk)
 
     def get_task_duration(self):
-        end_time = Global.add_timezone(self.end_time)
-        begin_time = Global.add_timezone(self.begin_time)
+        end_time = self.end_time
+        begin_time = self.begin_time
         return (end_time.hour * 60 + end_time.minute) - (begin_time.hour * 60 + begin_time.minute)
 
     def work_scope_normalize(self):

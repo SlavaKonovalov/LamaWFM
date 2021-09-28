@@ -19,20 +19,16 @@ from LamaWFM.settings import TIME_ZONE
 class DemandProcessing:
 
     @staticmethod
-    def create_demand_main_chain(subdivision_id, date_step, duration):
+    def create_demand_main_chain(subdivision_id, chain_date, duration):
         apt_step = Appointed_Production_Task.objects \
-            .filter(scheduled_task__subdivision_id=subdivision_id, date=date_step)
-        apt_step_earliest = Global.add_timezone(
-            apt_step.earliest('scheduled_task__begin_time__time').scheduled_task.begin_time)
-        apt_step_earliest = apt_step_earliest.replace(year=date_step.year,
-                                                      month=date_step.month,
-                                                      day=date_step.day,
-                                                      )
-        apt_step_latest = Global.add_timezone(apt_step.latest('scheduled_task__end_time__time').scheduled_task.end_time)
-        apt_step_latest = apt_step_latest.replace(year=date_step.year,
-                                                  month=date_step.month,
-                                                  day=date_step.day,
-                                                  )
+            .filter(scheduled_task__subdivision_id=subdivision_id, date=chain_date)
+
+        apt_step_earliest_time = apt_step.earliest('scheduled_task__begin_time').scheduled_task.begin_time
+        apt_step_earliest = Global.get_combine_datetime(chain_date, apt_step_earliest_time)
+
+        apt_step_latest_time = apt_step.latest('scheduled_task__end_time').scheduled_task.end_time
+        apt_step_latest = Global.get_combine_datetime(chain_date, apt_step_latest_time)
+
         date_step = apt_step_earliest
         objects = []
         while date_step < apt_step_latest:
@@ -140,7 +136,7 @@ class DemandProcessing:
     def recreate_demand_hour_main(date_begin, tz, subdivision_id):
         demand_hour_shift = Demand_Hour_Shift.objects.select_related('demand_hour_main').filter(
             demand_hour_main__subdivision_id=subdivision_id,
-            demand_hour_main__demand_date__gte=date_begin.date())
+            demand_hour_main__demand_date__gte=date_begin)
         df_demand_hour_shift_prev = pandas.DataFrame(
             demand_hour_shift.values_list('demand_hour_main__subdivision_id', 'demand_hour_main__demand_date',
                                           'demand_hour_main__demand_hour', 'demand_hour_main__duty_id',
@@ -149,7 +145,7 @@ class DemandProcessing:
 
         # Удаление записей по подразделению с завтрашнего числа
         Demand_Hour_Main.objects.filter(subdivision_id=subdivision_id) \
-            .filter(demand_date__gte=date_begin.date()).delete()
+            .filter(demand_date__gte=date_begin).delete()
         # Добавление записей в таблицу на основании потребности
         cursor = connection.cursor()
         query = """
@@ -196,7 +192,7 @@ class DemandProcessing:
 
         # Восстанавливаем смены (какие сможем)
         demand_hour_main = Demand_Hour_Main.objects.filter(subdivision_id=subdivision_id) \
-            .filter(demand_date__gte=date_begin.date())
+            .filter(demand_date__gte=date_begin)
         df_demand_hour_main = pandas.DataFrame(
             demand_hour_main.values_list('id', 'subdivision_id', 'demand_date', 'demand_hour', 'duty_id'),
             columns=['id', 'subdivision_id', 'demand_date', 'demand_hour', 'duty_id'])
@@ -212,11 +208,10 @@ class DemandProcessing:
                 break_value=row_main.break_value
             )
             objects.append(line)
-
-        Demand_Hour_Shift.objects.bulk_create(objects, ignore_conflicts=True)
-
-        DemandProcessing.recalculate_covering(subdivision_id, date_begin.date())
-        DemandProcessing.recalculate_breaks_value(subdivision_id, date_begin.date())
+        if objects:
+            Demand_Hour_Shift.objects.bulk_create(objects, ignore_conflicts=True)
+            DemandProcessing.recalculate_covering(subdivision_id, date_begin)
+            DemandProcessing.recalculate_breaks_value(subdivision_id, date_begin)
 
     @staticmethod
     # Расчет потребности для задач со равномерным распределением
@@ -373,7 +368,7 @@ class DemandProcessing:
             return JsonResponse({'message': 'Не все задачи сопоставлены с обязанностями!'},
                                 status=status.HTTP_404_NOT_FOUND)
 
-        date_step = Global.get_current_midnight(datetime.datetime.now())
+        date_step = datetime.datetime.now().date()
         date_begin = date_step + datetime.timedelta(days=1)
 
         # Удаление записей по подразделению с завтрашнего числа
@@ -381,38 +376,28 @@ class DemandProcessing:
             .filter(date_time_value__gte=date_begin).delete()
 
         # Закачиваем статистику
-        DemandProcessing.copy_statistical_data(subdivision_id, date_begin)
+        # TODO DemandProcessing.copy_statistical_data(subdivision_id, date_begin)
 
         appointed_tasks = Appointed_Production_Task.objects.select_related('scheduled_task__task') \
             .filter(scheduled_task__subdivision_id=subdivision_id) \
             .filter(date__gte=date_begin) \
             .filter(~Q(work_scope_time=0)) \
-            .order_by('scheduled_task__task__demand_allocation_method', 'date', 'scheduled_task__begin_time__time')
+            .order_by('scheduled_task__task__demand_allocation_method', 'date', 'scheduled_task__begin_time')
 
         interval_length = Global_Parameters.objects.all().first().demand_detail_interval_length
         duration = datetime.timedelta(minutes=interval_length)
 
         for appointed_task in appointed_tasks.iterator():
 
-            appointed_date_time = Global.add_timezone(appointed_task.date)
-
-            if date_step != appointed_date_time:
-                date_step = appointed_date_time
+            if date_step != appointed_task.date:
+                date_step = appointed_task.date
                 # Создаём цепочку заголовков для потребности на день
                 DemandProcessing.create_demand_main_chain(subdivision_id, date_step, duration)
 
             # Подготовительные процедуры
-            # TODO bdt = Global.get_combine_datetime(, appointed_task.scheduled_task.begin_time)
-            begin_date_time = Global.add_timezone(appointed_task.scheduled_task.begin_time)
-            begin_date_time = begin_date_time.replace(year=appointed_date_time.year,
-                                                      month=appointed_date_time.month,
-                                                      day=appointed_date_time.day,
-                                                      )
-            end_date_time = Global.add_timezone(appointed_task.scheduled_task.end_time)
-            end_date_time = end_date_time.replace(year=appointed_date_time.year,
-                                                  month=appointed_date_time.month,
-                                                  day=appointed_date_time.day,
-                                                  )
+            begin_date_time = Global.get_combine_datetime(appointed_task.date, appointed_task.scheduled_task.begin_time)
+            end_date_time = Global.get_combine_datetime(appointed_task.date, appointed_task.scheduled_task.end_time)
+
             work_scope_all = Global.toFixed(appointed_task.work_scope_time / interval_length, 2)
             work_scope_step = Global.toFixed(
                 appointed_task.work_scope_time * interval_length / appointed_task.scheduled_task.get_task_duration() / 60,
