@@ -155,12 +155,12 @@ class Scheduled_Production_Task(models.Model):
                              verbose_name='Задание', related_name='scheduled_task_set')
     subdivision = models.ForeignKey(Subdivision, on_delete=models.CASCADE,
                                     verbose_name='Подразделение', related_name='scheduled_task_set')
-    begin_date = models.DateTimeField('Дата начала', null=True, blank=True)
-    begin_time = models.DateTimeField('Время начала', null=True, blank=True)
-    end_time = models.DateTimeField('Время окончания', null=True, blank=True)
+    begin_date = models.DateField('Дата начала', null=True, blank=True)
+    begin_time = models.TimeField('Время начала', null=True, blank=True)
+    end_time = models.TimeField('Время окончания', null=True, blank=True)
     work_scope = models.PositiveIntegerField('Объём работ', default=0)
     repetition_type = models.CharField('Повторение', max_length=20, choices=repetition_type_choices, default='empty')
-    end_date = models.DateTimeField('Дата завершения', null=True, blank=True)
+    end_date = models.DateField('Дата завершения', null=True, blank=True)
     repetition_interval = models.PositiveIntegerField('Интервал повторения', null=True, blank=True)
     exclude_holidays = models.BooleanField('Исключить праздники', default=False)
     exclude_weekdays = models.BooleanField('Исключить будни', default=False)
@@ -181,35 +181,6 @@ class Scheduled_Production_Task(models.Model):
 
     def __str__(self):
         return str(self.pk)
-
-    def begin_date_format(self):
-        if self.begin_date is not None:
-            begin_date = Global.add_timezone(self.begin_date)
-            return begin_date.strftime('%d.%m.%Y')
-        return self.begin_date
-
-    def begin_time_format(self):
-        if self.begin_time is not None:
-            begin_time = Global.add_timezone(self.begin_time)
-            return begin_time.strftime('%H:%M')
-        return self.begin_time
-
-    def end_date_format(self):
-        if self.end_date is not None:
-            end_date = Global.add_timezone(self.end_date)
-            return end_date.strftime('%d.%m.%Y')
-        return self.end_date
-
-    def end_time_format(self):
-        if self.end_time is not None:
-            end_time = Global.add_timezone(self.end_time)
-            return end_time.strftime('%H:%M')
-        return self.end_time
-
-    begin_date_format.short_description = 'Дата начала'
-    begin_time_format.short_description = 'Время начала'
-    end_date_format.short_description = 'Дата завершения'
-    end_time_format.short_description = 'Время окончания'
 
     def get_task_duration(self):
         end_time = Global.add_timezone(self.end_time)
@@ -241,7 +212,7 @@ class Predictable_Production_Task(models.Model):
                                     verbose_name='Подразделение')
 
     class Meta:
-        verbose_name = 'Прогнозируемые задача'
+        verbose_name = 'Прогнозируемая задача'
         verbose_name_plural = 'Прогнозируемые задачи'
 
     def __str__(self):
@@ -251,7 +222,7 @@ class Predictable_Production_Task(models.Model):
 class Appointed_Production_Task(models.Model):
     scheduled_task = models.ForeignKey(Scheduled_Production_Task, on_delete=models.CASCADE,
                                        verbose_name='Запланированное задание', related_name='appointed_task_set')
-    date = models.DateTimeField('Дата выполнения')
+    date = models.DateField('Дата выполнения')
     work_scope_time = models.PositiveIntegerField('Объём работ (минуты)')
 
     class Meta:
@@ -273,7 +244,7 @@ class Job_Duty(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE,
                                      verbose_name='Организация', related_name='duty_set')
     name = models.CharField('Название', max_length=60)
-    color = ColorField(default='#FF0000')
+    color = ColorField('Цвет', default='#FF0000')
 
     class Meta:
         verbose_name = 'Функциональная обязанность'
@@ -472,7 +443,7 @@ class Business_Indicator_Data(models.Model):
     begin_date_time = models.DateTimeField(verbose_name='Дата и время начала временного интервала')
     indicator_value = models.DecimalField(max_digits=10, decimal_places=3, verbose_name='Значение показателя бизнеса')
     time_interval_length = models.PositiveIntegerField(choices=time_interval_length_choices,
-                                                       verbose_name='Длинна временного интервала')
+                                                       verbose_name='Длина временного интервала')
     holiday_period_for_calc = models.ForeignKey(Holiday_Period_For_Calc, on_delete=models.SET_NULL,
                                                 verbose_name='Период праздника', null=True, blank=True)
 

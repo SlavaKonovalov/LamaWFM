@@ -50,8 +50,8 @@ class ScheduledTaskAdmin(admin.ModelAdmin):
         DateTimeField: {'widget': AdminDateWidget},
     }
     """
-    list_display = ('task', 'subdivision', 'begin_date_format',
-                    'begin_time_format', 'end_time_format', 'end_date_format', 'work_scope')
+    list_display = ('task', 'subdivision', 'begin_date',
+                    'begin_time', 'end_time', 'end_date', 'work_scope')
     list_filter = ('task', 'subdivision')
     search_fields = ['task__name']
 

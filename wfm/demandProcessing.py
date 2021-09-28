@@ -215,6 +215,7 @@ class DemandProcessing:
 
         Demand_Hour_Shift.objects.bulk_create(objects, ignore_conflicts=True)
 
+        DemandProcessing.recalculate_covering(subdivision_id, date_begin.date())
         DemandProcessing.recalculate_breaks_value(subdivision_id, date_begin.date())
 
     @staticmethod
@@ -401,6 +402,7 @@ class DemandProcessing:
                 DemandProcessing.create_demand_main_chain(subdivision_id, date_step, duration)
 
             # Подготовительные процедуры
+            # TODO bdt = Global.get_combine_datetime(, appointed_task.scheduled_task.begin_time)
             begin_date_time = Global.add_timezone(appointed_task.scheduled_task.begin_time)
             begin_date_time = begin_date_time.replace(year=appointed_date_time.year,
                                                       month=appointed_date_time.month,
@@ -442,7 +444,7 @@ class DemandProcessing:
     def recalculate_covering(subdivision_id, date_begin):
         Demand_Hour_Main.objects.filter(subdivision_id=subdivision_id, demand_date__gte=date_begin).update(
             covering_value=Subquery(
-                Demand_Hour_Main.objects.filter(
+                Demand_Hour_Main.objects.prefetch_related('demand_hour_shift_set').filter(
                     id=OuterRef('id'), subdivision_id=subdivision_id, demand_date__gte=date_begin
                 ).annotate(
                     Count('demand_hour_shift_set')

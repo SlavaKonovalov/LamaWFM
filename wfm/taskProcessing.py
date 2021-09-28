@@ -18,7 +18,7 @@ class TaskProcessing:
         if scheduled_task_id:
             appointed_task = appointed_task.filter(scheduled_task_id=scheduled_task_id)
         else:
-            appointed_task = appointed_task.filter(scheduled_task__subdivision_id=subdivision_id)\
+            appointed_task = appointed_task.filter(scheduled_task__subdivision_id=subdivision_id) \
                 .select_related('scheduled_task')
         appointed_task.filter(date__gte=date_begin).delete()
         # Фильтруем запланированные задачи
@@ -27,13 +27,16 @@ class TaskProcessing:
             tasks = tasks.filter(id=scheduled_task_id)
         else:
             tasks = tasks.filter(subdivision_id=subdivision_id)
-        tasks = tasks.filter(Q(end_date__isnull=True) | Q(end_date__gte=date_begin))\
-            .filter(task__demand_calculate=True)\
+        tasks = tasks.filter(Q(end_date__isnull=True) | Q(end_date__gte=date_begin)) \
+            .filter(task__demand_calculate=True) \
             .exclude(task__demand_data_source='statistical_data')
         for task in tasks.iterator():
             date_step = datetime.timedelta(days=1)
-            begin_date_task = Global.get_current_midnight(task.begin_date)
-            end_date_task = date_end if task.end_date is None else Global.get_current_midnight(task.end_date)
+            begin_date_task = Global.get_combine_datetime(task.begin_date, task.begin_time)
+            begin_date_task = Global.get_current_midnight(begin_date_task)
+            end_date_task = date_end if task.end_date is None else Global.get_current_midnight(
+                Global.get_combine_datetime(task.end_date, task.begin_time))
+
             # проверка задачи без повторения
             if task.repetition_type == 'empty':
                 if begin_date_task < date_begin:

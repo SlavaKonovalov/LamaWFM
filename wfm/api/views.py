@@ -317,10 +317,7 @@ class AppointedTaskListView(generics.ListAPIView):
             date_from = datetime.datetime.strptime(date_from_str, "%Y-%m-%d")
             date_to = datetime.datetime.strptime(date_to_str, "%Y-%m-%d")
             queryset = queryset.filter(scheduled_task__subdivision_id=subdivision_id).select_related('scheduled_task')
-            queryset = queryset.filter(date__range=[
-                datetime.datetime.combine(date_from, datetime.time.min),
-                datetime.datetime.combine(date_to, datetime.time.max)
-            ])
+            queryset = queryset.filter(date__range=[date_from, date_to])
         else:
             queryset = None
         return queryset
