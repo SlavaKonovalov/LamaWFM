@@ -480,6 +480,11 @@ class Global_Parameters(models.Model):
     demand_detail_interval_length = models.PositiveIntegerField('Длина периода детализации потребности', default=0)
     scheduling_period = models.PositiveIntegerField('Длина периода для построения графика запланированных задач',
                                                     default=0)
+    colorForWithoutDemand = ColorField('Цвет для задач без потребности', default='#0000FF')
+
+    class Meta:
+        verbose_name = 'Глобальные параметры'
+        verbose_name_plural = 'Глобальные параметры'
 
 
 class Production_Task_Business_Indicator(models.Model):

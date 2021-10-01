@@ -7,7 +7,7 @@ from .models import Organization, Production_Task, Subdivision, Scheduled_Produc
     Business_Indicator, Company, Job_Duty, Tasks_In_Duty, Employee_Position, Predictable_Production_Task, \
     Work_Shift_Planning_Rule, Breaking_Rule, Planning_Method, Working_Hours_Rate, Employee_Planning_Rules, \
     Production_Task_Business_Indicator, Business_Indicator_Norm, Holiday, Holiday_Period, Retail_Store_Format, \
-    Holiday_Period_For_Calc, Business_Indicator_Category
+    Holiday_Period_For_Calc, Business_Indicator_Category, Global_Parameters
 
 
 @admin.register(Company)
@@ -178,3 +178,6 @@ class Employee_Planning_RulesAdmin(admin.ModelAdmin):
                     "date_rules_end"]
 
 
+@admin.register(Global_Parameters)
+class Global_ParametersAdmin(admin.ModelAdmin):
+    list_display = ["colorForWithoutDemand"]
