@@ -96,7 +96,8 @@ class OrganizationAdmin(admin.ModelAdmin):
 
 @admin.register(Predictable_Production_Task)
 class OrganizationAdmin(admin.ModelAdmin):
-    list_display = ['subdivision', 'task']
+    list_display = ('subdivision', 'task')
+    list_filter = ('subdivision', 'task')
 
 
 @admin.register(Production_Task_Business_Indicator)

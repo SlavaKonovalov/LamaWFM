@@ -376,7 +376,7 @@ class DemandProcessing:
             .filter(date_time_value__gte=date_begin).delete()
 
         # Закачиваем статистику
-        # TODO DemandProcessing.copy_statistical_data(subdivision_id, date_begin)
+        DemandProcessing.copy_statistical_data(subdivision_id, date_begin)
 
         appointed_tasks = Appointed_Production_Task.objects.select_related('scheduled_task__task') \
             .filter(scheduled_task__subdivision_id=subdivision_id) \
