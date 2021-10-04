@@ -106,7 +106,7 @@ class DemandByHistoryDataCalculate:
     def create_predicted_production_task(self, business_indicator, predictable_production_task, business_indicator_norm,
                                          cur_date, indicator_value):
         predicted_production_task = Predicted_Production_Task()
-        predicted_production_task.begin_date_time = cur_date
+        predicted_production_task.begin_date_time = Global.add_timezone(cur_date)
         predicted_production_task.predictable_task = predictable_production_task
         predicted_production_task.business_indicator = business_indicator
         work_scope_time = (indicator_value * business_indicator_norm.norm_value) / 60
