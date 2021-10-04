@@ -19,7 +19,7 @@ from ..models import Production_Task, Organization, Subdivision, Employee, Emplo
     Appointed_Production_Task, Scheduled_Production_Task, Demand_Detail_Main, Company, Availability_Template, \
     Employee_Availability_Templates, Availability_Template_Data, Planning_Method, Working_Hours_Rate, \
     Work_Shift_Planning_Rule, Breaking_Rule, Employee_Planning_Rules, Employee_Availability, Employee_Shift, Holiday, \
-    Retail_Store_Format, Open_Shift, Demand_Hour_Main, Demand_Hour_Shift
+    Retail_Store_Format, Open_Shift, Demand_Hour_Main, Demand_Hour_Shift, Global_Parameters
 from .serializers import ProductionTaskSerializer, OrganizationSerializer, SubdivisionSerializer, EmployeeSerializer, \
     EmployeePositionSerializer, JobDutySerializer, AppointedTaskSerializer, ScheduledProductionTaskSerializer, \
     DemandMainSerializer, CompanySerializer, AvailabilityTemplateSerializer, EmployeeAvailabilityTemplatesSerializer, \
@@ -27,7 +27,7 @@ from .serializers import ProductionTaskSerializer, OrganizationSerializer, Subdi
     WorkShiftPlanningRuleSerializer, BreakingRuleSerializer, EmployeePlanningRuleSerializer, \
     AssignEmployeePlanningRulesSerializer, EmployeeAvailabilitySerializer, EmployeeShiftSerializer, HolidaySerializer, \
     RetailStoreFormatSerializer, EmployeeShiftSerializerForUpdate, OpenShiftSerializer, OpenShiftSerializerHeader, \
-    EmployeeShiftSerializerHeader, EmployeeUpdateSerializer
+    EmployeeShiftSerializerHeader, EmployeeUpdateSerializer, GlobalParametersSerializer
 
 
 class ProductionTaskListView(generics.ListAPIView):
@@ -783,4 +783,16 @@ def plan_shift_breaks(request):
     except Exception:
         return JsonResponse({'message': 'Error'}, status=status.HTTP_400_BAD_REQUEST)
     return JsonResponse({'message': 'Succses'}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET'])
+def project_global_param(request, pk):
+    try:
+        param = Global_Parameters.objects.get(pk=pk)
+    except param.DoesNotExist:
+        return JsonResponse({'message': 'The global param does not exist'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer_class = GlobalParametersSerializer(param)
+        return JsonResponse(serializer_class.data)
 

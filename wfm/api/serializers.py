@@ -6,7 +6,7 @@ from ..models import Production_Task, Subdivision, Employee, Scheduled_Productio
     Availability_Template, Availability_Template_Data, Employee_Availability_Templates, Planning_Method, \
     Working_Hours_Rate, Work_Shift_Planning_Rule, Breaking_Rule, Employee_Planning_Rules, Employee_Availability, \
     Employee_Shift_Detail_Plan, Employee_Shift, Holiday_Period, Holiday, Retail_Store_Format, Open_Shift_Detail, \
-    Open_Shift, Demand_Hour_Shift, Demand_Hour_Main
+    Open_Shift, Demand_Hour_Shift, Demand_Hour_Main, Global_Parameters
 
 
 class ScheduledProductionTaskSerializer(serializers.ModelSerializer):
@@ -407,4 +407,9 @@ class EmployeeUpdateSerializer(serializers.ModelSerializer):
         return instance
 
 
+class GlobalParametersSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Global_Parameters
+        fields = ['colorForWithoutDemand']
 

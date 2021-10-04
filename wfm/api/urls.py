@@ -183,4 +183,8 @@ urlpatterns = [
     path('plan_shift_breaks/',
          views.plan_shift_breaks,
          name='plan_shift_breaks'),
+
+    path('global_parameters/<int:pk>/',
+         views.project_global_param,
+         name='global_parameters_list'),
 ]
