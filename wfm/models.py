@@ -306,6 +306,8 @@ class Employee(models.Model):
     part_time_job_org = models.ManyToManyField(Company, verbose_name='Юр. лица (подработка)',
                                                null=True, blank=True)
     pf_reg_id = models.CharField('СНИЛС', max_length=14, null=False, blank=False, unique=True)
+    ref_id_1C = models.CharField('Идентификатор сотрудника', max_length=30, null=True, blank=True)
+    juristic_person_id = models.CharField('Юридическое лицо', max_length=10, null=True, blank=True)
 
     objects = DataFrameManager()
 
