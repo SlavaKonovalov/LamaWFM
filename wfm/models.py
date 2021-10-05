@@ -308,6 +308,7 @@ class Employee(models.Model):
     pf_reg_id = models.CharField('СНИЛС', max_length=14, null=False, blank=False, unique=True)
     ref_id_1C = models.CharField('Идентификатор сотрудника', max_length=30, null=True, blank=True)
     juristic_person_id = models.CharField('Юридическое лицо', max_length=10, null=True, blank=True)
+    history_doc_load = models.PositiveIntegerField('Загружены исторические документы по сотруднику', default=0)
 
     objects = DataFrameManager()
 
@@ -767,6 +768,11 @@ class Demand_Hour_Shift(models.Model):
 
 
 class Personal_Documents(models.Model):
+    operation_type_choose = (
+        ('INS', 'INSERT NEW DATA'),
+        ('UPD', 'UPDATE RECORDS'),
+        ('DEL', 'DELETE RECORDS'),
+    )
     doc_type_choose = (
         (0, ''),
         (1, 'Больничный'),
@@ -798,6 +804,8 @@ class Personal_Documents(models.Model):
     juristic_person_id = models.CharField('Юридическое лицо', max_length=10, null=True, blank=True)
     ref_doc_num = models.CharField('Документ основания', max_length=20, null=True, blank=True)
     doc_type = models.PositiveIntegerField('Тип документа',  choices=doc_type_choose, default=0)
+    operation_type = models.CharField('Тип операции', max_length=5, choices=operation_type_choose, default='INS')
+    date_create_doc = models.DateField('Дата создания документа')
 
     class Meta:
         verbose_name = 'Кадровые документы'
