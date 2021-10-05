@@ -1,10 +1,12 @@
 from decimal import Decimal
-from datetime import datetime
+from importlib._common import _
 
 from colorfield.fields import ColorField
+from django.core.exceptions import ValidationError, NON_FIELD_ERRORS
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.contrib.auth.models import User
+from django.db.models import Q
 from pandas import Series
 from django_pandas.managers import DataFrameManager
 from .additionalFunctions import Global
@@ -203,6 +205,27 @@ class Scheduled_Production_Task(models.Model):
                        self.day5_selection,
                        self.day6_selection,
                        self.day7_selection])
+
+    def clean(self):
+        if self.task.demand_data_source == 'statistical_scheduler':
+            spt = Scheduled_Production_Task.objects.filter(~Q(id=self.pk), subdivision=self.subdivision, task=self.task)
+            if spt:
+                raise ValidationError({NON_FIELD_ERRORS: "Дублирование задачи"})
+            error_list = {}
+            if self.work_scope != 0:
+                error_list.update({'work_scope': "Объём работ должен быть равен 0"})
+            if self.repetition_type != 'day':
+                error_list.update({'repetition_type': "Повторение должно иметь тип 'День'"})
+            if self.end_date is not None:
+                error_list.update({'end_date': "Дата завершения должна быть пустой"})
+            if self.repetition_interval != 1:
+                error_list.update({'repetition_interval': "Интервал повторения должен быть равен 1"})
+            if error_list:
+                error_list.update({NON_FIELD_ERRORS: "Обнаружены ошибки при сохранении задачи с "
+                                                     "типом statistical_scheduler"})
+                raise ValidationError(error_list)
+
+        super().clean()
 
 
 class Predictable_Production_Task(models.Model):

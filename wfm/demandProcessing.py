@@ -52,6 +52,8 @@ class DemandProcessing:
             .values('begin_date_time', 'task_id', 'source_type') \
             .annotate(demand_sum=Coalesce(Sum("work_scope_time"), 0))
 
+        objects = []
+
         for predicted_task in predicted_tasks.iterator():
             source_type = predicted_task.get('source_type')
             if source_type == 'statistical_data':
@@ -73,7 +75,10 @@ class DemandProcessing:
 
                 if appointed_production_task:
                     appointed_production_task.work_scope_time = float(predicted_task.get('demand_sum'))
-                    appointed_production_task.save(update_fields=['work_scope_time'])
+                    objects.append(appointed_production_task)
+
+        if objects:
+            Appointed_Production_Task.objects.bulk_update(objects, ['work_scope_time'])
 
     @staticmethod
     # 1. находим среднее значение потребности по каждой задаче в разрезе часа
@@ -209,8 +214,11 @@ class DemandProcessing:
             )
             objects.append(line)
         if objects:
+            # заливаем восстановленные смены
             Demand_Hour_Shift.objects.bulk_create(objects, ignore_conflicts=True)
+            # Пересчитываем показатель покрытия
             DemandProcessing.recalculate_covering(subdivision_id, date_begin)
+            # Пересчитываем показатель обеденных перерывов
             DemandProcessing.recalculate_breaks_value(subdivision_id, date_begin)
 
     @staticmethod
