@@ -764,3 +764,41 @@ class Demand_Hour_Shift(models.Model):
         verbose_name = 'Смена, покрывающая потребность'
         verbose_name_plural = 'Смены, покрывающие потребность'
         unique_together = ('demand_hour_main', 'shift')
+
+
+class Personal_Documents(models.Model):
+    doc_type_choose = (
+        (0, ''),
+        (1, 'Больничный'),
+        (2, 'Отпуск'),
+        (3, 'Невыход'),
+        (4, 'Декретный отпуск'),
+        (5, 'Отпуск без сохранения заработной платы'),
+        (6, 'Прогул'),
+        (7, 'Отпуск по беременности и родам'),
+        (8, 'Отработанный выходной'),
+        (9, 'Государственные обязанности'),
+        (10, 'Дополнительный отпуск без сохранения заработной платы'),
+        (11, 'Приказ на работу во время декретного отпуска'),
+        (12, 'Отстранение от работы'),
+        (13, 'Дополнительно оплачиваемые выходные дни'),
+        (14, 'Простой по вине работодателя'),
+        (15, 'Время вынужденного прогула'),
+        (16, 'Командировка'),
+        (17, 'Неоплачиваемый выходной'),
+        (18, 'Оплата дней ухода за детьми инвалидами'),
+        (19, 'Выполнение государственных обязанностей'),
+        (20, 'Дополнительный выходной за выполнение государственных обязанностей'),
+        (21, 'Учебный отпуск'),
+    )
+    date_from = models.DateField('Дата начала')
+    date_to = models.DateField('Дата окончания')
+    personnel_number = models.CharField('Табельный номер', max_length=30, null=True, blank=True)
+    ref_id_1C = models.CharField('Идентификатор сотрудника', max_length=30, null=True, blank=True)
+    juristic_person_id = models.CharField('Юридическое лицо', max_length=10, null=True, blank=True)
+    ref_doc_num = models.CharField('Документ основания', max_length=20, null=True, blank=True)
+    doc_type = models.PositiveIntegerField('Тип документа',  choices=doc_type_choose, default=0)
+
+    class Meta:
+        verbose_name = 'Кадровые документы'
+        verbose_name_plural = 'Кадровые документы'
