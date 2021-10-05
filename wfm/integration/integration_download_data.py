@@ -50,11 +50,7 @@ class CreateEmployeesByUploadedData:
         users_arr = []
         employees_arr = []
 
-        query = "SELECT " \
-                "username, first_name, last_name, middle_name, " \
-                "personnel_number, store_number, pf_reg_num, subdivision_id " \
-                "FROM public.datai_employees_data " \
-                "WHERE subdivision_id <> 0"
+        query = "SELECT  * FROM public.datai_employees_data WHERE subdivision_id <> 0"
 
         dataframe = DataBase.get_dataframe_by_query(query)
         for index, row in dataframe.iterrows():
@@ -76,12 +72,17 @@ class CreateEmployeesByUploadedData:
                         employee.middle_name = row['middle_name']
                         employee.personnel_number = row['personnel_number']
                         employees_arr.append(employee)
+                    if employee.ref_id_1C != row['REFID1C'] or employee.juristic_person_id != row['JURISTICPERSONID']:
+                        employee.ref_id_1C = row['REFID1C']
+                        employee.juristic_person_id = row['JURISTICPERSONID']
+                        employees_arr.append(employee)
                 else:
                     continue
 
             else:
                 Employee.objects.create(user=user, subdivision=subdivision, middle_name=row['middle_name'],
-                                        personnel_number=row['personnel_number'], pf_reg_id=row['pf_reg_num'])
+                                        personnel_number=row['personnel_number'], pf_reg_id=row['pf_reg_num'],
+                                        ref_id_1C=row['REFID1C'], juristic_person_id=row['JURISTICPERSONID'])
 
         User.objects.bulk_update(users_arr, ['first_name', 'last_name', 'is_active'])
         Employee.objects.bulk_update(employees_arr, ['middle_name', 'personnel_number'])
