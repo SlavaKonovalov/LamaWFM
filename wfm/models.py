@@ -805,7 +805,7 @@ class Personal_Documents(models.Model):
     ref_doc_num = models.CharField('Документ основания', max_length=20, null=True, blank=True)
     doc_type = models.PositiveIntegerField('Тип документа',  choices=doc_type_choose, default=0)
     operation_type = models.CharField('Тип операции', max_length=5, choices=operation_type_choose, default='INS')
-    date_create_doc = models.DateField('Дата создания документа')
+    date_create_doc = models.DateField('Дата создания документа', null=True, blank=True)
 
     class Meta:
         verbose_name = 'Кадровые документы'
