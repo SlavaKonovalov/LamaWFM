@@ -586,12 +586,22 @@ class Employee_Availability_Templates(models.Model):
 
 
 class Employee_Availability(models.Model):
+    type_choose = (
+        (0, 'auto'),
+        (1, 'handle'),
+    )
+    availability_type_choose = (
+        (0, 'availability'),
+        (1, 'not_access'),
+    )
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, verbose_name='Сотрудник',
                                  related_name='availability_set', null=True, blank=True)
     subdivision = models.ForeignKey(Subdivision, on_delete=models.CASCADE, verbose_name='Подразделение',
                                     related_name='availability_set')
     begin_date_time = models.DateTimeField('Дата/время начала')
     end_date_time = models.DateTimeField('Дата/время окончания')
+    type = models.PositiveIntegerField('Тип создания', choices=type_choose, default=0)
+    availability_type = models.PositiveIntegerField('Тип доступности', choices=availability_type_choose, default=0)
 
     class Meta:
         verbose_name = 'Назначенная доступность сотрудника'
