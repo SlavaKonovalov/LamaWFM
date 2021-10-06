@@ -61,7 +61,7 @@ def scheduled_task_list(request):
         if scheduled_task_serializer.is_valid():
             scheduled_task_serializer.save()
             return JsonResponse(scheduled_task_serializer.data, status=status.HTTP_201_CREATED)
-        return JsonResponse(scheduled_task_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return JsonResponse(scheduled_task_serializer.error_list, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET', 'POST', 'DELETE'])
@@ -81,7 +81,7 @@ def scheduled_task_detail(request, pk):
         if scheduled_task_serializer.is_valid():
             scheduled_task_serializer.save()
             return JsonResponse(scheduled_task_serializer.data)
-        return JsonResponse(scheduled_task_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return JsonResponse(scheduled_task_serializer.error_list, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
         scheduled_task.delete()

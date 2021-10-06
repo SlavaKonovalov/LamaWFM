@@ -1,5 +1,7 @@
 from django.contrib.auth.models import User
+from django.core.exceptions import NON_FIELD_ERRORS
 from django.db import connection
+from django.db.models import Q
 from rest_framework import serializers
 from ..models import Production_Task, Subdivision, Employee, Scheduled_Production_Task, Employee_Position, Job_Duty, \
     Tasks_In_Duty, Appointed_Production_Task, Organization, Demand_Detail_Main, Demand_Detail_Task, Company, \
@@ -10,9 +12,47 @@ from ..models import Production_Task, Subdivision, Employee, Scheduled_Productio
 
 
 class ScheduledProductionTaskSerializer(serializers.ModelSerializer):
+    error_list = {}
+
     class Meta:
         model = Scheduled_Production_Task
         fields = '__all__'
+
+    def is_valid(self, raise_exception=False):
+        ret = super().is_valid(raise_exception)
+        if not ret:
+            self.error_list = self.errors
+            return ret
+
+        instance_pk = None
+        if self.instance:
+            instance_pk = self.instance.pk
+
+        error_list = {}
+        task = self.validated_data.get('task')
+        if task.demand_data_source == 'statistical_scheduler':
+            spt = Scheduled_Production_Task.objects.filter(~Q(id=instance_pk),
+                                                           subdivision=self.validated_data.get('subdivision'),
+                                                           task=task)
+            if spt:
+                error_list.update({NON_FIELD_ERRORS: "Дублирование задачи"})
+                self.error_list = error_list
+                return False
+
+            if self.validated_data.get('work_scope') != 0:
+                error_list.update({'work_scope': "Объём работ должен быть равен 0"})
+            if self.validated_data.get('repetition_type') != 'day':
+                error_list.update({'repetition_type': "Повторение должно иметь тип 'День'"})
+            if self.validated_data.get('end_date') is not None:
+                error_list.update({'end_date': "Дата завершения должна быть пустой"})
+            if self.validated_data.get('repetition_interval') != 1:
+                error_list.update({'repetition_interval': "Интервал повторения должен быть равен 1"})
+            if error_list:
+                error_list.update({NON_FIELD_ERRORS: "Обнаружены ошибки при сохранении задачи с "
+                                                     "типом statistical_scheduler"})
+                self.error_list = error_list
+
+        return not bool(self.error_list)
 
 
 class ProductionTaskSerializer(serializers.ModelSerializer):
