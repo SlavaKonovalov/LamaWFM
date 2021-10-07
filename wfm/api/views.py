@@ -19,7 +19,7 @@ from ..models import Production_Task, Organization, Subdivision, Employee, Emplo
     Appointed_Production_Task, Scheduled_Production_Task, Demand_Detail_Main, Company, Availability_Template, \
     Employee_Availability_Templates, Availability_Template_Data, Planning_Method, Working_Hours_Rate, \
     Work_Shift_Planning_Rule, Breaking_Rule, Employee_Planning_Rules, Employee_Availability, Employee_Shift, Holiday, \
-    Retail_Store_Format, Open_Shift, Demand_Hour_Main, Demand_Hour_Shift, Global_Parameters
+    Retail_Store_Format, Open_Shift, Demand_Hour_Main, Demand_Hour_Shift, Global_Parameters, Personal_Documents
 from .serializers import ProductionTaskSerializer, OrganizationSerializer, SubdivisionSerializer, EmployeeSerializer, \
     EmployeePositionSerializer, JobDutySerializer, AppointedTaskSerializer, ScheduledProductionTaskSerializer, \
     DemandMainSerializer, CompanySerializer, AvailabilityTemplateSerializer, EmployeeAvailabilityTemplatesSerializer, \
@@ -27,7 +27,7 @@ from .serializers import ProductionTaskSerializer, OrganizationSerializer, Subdi
     WorkShiftPlanningRuleSerializer, BreakingRuleSerializer, EmployeePlanningRuleSerializer, \
     AssignEmployeePlanningRulesSerializer, EmployeeAvailabilitySerializer, EmployeeShiftSerializer, HolidaySerializer, \
     RetailStoreFormatSerializer, EmployeeShiftSerializerForUpdate, OpenShiftSerializer, OpenShiftSerializerHeader, \
-    EmployeeShiftSerializerHeader, EmployeeUpdateSerializer, GlobalParametersSerializer
+    EmployeeShiftSerializerHeader, EmployeeUpdateSerializer, GlobalParametersSerializer, PersonalDocumentsSerializer
 
 
 class ProductionTaskListView(generics.ListAPIView):
@@ -807,3 +807,14 @@ def load_availability_from_documents(request):
     except BaseException as e:
         return JsonResponse({'message': 'internal server error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+@api_view(['GET'])
+def personal_documents(request, pk):
+    try:
+        param = Personal_Documents.objects.get(pk=pk)
+    except param.DoesNotExist:
+        return JsonResponse({'message': 'The personnel document does not exist'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer_class = PersonalDocumentsSerializer(param)
+        return JsonResponse(serializer_class.data)

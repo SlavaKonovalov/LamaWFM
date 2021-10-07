@@ -191,4 +191,8 @@ urlpatterns = [
     path('load_availability_from_documents/',
          views.load_availability_from_documents,
          name='load_availability_from_documents'),
+
+    path('personal_documents/<int:pk>/',
+         views.personal_documents,
+         name='personal_documents'),
 ]
