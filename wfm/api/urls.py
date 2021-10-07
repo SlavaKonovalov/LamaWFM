@@ -187,4 +187,8 @@ urlpatterns = [
     path('global_parameters/<int:pk>/',
          views.project_global_param,
          name='global_parameters_list'),
+
+    path('load_availability_from_documents/',
+         views.load_availability_from_documents,
+         name='load_availability_from_documents'),
 ]

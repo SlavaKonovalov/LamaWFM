@@ -12,7 +12,7 @@ from ..additionalFunctions import Global
 from ..availabilityProcessing import AvailabilityProcessing
 from ..demandProcessing import DemandProcessing
 from ..integration.demand_by_history_calculate import DemandByHistoryDataCalculate
-from ..integration.integration_download_data import CreateEmployeesByUploadedData
+from ..integration.integration_download_data import CreateEmployeesByUploadedData, LoadAvailabilityFromDoc
 from ..shiftPlanning import ShiftPlanning
 from ..taskProcessing import TaskProcessing
 from ..models import Production_Task, Organization, Subdivision, Employee, Employee_Position, Job_Duty, \
@@ -795,4 +795,15 @@ def project_global_param(request, pk):
     if request.method == 'GET':
         serializer_class = GlobalParametersSerializer(param)
         return JsonResponse(serializer_class.data)
+
+
+@api_view(['POST'])
+def load_availability_from_documents(request):
+    try:
+        with transaction.atomic():
+            load_availability_from_doc = LoadAvailabilityFromDoc()
+            load_availability_from_doc.load()
+        return JsonResponse({'message': 'employees were loaded'}, status=status.HTTP_200_OK)
+    except BaseException as e:
+        return JsonResponse({'message': 'internal server error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
