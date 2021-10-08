@@ -4,8 +4,12 @@ from django.http import JsonResponse
 from rest_framework import status
 
 from .additionalFunctions import Global
-from .models import Employee_Availability_Templates, Employee_Availability, Availability_Template_Data
+from .demandProcessing import DemandProcessing
+from .models import Employee_Availability_Templates, Employee_Availability, Availability_Template_Data, Subdivision, \
+    Employee
 import datetime as datetime
+
+from .shiftPlanning import ShiftPlanning
 
 
 class AvailabilityProcessing:
@@ -88,3 +92,56 @@ class AvailabilityProcessing:
 
         Employee_Availability.objects.bulk_create(objects)
         return JsonResponse({'message': 'request processed'}, status=status.HTTP_204_NO_CONTENT)
+
+    @staticmethod
+    def create_availability_for_personnel_doc(subdivision_id, begin_date_str, end_date_str, employee_id):
+        subdivision = Subdivision.objects.get(id=subdivision_id)
+        if not subdivision:
+            return JsonResponse({'message': 'subdivision error'}, status=status.HTTP_400_BAD_REQUEST)
+        employee = Employee.objects.get(pk=employee_id)
+        if not employee:
+            return JsonResponse({'message': 'employee error'}, status=status.HTTP_400_BAD_REQUEST)
+        date_from = datetime.datetime.strptime(begin_date_str, "%Y-%m-%d").date()
+        date_to = datetime.datetime.strptime(end_date_str, "%Y-%m-%d").date()
+        datetime_start = datetime.datetime.combine(date_from, datetime.time.min)
+        datetime_start = Global.add_timezone(datetime_start)
+        datetime_start += datetime.timedelta(hours=11)
+        datetime_end = datetime.datetime.combine(date_to, datetime.time.min)
+        datetime_end = Global.add_timezone(datetime_end)
+        datetime_end += datetime.timedelta(hours=11)
+        date_step = datetime_start
+        availabilities_for_update = []
+        availabilities_for_create = []
+        employee_list = [employee.id]
+        shift_planning = ShiftPlanning()
+        shift_planning.delete_all_shifts(subdivision.id, datetime_start, datetime_end, employee_list)
+
+        demand_processing = DemandProcessing()
+        demand_processing.recalculate_covering(subdivision.id, date_from)
+
+        while date_step < datetime_end:
+            employee_availability = Employee_Availability.objects.filter(employee_id=employee.id,
+                                                                         subdivision_id=subdivision.id,
+                                                                         begin_date_time__lt=date_step,
+                                                                         end_date_time__gte=date_step)
+            if employee_availability:
+                for row in employee_availability.iterator():
+                    if row.availability_type == 1 and row.personnel_document:
+                        return JsonResponse({'message': 'availability with document already exists'},
+                                            status=status.HTTP_400_BAD_REQUEST)
+                    if row.availability_type == 0:
+                        row.begin_date_time = datetime.datetime.combine(date_step, datetime.time.min)
+                        row.end_date_time = datetime.datetime.combine(date_step, datetime.time.max)
+                        row.availability_type = 1
+                        row.type = 1
+                        availabilities_for_update.append(row)
+            else:
+                row = Employee_Availability(employee=employee, subdivision=subdivision, type=1, availability_type=1,
+                                            begin_date_time=datetime.datetime.combine(date_step, datetime.time.min),
+                                            end_date_time=datetime.datetime.combine(date_step, datetime.time.max))
+                availabilities_for_create.append(row)
+            date_step += datetime.timedelta(days=1)
+        Employee_Availability.objects.bulk_create(availabilities_for_create)
+        Employee_Availability.objects.bulk_update(availabilities_for_update, ['availability_type', 'type',
+                                                                              'begin_date_time', 'end_date_time'])
+

@@ -195,4 +195,8 @@ urlpatterns = [
     path('personal_documents/<int:pk>/',
          views.personal_documents,
          name='personal_documents'),
+
+    path('create_availability_for_personnel_doc/',
+         views.create_availability_for_personnel_doc,
+         name='create_availability_for_personnel_doc'),
 ]

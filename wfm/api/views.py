@@ -818,3 +818,20 @@ def personal_documents(request, pk):
     if request.method == 'GET':
         serializer_class = PersonalDocumentsSerializer(param)
         return JsonResponse(serializer_class.data)
+
+
+@api_view(['POST'])
+def create_availability_for_personnel_doc(request):
+    data = JSONParser().parse(request)
+    subdivision_id = data.get('subdivision_id')
+    employee_id = data.get('employee_id')
+    date_from = data.get('date_from')
+    date_to = data.get('date_to')
+    try:
+        with transaction.atomic():
+            availability_processing = AvailabilityProcessing()
+            availability_processing.create_availability_for_personnel_doc(subdivision_id, date_from, date_to,
+                                                                          employee_id)
+        return JsonResponse({'message': 'success'}, status=status.HTTP_200_OK)
+    except BaseException as e:
+        return JsonResponse({'message': 'internal server error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
