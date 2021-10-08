@@ -451,7 +451,7 @@ class GlobalParametersSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Global_Parameters
-        fields = ['colorForWithoutDemand']
+        fields = '__all__'
 
 
 class PersonalDocumentsSerializer(serializers.ModelSerializer):

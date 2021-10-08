@@ -507,6 +507,8 @@ class Global_Parameters(models.Model):
     scheduling_period = models.PositiveIntegerField('Длина периода для построения графика запланированных задач',
                                                     default=0)
     colorForWithoutDemand = ColorField('Цвет для задач без потребности', default='#0000FF')
+    colorForAvailabilityWithDoc = ColorField('Цвет для временного отсутствия с кадровым документом', default='#0000FF')
+    colorForAvailabilityWithoutDoc = ColorField('Цвет для временного отсутствия без кадрового документа', default='#0000FF')
 
     class Meta:
         verbose_name = 'Глобальные параметры'
