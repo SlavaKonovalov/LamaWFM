@@ -173,8 +173,10 @@ class AvailabilityProcessing:
                 if employee_availability:
                     for row in employee_availability.iterator():
                         line = row
+                        # временное отсутствие
                         line.availability_type = 1
                         line.personnel_document = personal_document
+                        # автоматический тип создания
                         line.type = 0
                         line.begin_date_time = datetime.datetime.combine(date_step, datetime.time.min)
                         line.begin_date_time = Global.add_timezone(line.begin_date_time)
