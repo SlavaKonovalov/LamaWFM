@@ -641,7 +641,7 @@ class Employee_Availability(models.Model):
     )
     availability_type_choose = (
         (0, 'availability'),
-        (1, 'not_access'),
+        (1, 'not_availability'),
     )
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, verbose_name='Сотрудник',
                                  related_name='availability_set', null=True, blank=True)

@@ -12,7 +12,7 @@ from ..additionalFunctions import Global
 from ..availabilityProcessing import AvailabilityProcessing
 from ..demandProcessing import DemandProcessing
 from ..integration.demand_by_history_calculate import DemandByHistoryDataCalculate
-from ..integration.integration_download_data import CreateEmployeesByUploadedData, LoadAvailabilityFromDoc
+from ..integration.integration_download_data import CreateEmployeesByUploadedData
 from ..shiftPlanning import ShiftPlanning
 from ..taskProcessing import TaskProcessing
 from ..models import Production_Task, Organization, Subdivision, Employee, Employee_Position, Job_Duty, \
@@ -800,9 +800,8 @@ def project_global_param(request, pk):
 @api_view(['POST'])
 def load_availability_from_documents(request):
     try:
-        with transaction.atomic():
-            load_availability_from_doc = LoadAvailabilityFromDoc()
-            load_availability_from_doc.load()
+        availability_processing = AvailabilityProcessing()
+        availability_processing.load_not_availability()
         return JsonResponse({'message': 'employees were loaded'}, status=status.HTTP_200_OK)
     except BaseException as e:
         return JsonResponse({'message': 'internal server error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -821,17 +820,20 @@ def personal_documents(request, pk):
 
 
 @api_view(['POST'])
-def create_availability_for_personnel_doc(request):
+def create_not_availability(request):
     data = JSONParser().parse(request)
     subdivision_id = data.get('subdivision_id')
+    subdivision = Subdivision.objects.get(id=subdivision_id)
+    if not subdivision:
+        return JsonResponse({'message': 'subdivision error'}, status=status.HTTP_400_BAD_REQUEST)
     employee_id = data.get('employee_id')
-    date_from = data.get('date_from')
-    date_to = data.get('date_to')
+    employee = Employee.objects.get(pk=employee_id)
+    if not employee:
+        return JsonResponse({'message': 'employee error'}, status=status.HTTP_400_BAD_REQUEST)
+    date_from = dateutil.parser.parse(data.get('date_from'))
+    date_to = dateutil.parser.parse(data.get('date_to'))
     try:
-        with transaction.atomic():
-            availability_processing = AvailabilityProcessing()
-            availability_processing.create_availability_for_personnel_doc(subdivision_id, date_from, date_to,
-                                                                          employee_id)
-        return JsonResponse({'message': 'success'}, status=status.HTTP_200_OK)
+        availability_processing = AvailabilityProcessing()
+        return availability_processing.create_not_availability_handle(subdivision, date_from, date_to, employee)
     except BaseException as e:
         return JsonResponse({'message': 'internal server error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

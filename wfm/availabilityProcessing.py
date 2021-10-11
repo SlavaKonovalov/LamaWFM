@@ -6,7 +6,7 @@ from rest_framework import status
 from .additionalFunctions import Global
 from .demandProcessing import DemandProcessing
 from .models import Employee_Availability_Templates, Employee_Availability, Availability_Template_Data, Subdivision, \
-    Employee
+    Employee, Personal_Documents
 import datetime as datetime
 
 from .shiftPlanning import ShiftPlanning
@@ -94,20 +94,11 @@ class AvailabilityProcessing:
         return JsonResponse({'message': 'request processed'}, status=status.HTTP_204_NO_CONTENT)
 
     @staticmethod
-    def create_availability_for_personnel_doc(subdivision_id, begin_date_str, end_date_str, employee_id):
-        subdivision = Subdivision.objects.get(id=subdivision_id)
-        if not subdivision:
-            return JsonResponse({'message': 'subdivision error'}, status=status.HTTP_400_BAD_REQUEST)
-        employee = Employee.objects.get(pk=employee_id)
-        if not employee:
-            return JsonResponse({'message': 'employee error'}, status=status.HTTP_400_BAD_REQUEST)
-        date_from = datetime.datetime.strptime(begin_date_str, "%Y-%m-%d").date()
-        date_to = datetime.datetime.strptime(end_date_str, "%Y-%m-%d").date()
-        datetime_start = datetime.datetime.combine(date_from, datetime.time.min)
-        datetime_start = Global.add_timezone(datetime_start)
+    @transaction.atomic
+    def create_not_availability_handle(subdivision, begin_date, end_date, employee):
+        datetime_start = Global.add_timezone(begin_date)
         datetime_start += datetime.timedelta(hours=11)
-        datetime_end = datetime.datetime.combine(date_to, datetime.time.min)
-        datetime_end = Global.add_timezone(datetime_end)
+        datetime_end = Global.add_timezone(end_date)
         datetime_end += datetime.timedelta(hours=11)
         date_step = datetime_start
         availabilities_for_update = []
@@ -117,7 +108,7 @@ class AvailabilityProcessing:
         shift_planning.delete_all_shifts(subdivision.id, datetime_start, datetime_end, employee_list)
 
         demand_processing = DemandProcessing()
-        demand_processing.recalculate_covering(subdivision.id, date_from)
+        demand_processing.recalculate_covering(subdivision.id, datetime_start.date())
 
         while date_step < datetime_end:
             employee_availability = Employee_Availability.objects.filter(employee_id=employee.id,
@@ -144,4 +135,67 @@ class AvailabilityProcessing:
         Employee_Availability.objects.bulk_create(availabilities_for_create)
         Employee_Availability.objects.bulk_update(availabilities_for_update, ['availability_type', 'type',
                                                                               'begin_date_time', 'end_date_time'])
+        return JsonResponse({'message': 'success'}, status=status.HTTP_200_OK)
+
+    @staticmethod
+    @transaction.atomic
+    def load_not_availability():
+        personal_documents = Personal_Documents.objects.filter(operation_type='INS')
+        availabilities_for_update = []
+        availabilities_for_create = []
+        documents = []
+        for personal_document in personal_documents.iterator():
+            employee = Employee.objects.get(personnel_number=personal_document.personnel_number)
+            if not employee:
+                continue
+            subdivision = Subdivision.objects.get(id=employee.subdivision_id)
+            if not subdivision:
+                continue
+
+            date_start = Global.get_current_midnight(personal_document.date_from)
+            date_start += datetime.timedelta(hours=11)
+            date_end = Global.get_current_midnight(personal_document.date_to)
+            date_end += datetime.timedelta(hours=11)
+            date_step = date_start
+
+            employee_list = [employee.id]
+            shift_planning = ShiftPlanning()
+            shift_planning.delete_all_shifts(subdivision.id, date_start, date_end, employee_list)
+
+            demand_processing = DemandProcessing()
+            demand_processing.recalculate_covering(subdivision.id, date_start.date())
+
+            while date_step < date_end:
+                employee_availability = Employee_Availability.objects.filter(employee_id=employee.id,
+                                                                             subdivision_id=subdivision.id,
+                                                                             begin_date_time__lt=date_step,
+                                                                             end_date_time__gte=date_step)
+                if employee_availability:
+                    for row in employee_availability.iterator():
+                        line = row
+                        line.availability_type = 1
+                        line.personnel_document = personal_document
+                        line.type = 0
+                        line.begin_date_time = datetime.datetime.combine(date_step, datetime.time.min)
+                        line.begin_date_time = Global.add_timezone(line.begin_date_time)
+                        line.end_date_time = datetime.datetime.combine(date_step, datetime.time.max)
+                        line.end_date_time = Global.add_timezone(line.end_date_time)
+                        availabilities_for_update.append(line)
+                else:
+                    line = Employee_Availability(employee=employee, subdivision=subdivision, type=0,
+                                                 availability_type=1, personnel_document=personal_document,
+                                                 begin_date_time=datetime.datetime.combine(date_step,
+                                                                                           datetime.time.min),
+                                                 end_date_time=datetime.datetime.combine(date_step, datetime.time.max))
+                    availabilities_for_create.append(line)
+
+                date_step += datetime.timedelta(days=1)
+
+            doc_line = personal_document
+            doc_line.operation_type = 'FIN'
+            documents.append(doc_line)
+        Employee_Availability.objects.bulk_create(availabilities_for_create)
+        Employee_Availability.objects.bulk_update(availabilities_for_update, ['availability_type', 'personnel_document',
+                                                                              'begin_date_time', 'end_date_time', 'type'])
+        Personal_Documents.objects.bulk_update(documents, ['operation_type'])
 
