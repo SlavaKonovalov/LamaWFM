@@ -1,6 +1,6 @@
 from django.db.models import Q
 from ..models import Subdivision, Predictable_Production_Task, Production_Task_Business_Indicator, \
-    Predicted_Production_Task, Business_Indicator_Norm, Holiday_Period_For_Calc
+    Predicted_Production_Task, Business_Indicator_Norm, Holiday_Period_For_Calc, Holiday_Coefficient
 from ..db import DataBase
 from ..additionalFunctions import Global
 from decimal import Decimal
@@ -82,6 +82,10 @@ class DemandByHistoryDataCalculate:
                 avg_by_dayofweek = df.groupby(['dayofweek', 'begin_time_in_sec'])[
                     'indicator_value'].median().reset_index()
                 cur_date = self.from_date
+                # при смене дня будем обновлять holiday_id
+                cur_day = (cur_date - timedelta(1)).date()
+                holiday_id = 0
+
                 while cur_date <= self.to_date:
                     time_in_sec = cur_date.hour * 3600 + cur_date.minute * 60 + cur_date.second
                     weekday = cur_date.isoweekday()
@@ -89,7 +93,16 @@ class DemandByHistoryDataCalculate:
                                                                 & (avg_by_dayofweek[
                                                                        'begin_time_in_sec'] == time_in_sec)]
                     if not avg_by_dayofweek_row.empty:
+                        cur_day_step = cur_date.date()
                         indicator_value = round(Decimal(list(avg_by_dayofweek_row['indicator_value'])[0]), 2)
+                        if cur_day_step != cur_day:
+                            # Проверяем, есть ли праздничный коэффициент
+                            holiday_id = Holiday_Period_For_Calc.find_holiday_by_date(business_indicator.id, cur_date)
+                            cur_day = cur_day_step
+                            if holiday_id:
+                                holiday_coefficient = Holiday_Coefficient.find_row_with_coefficient(self.subdivision_id, business_indicator.id, holiday_id)
+                                if holiday_coefficient:
+                                    indicator_value = indicator_value * holiday_coefficient.coefficient
                         self.create_predicted_production_task(business_indicator, predictable_production_task,
                                                               business_indicator_norm, cur_date, indicator_value)
                     cur_date = cur_date + timedelta(minutes=business_indicator.interval_for_calculation)
@@ -124,3 +137,105 @@ class DemandByHistoryDataCalculate:
                                                  business_indicator_id=business_indicator_id,
                                                  begin_date_time__gte=self.from_date,
                                                  begin_date_time__lte=self.to_date).delete()
+
+    @staticmethod
+    def calculate_holiday_coefficient():
+        # wfm_holiday_coefficient_data - статистика за предыдущие периоды
+        query = "SELECT " \
+                "prepared_data.*, " \
+                "wfm_holiday_coefficient_data.indicator_value, " \
+                "wfm_holiday_coefficient_data.begin_date_time::TIMESTAMP as archive_dt, " \
+                "wfm_holiday_coefficient_data.holiday_period_for_calc_id as archive_holiday_period_id " \
+                "FROM " \
+                "wfm_holiday_coefficient_data " \
+                "INNER JOIN " \
+                "( " \
+                "SELECT " \
+                "subdivision_id, " \
+                "wfm_predictable_production_task.task_id, " \
+                "wfm_production_task_business_indicator.business_indicator_id, " \
+                "wfm_business_indicator.business_indicator_category_id, " \
+                "wfm_holiday_period_for_calc.id as holiday_period_id, " \
+                "holiday_id, " \
+                "wfm_holiday_period_for_calc.begin_date_time::TIMESTAMP, " \
+                "wfm_holiday_period_for_calc.end_date_time::TIMESTAMP, " \
+                "(wfm_holiday_period_for_calc.begin_date_time - interval'60 day')::TIMESTAMP as begin_border, " \
+                "(wfm_holiday_period_for_calc.end_date_time + interval'1 day')::TIMESTAMP as end_border " \
+                "FROM wfm_predictable_production_task " \
+                "INNER JOIN wfm_production_task " \
+                "ON wfm_production_task.id = wfm_predictable_production_task.task_id " \
+                "INNER JOIN wfm_production_task_business_indicator " \
+                "ON wfm_production_task_business_indicator.task_id = wfm_production_task.id " \
+                "INNER JOIN wfm_business_indicator " \
+                "ON wfm_business_indicator.id = wfm_production_task_business_indicator.business_indicator_id " \
+                "INNER JOIN wfm_holiday_period_for_calc " \
+                "ON wfm_holiday_period_for_calc.business_indicator_category_id = wfm_business_indicator.business_indicator_category_id " \
+                "INNER JOIN wfm_holiday_period " \
+                "ON wfm_holiday_period.id = wfm_holiday_period_for_calc.holiday_period_id " \
+                "WHERE " \
+                "use_holiday_coefficient = true AND " \
+                "date_part('year', wfm_holiday_period_for_calc.begin_date_time) < date_part('year', CURRENT_DATE) " \
+                ") AS prepared_data " \
+                "ON prepared_data.subdivision_id = wfm_holiday_coefficient_data.subdivision_id AND " \
+                "prepared_data.business_indicator_id = wfm_holiday_coefficient_data.business_indicator_id AND " \
+                "wfm_holiday_coefficient_data.begin_date_time::TIMESTAMP >= prepared_data.begin_border AND " \
+                "wfm_holiday_coefficient_data.begin_date_time::TIMESTAMP < prepared_data.end_border"
+
+        df_prepared_data = DataBase.get_dataframe_by_query(query)
+        if not df_prepared_data.empty:
+            # avg_value_before_holiday - среднее значение показателя перед праздничным периодом
+            # из расчета исключаем дни других праздников
+            df_prepared_data['avg_value_before_holiday'] = \
+                df_prepared_data[(df_prepared_data.archive_dt >= df_prepared_data.begin_border) &
+                                 (df_prepared_data.archive_dt < df_prepared_data.begin_date_time) &
+                                 (df_prepared_data.archive_holiday_period_id.isna())].groupby(
+                    ['subdivision_id', 'business_indicator_id', 'holiday_period_id'])['indicator_value'].transform(
+                    "mean")
+            # avg_value_holiday - среднее значение показателя перед праздничным периодом
+            df_prepared_data['avg_value_holiday'] = \
+                df_prepared_data[(df_prepared_data.archive_dt >= df_prepared_data.begin_date_time) &
+                                 (df_prepared_data.archive_dt < df_prepared_data.end_border)].groupby(
+                    ['subdivision_id', 'business_indicator_id', 'holiday_period_id'])['indicator_value'].transform(
+                    "mean")
+
+            df_coefficient_common = df_prepared_data[['subdivision_id', 'business_indicator_id', 'holiday_period_id',
+                                                      'holiday_id', 'avg_value_before_holiday',
+                                                      'avg_value_holiday']].drop_duplicates()
+
+            df_coefficient_common['period_value_before'] = \
+                df_coefficient_common.groupby(['subdivision_id', 'business_indicator_id', 'holiday_period_id',
+                                               'holiday_id'])['avg_value_before_holiday'].transform("max")
+
+            df_coefficient_common['period_value'] = \
+                df_coefficient_common.groupby(['subdivision_id', 'business_indicator_id', 'holiday_period_id',
+                                               'holiday_id'])['avg_value_holiday'].transform("max")
+
+            df_coefficient = df_coefficient_common[['subdivision_id', 'business_indicator_id', 'holiday_period_id',
+                                                    'holiday_id', 'period_value_before',
+                                                    'period_value']].drop_duplicates()
+            # оставляем строки с заполнением обоих полей (на всякий случай)
+            df_coefficient = df_coefficient[~(df_coefficient.period_value_before.isna()) &
+                                            ~(df_coefficient.period_value.isna())]
+            # period_coefficient - праздничный коэф-т для конкретного периода
+            df_coefficient['period_coefficient'] = df_coefficient['period_value'] / df_coefficient[
+                'period_value_before']
+            # coefficient - усредненное значение по period_coefficient
+            df_coefficient['coefficient'] = df_coefficient.groupby(['subdivision_id', 'business_indicator_id',
+                                                                    'holiday_id'])['period_coefficient'].transform(
+                "mean")
+
+            df_coefficient_res = df_coefficient[['subdivision_id', 'business_indicator_id', 'holiday_id',
+                                                 'coefficient']].drop_duplicates()
+            # сохраняем / обновляем значения в таблице Holiday_Coefficient
+            for row_coefficient_res in df_coefficient_res.itertuples():
+
+                holiday_coefficient, created_coefficient = Holiday_Coefficient.objects.get_or_create(
+                    subdivision_id=row_coefficient_res.subdivision_id,
+                    business_indicator_id=row_coefficient_res.business_indicator_id,
+                    holiday_id=row_coefficient_res.holiday_id,
+                    defaults={'coefficient': Global.toFixed(row_coefficient_res.coefficient, 3)}
+                )
+
+                if not created_coefficient:
+                    holiday_coefficient.coefficient = Global.toFixed(row_coefficient_res.coefficient, 3)
+                    holiday_coefficient.save(update_fields=['coefficient'])

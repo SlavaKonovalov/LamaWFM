@@ -329,10 +329,10 @@ def recalculate_history_demand(request):
     subdivision_id = data.get('subdivision_id')
     from_date_str = data.get('from_date')
     from_date = datetime.datetime.strptime(from_date_str, "%Y-%m-%d")
-    datetime.datetime.combine(from_date, datetime.time.min)
+    from_date = Global.get_current_midnight(from_date)
     to_date_str = data.get('to_date')
     to_date = datetime.datetime.strptime(to_date_str, "%Y-%m-%d")
-    datetime.datetime.combine(to_date, datetime.time.max)
+    to_date = Global.add_timezone(to_date)
     try:
         Subdivision.objects.get(pk=subdivision_id)
     except Subdivision.DoesNotExist:
@@ -713,7 +713,7 @@ def add_shift_to_demand_on_hour(request):
         DemandProcessing.add_shift_to_demand_on_hour(subdivision_id, demand_date, duty_id, shift_id, hour)
     except Exception:
         return JsonResponse({'message': 'Error'}, status=status.HTTP_400_BAD_REQUEST)
-    return JsonResponse({'message': 'Succses'}, status=status.HTTP_204_NO_CONTENT)
+    return JsonResponse({'message': 'Success'}, status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(['DELETE'])
@@ -741,7 +741,7 @@ def recalculate_covering_on_date(request):
         DemandProcessing.recalculate_covering_on_date(subdivision_id, demand_date)
     except Exception:
         return JsonResponse({'message': 'Error'}, status=status.HTTP_400_BAD_REQUEST)
-    return JsonResponse({'message': 'Succses'}, status=status.HTTP_204_NO_CONTENT)
+    return JsonResponse({'message': 'Success'}, status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(['POST'])
@@ -757,7 +757,7 @@ def recalculate_breaks_value_on_date(request):
         DemandProcessing.recalculate_breaks_value_on_date(subdivision_id, demand_date)
     except Exception:
         return JsonResponse({'message': 'Error'}, status=status.HTTP_400_BAD_REQUEST)
-    return JsonResponse({'message': 'Succses'}, status=status.HTTP_204_NO_CONTENT)
+    return JsonResponse({'message': 'Success'}, status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(['POST'])
@@ -782,7 +782,7 @@ def plan_shift_breaks(request):
         ShiftPlanning.plan_shift_breaks(subdivision_id, begin_date_time, end_date_time, list_empl)
     except Exception:
         return JsonResponse({'message': 'Error'}, status=status.HTTP_400_BAD_REQUEST)
-    return JsonResponse({'message': 'Succses'}, status=status.HTTP_204_NO_CONTENT)
+    return JsonResponse({'message': 'Success'}, status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(['GET'])
@@ -796,3 +796,11 @@ def project_global_param(request, pk):
         serializer_class = GlobalParametersSerializer(param)
         return JsonResponse(serializer_class.data)
 
+
+@api_view(['POST'])
+def calculate_holiday_coefficient(request):
+    try:
+        DemandByHistoryDataCalculate.calculate_holiday_coefficient()
+    except Exception:
+        return JsonResponse({'message': 'Error'}, status=status.HTTP_400_BAD_REQUEST)
+    return JsonResponse({'message': 'Success'}, status=status.HTTP_204_NO_CONTENT)

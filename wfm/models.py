@@ -1,3 +1,4 @@
+from datetime import timedelta
 from decimal import Decimal
 from importlib._common import _
 
@@ -130,6 +131,7 @@ class Production_Task(models.Model):
     demand_allocation_method = models.CharField('Распределение', max_length=20,
                                                 choices=demand_allocation_method_choices, default='soft')
     use_area_coefficient = models.BooleanField('Использовать коэффициент площади', default=False)
+    use_holiday_coefficient = models.BooleanField('Учитывать праздничный коэффициент', default=False)
     pieces_to_minutes_coefficient = models.DecimalField(max_digits=7, decimal_places=3,
                                                         verbose_name='Коэффициент перевода штук в минуты',
                                                         validators=[MinValueValidator(Decimal('0.001'))],
@@ -378,9 +380,12 @@ class Business_Indicator(models.Model):
     external_code = models.CharField('Внешний код', max_length=20, null=True, blank=True)
     interval_for_calculation = models.PositiveIntegerField(choices=interval_for_calculation,
                                                            verbose_name='Интервал времени для расчёта')
-    history_period = models.PositiveIntegerField('Исторический период (дней)', validators=[MinValueValidator(Decimal('7'))], default=30)
-    business_indicator_category = models.ForeignKey(Business_Indicator_Category, on_delete=models.SET_NULL, null=True, blank=True,
-                                                    verbose_name='Категория показателя бизнеса', related_name='business_indicator_set')
+    history_period = models.PositiveIntegerField('Исторический период (дней)',
+                                                 validators=[MinValueValidator(Decimal('7'))], default=30)
+    business_indicator_category = models.ForeignKey(Business_Indicator_Category, on_delete=models.SET_NULL, null=True,
+                                                    blank=True,
+                                                    verbose_name='Категория показателя бизнеса',
+                                                    related_name='business_indicator_set')
     use_queue_coefficient = models.BooleanField('Использовать коэффициент очередей', default=False)
     is_calculated = models.BooleanField('Загружается спланированным', default=False)
 
@@ -441,8 +446,10 @@ class Holiday_Period(models.Model):
 class Holiday_Period_For_Calc(models.Model):
     holiday_period = models.ForeignKey(Holiday_Period, on_delete=models.CASCADE,
                                        verbose_name='Период праздника', related_name='holiday_period_for_calc_set')
-    business_indicator_category = models.ForeignKey(Business_Indicator_Category, on_delete=models.CASCADE, null=True, blank=True,
-                                                    verbose_name='Категория показателя бизнеса', related_name='holiday_period_for_calc_set')
+    business_indicator_category = models.ForeignKey(Business_Indicator_Category, on_delete=models.CASCADE, null=True,
+                                                    blank=True,
+                                                    verbose_name='Категория показателя бизнеса',
+                                                    related_name='holiday_period_for_calc_set')
     begin_date_time = models.DateTimeField('Дата начала')
     end_date_time = models.DateTimeField('Дата окончания')
 
@@ -454,6 +461,48 @@ class Holiday_Period_For_Calc(models.Model):
 
     def __str__(self):
         return str(self.holiday_period)
+
+    @staticmethod
+    def find_holiday_by_date(business_indicator_id, date):
+        try:
+            business_indicator = Business_Indicator.objects.get(pk=business_indicator_id)
+        except business_indicator.DoesNotExist:
+            return None
+        date_timedelta = date - timedelta(days=1)
+        hpfc = Holiday_Period_For_Calc.objects.select_related('holiday_period__holiday').filter(
+            business_indicator_category_id=business_indicator.business_indicator_category,
+            begin_date_time__lte=date,
+            end_date_time__gt=date_timedelta)
+        if hpfc:
+            hpfc_row = hpfc.first()
+            return hpfc_row.holiday_period.holiday_id
+        return None
+
+
+class Holiday_Coefficient(models.Model):
+    subdivision = models.ForeignKey(Subdivision, on_delete=models.CASCADE,
+                                    verbose_name='Подразделение')
+    business_indicator = models.ForeignKey(Business_Indicator, on_delete=models.CASCADE,
+                                           verbose_name='Показатель бизнеса')
+    holiday = models.ForeignKey(Holiday, on_delete=models.CASCADE, verbose_name='Праздник')
+    coefficient = models.DecimalField(max_digits=7, decimal_places=3, verbose_name='Значение коэффициента', default=1)
+
+    class Meta:
+        verbose_name = 'Коэффициент праздника'
+        verbose_name_plural = 'Коэффициенты праздников'
+
+    def __str__(self):
+        return 'Подразделение:' + self.subdivision.name \
+               + ' Праздник: ' + self.holiday.name \
+               + ' Показатель: ' + self.business_indicator.name
+
+    @staticmethod
+    def find_row_with_coefficient(subdivision_id, business_indicator_id, holiday_id):
+        return Holiday_Coefficient.objects.filter(
+            subdivision_id=subdivision_id,
+            business_indicator_id=business_indicator_id,
+            holiday_id=holiday_id
+        ).first()
 
 
 class Business_Indicator_Data(models.Model):
@@ -479,6 +528,18 @@ class Business_Indicator_Data(models.Model):
                + ' Дата и аремя начала интервала: ' + self.begin_date_time.__str__() \
                + ' Длина интервала ' + self.time_interval_length.__str__() \
                + ' Значение: ' + self.indicator_value.__str__()
+
+
+class Holiday_Coefficient_Data(models.Model):
+    subdivision = models.ForeignKey(Subdivision, on_delete=models.CASCADE,
+                                    verbose_name='Подразделение')
+    business_indicator = models.ForeignKey(Business_Indicator, on_delete=models.CASCADE,
+                                           verbose_name='Показатель бизнеса')
+    begin_date_time = models.DateTimeField(verbose_name='Дата и время начала временного интервала')
+    indicator_value = models.DecimalField(max_digits=10, decimal_places=3, verbose_name='Значение показателя бизнеса')
+    time_interval_length = models.PositiveIntegerField('Длина временного интервала', default=0)
+    holiday_period_for_calc = models.ForeignKey(Holiday_Period_For_Calc, on_delete=models.SET_NULL,
+                                                verbose_name='Период праздника', null=True, blank=True)
 
 
 class Demand_Detail_Main(models.Model):
@@ -826,7 +887,7 @@ class Personal_Documents(models.Model):
     ref_id_1C = models.CharField('Идентификатор сотрудника', max_length=30, null=True, blank=True)
     juristic_person_id = models.CharField('Юридическое лицо', max_length=10, null=True, blank=True)
     ref_doc_num = models.CharField('Документ основания', max_length=20, null=True, blank=True)
-    doc_type = models.PositiveIntegerField('Тип документа',  choices=doc_type_choose, default=0)
+    doc_type = models.PositiveIntegerField('Тип документа', choices=doc_type_choose, default=0)
     operation_type = models.CharField('Тип операции', max_length=5, choices=operation_type_choose, default='INS')
     date_create_doc = models.DateField('Дата создания документа', null=True, blank=True)
     recId = models.BigIntegerField('Идентификатор документа', null=True, blank=True)

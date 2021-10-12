@@ -81,6 +81,10 @@ urlpatterns = [
          views.recalculate_history_demand,
          name='recalculate_history_demand'),
 
+    path('calculate_holiday_coefficient/',
+         views.calculate_holiday_coefficient,
+         name='calculate_holiday_coefficient'),
+
     path('availability_templates/',
          views.availability_template_list,
          name='availability_template_list'),
