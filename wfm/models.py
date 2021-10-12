@@ -131,6 +131,7 @@ class Production_Task(models.Model):
     demand_allocation_method = models.CharField('Распределение', max_length=20,
                                                 choices=demand_allocation_method_choices, default='soft')
     use_area_coefficient = models.BooleanField('Использовать коэффициент площади', default=False)
+    use_holiday_coefficient = models.BooleanField('Использовать коэффициент праздника', default=False)
     pieces_to_minutes_coefficient = models.DecimalField(max_digits=7, decimal_places=3,
                                                         verbose_name='Коэффициент перевода штук в минуты',
                                                         validators=[MinValueValidator(Decimal('0.001'))],
