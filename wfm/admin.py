@@ -180,4 +180,4 @@ class Employee_Planning_RulesAdmin(admin.ModelAdmin):
 
 @admin.register(Global_Parameters)
 class Global_ParametersAdmin(admin.ModelAdmin):
-    list_display = ["colorForWithoutDemand"]
+    list_display = ["colorForWithoutDemand", "colorForAvailabilityWithDoc", "colorForAvailabilityWithoutDoc"]

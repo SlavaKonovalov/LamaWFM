@@ -157,6 +157,22 @@ class ShiftPlanning:
                                       shift_date__lt=end_date).delete()
 
     @staticmethod
+    def delete_all_shifts(subdivision_id, begin_date_time, end_date_time, employees=None):
+        begin_date = begin_date_time.date()
+        end_date = end_date_time.date()
+        employee_shift = Employee_Shift.objects.all()
+        if employees:
+            employee_shift = employee_shift.filter(subdivision_id=subdivision_id, employee_id__in=employees)
+        else:
+            employee_shift = employee_shift.filter(subdivision_id=subdivision_id)
+        # Удаляем смены
+        employee_shift.filter(shift_date__gte=begin_date, shift_date__lt=end_date).delete()
+        # Удаляем открытые смены
+        if not employees:
+            Open_Shift.objects.filter(subdivision_id=subdivision_id, shift_date__gte=begin_date,
+                                      shift_date__lt=end_date).delete()
+
+    @staticmethod
     def plan_fix_shifts(subdivision_id, begin_date_time, end_date_time, employees=None):
         begin_date = begin_date_time.date()
         end_date = end_date_time.date()

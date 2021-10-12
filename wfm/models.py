@@ -131,7 +131,6 @@ class Production_Task(models.Model):
     demand_allocation_method = models.CharField('Распределение', max_length=20,
                                                 choices=demand_allocation_method_choices, default='soft')
     use_area_coefficient = models.BooleanField('Использовать коэффициент площади', default=False)
-    use_holiday_coefficient = models.BooleanField('Учитывать праздничный коэффициент', default=False)
     pieces_to_minutes_coefficient = models.DecimalField(max_digits=7, decimal_places=3,
                                                         verbose_name='Коэффициент перевода штук в минуты',
                                                         validators=[MinValueValidator(Decimal('0.001'))],
@@ -568,6 +567,8 @@ class Global_Parameters(models.Model):
     scheduling_period = models.PositiveIntegerField('Длина периода для построения графика запланированных задач',
                                                     default=0)
     colorForWithoutDemand = ColorField('Цвет для задач без потребности', default='#0000FF')
+    colorForAvailabilityWithDoc = ColorField('Цвет для временного отсутствия с кадровым документом', default='#0000FF')
+    colorForAvailabilityWithoutDoc = ColorField('Цвет для временного отсутствия без кадрового документа', default='#0000FF')
 
     class Meta:
         verbose_name = 'Глобальные параметры'
@@ -646,13 +647,72 @@ class Employee_Availability_Templates(models.Model):
         verbose_name_plural = 'Назначенные шаблоны доступности'
 
 
+class Personal_Documents(models.Model):
+    operation_type_choose = (
+        ('INS', 'INSERT NEW DATA'),
+        ('UPD', 'UPDATE RECORDS'),
+        ('DEL', 'DELETE RECORDS'),
+        ('FIN', 'FINISHED DOCUMENTS'),
+    )
+    doc_type_choose = (
+        (0, ''),
+        (1, 'Больничный'),
+        (2, 'Отпуск'),
+        (3, 'Невыход'),
+        (4, 'Декретный отпуск'),
+        (5, 'Отпуск без сохранения заработной платы'),
+        (6, 'Прогул'),
+        (7, 'Отпуск по беременности и родам'),
+        (8, 'Отработанный выходной'),
+        (9, 'Государственные обязанности'),
+        (10, 'Дополнительный отпуск без сохранения заработной платы'),
+        (11, 'Приказ на работу во время декретного отпуска'),
+        (12, 'Отстранение от работы'),
+        (13, 'Дополнительно оплачиваемые выходные дни'),
+        (14, 'Простой по вине работодателя'),
+        (15, 'Время вынужденного прогула'),
+        (16, 'Командировка'),
+        (17, 'Неоплачиваемый выходной'),
+        (18, 'Оплата дней ухода за детьми инвалидами'),
+        (19, 'Выполнение государственных обязанностей'),
+        (20, 'Дополнительный выходной за выполнение государственных обязанностей'),
+        (21, 'Учебный отпуск'),
+    )
+    date_from = models.DateField('Дата начала')
+    date_to = models.DateField('Дата окончания')
+    personnel_number = models.CharField('Табельный номер', max_length=30, null=True, blank=True)
+    ref_id_1C = models.CharField('Идентификатор сотрудника', max_length=30, null=True, blank=True)
+    juristic_person_id = models.CharField('Юридическое лицо', max_length=10, null=True, blank=True)
+    ref_doc_num = models.CharField('Документ основания', max_length=20, null=True, blank=True)
+    doc_type = models.PositiveIntegerField('Тип документа',  choices=doc_type_choose, default=0)
+    operation_type = models.CharField('Тип операции', max_length=5, choices=operation_type_choose, default='INS')
+    date_create_doc = models.DateField('Дата создания документа', null=True, blank=True)
+    recId = models.BigIntegerField('Идентификатор документа', null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'Кадровые документы'
+        verbose_name_plural = 'Кадровые документы'
+
+
 class Employee_Availability(models.Model):
+    type_choose = (
+        (0, 'auto'),
+        (1, 'handle'),
+    )
+    availability_type_choose = (
+        (0, 'availability'),
+        (1, 'not_availability'),
+    )
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, verbose_name='Сотрудник',
                                  related_name='availability_set', null=True, blank=True)
     subdivision = models.ForeignKey(Subdivision, on_delete=models.CASCADE, verbose_name='Подразделение',
                                     related_name='availability_set')
+    personnel_document = models.ForeignKey(Personal_Documents, on_delete=models.CASCADE, verbose_name='Кадровые документы',
+                                           related_name='availability_set', null=True, blank=True)
     begin_date_time = models.DateTimeField('Дата/время начала')
     end_date_time = models.DateTimeField('Дата/время окончания')
+    type = models.PositiveIntegerField('Тип создания', choices=type_choose, default=0)
+    availability_type = models.PositiveIntegerField('Тип доступности', choices=availability_type_choose, default=0)
 
     class Meta:
         verbose_name = 'Назначенная доступность сотрудника'
@@ -849,49 +909,3 @@ class Demand_Hour_Shift(models.Model):
         verbose_name = 'Смена, покрывающая потребность'
         verbose_name_plural = 'Смены, покрывающие потребность'
         unique_together = ('demand_hour_main', 'shift')
-
-
-class Personal_Documents(models.Model):
-    operation_type_choose = (
-        ('INS', 'INSERT NEW DATA'),
-        ('UPD', 'UPDATE RECORDS'),
-        ('DEL', 'DELETE RECORDS'),
-    )
-    doc_type_choose = (
-        (0, ''),
-        (1, 'Больничный'),
-        (2, 'Отпуск'),
-        (3, 'Невыход'),
-        (4, 'Декретный отпуск'),
-        (5, 'Отпуск без сохранения заработной платы'),
-        (6, 'Прогул'),
-        (7, 'Отпуск по беременности и родам'),
-        (8, 'Отработанный выходной'),
-        (9, 'Государственные обязанности'),
-        (10, 'Дополнительный отпуск без сохранения заработной платы'),
-        (11, 'Приказ на работу во время декретного отпуска'),
-        (12, 'Отстранение от работы'),
-        (13, 'Дополнительно оплачиваемые выходные дни'),
-        (14, 'Простой по вине работодателя'),
-        (15, 'Время вынужденного прогула'),
-        (16, 'Командировка'),
-        (17, 'Неоплачиваемый выходной'),
-        (18, 'Оплата дней ухода за детьми инвалидами'),
-        (19, 'Выполнение государственных обязанностей'),
-        (20, 'Дополнительный выходной за выполнение государственных обязанностей'),
-        (21, 'Учебный отпуск'),
-    )
-    date_from = models.DateField('Дата начала')
-    date_to = models.DateField('Дата окончания')
-    personnel_number = models.CharField('Табельный номер', max_length=30, null=True, blank=True)
-    ref_id_1C = models.CharField('Идентификатор сотрудника', max_length=30, null=True, blank=True)
-    juristic_person_id = models.CharField('Юридическое лицо', max_length=10, null=True, blank=True)
-    ref_doc_num = models.CharField('Документ основания', max_length=20, null=True, blank=True)
-    doc_type = models.PositiveIntegerField('Тип документа', choices=doc_type_choose, default=0)
-    operation_type = models.CharField('Тип операции', max_length=5, choices=operation_type_choose, default='INS')
-    date_create_doc = models.DateField('Дата создания документа', null=True, blank=True)
-    recId = models.BigIntegerField('Идентификатор документа', null=True, blank=True)
-
-    class Meta:
-        verbose_name = 'Кадровые документы'
-        verbose_name_plural = 'Кадровые документы'

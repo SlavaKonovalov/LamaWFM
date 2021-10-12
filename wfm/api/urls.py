@@ -191,4 +191,16 @@ urlpatterns = [
     path('global_parameters/<int:pk>/',
          views.project_global_param,
          name='global_parameters_list'),
+
+    path('load_availability_from_documents/',
+         views.load_availability_from_documents,
+         name='load_availability_from_documents'),
+
+    path('personal_documents/<int:pk>/',
+         views.personal_documents,
+         name='personal_documents'),
+
+    path('create_availability_for_personnel_doc/',
+         views.create_not_availability,
+         name='create_availability_for_personnel_doc'),
 ]
