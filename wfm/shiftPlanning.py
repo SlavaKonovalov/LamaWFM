@@ -103,6 +103,7 @@ class ShiftPlanning:
                 AND date_rules_start <= begin_date_time
                 AND (date_rules_end > begin_date_time OR date_rules_end IS NULL)
                 AND shift_type = '%s'
+                AND availability_type = 0
                 """ % (tz, tz, tz, subdivision_id, begin_date, end_date, shift_type)
         if employees:
             query += "AND wfm_employee.id in (%s)" % str(employees).strip('[]')

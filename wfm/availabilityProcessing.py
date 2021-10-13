@@ -90,6 +90,7 @@ class AvailabilityProcessing:
             while date_step < max_border:
                 df_blocked_availability_step = df_blocked_availability[(df_blocked_availability.date == date_step.date())
                                                                        & (df_blocked_availability.employee_id == template.employee_id)]
+                # проверяем заблокированную доступность
                 if not df_blocked_availability_step.empty:
                     date_step += datetime.timedelta(days=1)
                     continue
