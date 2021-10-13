@@ -493,8 +493,8 @@ def recalculate_availability(request):
     data = JSONParser().parse(request)
     subdivision_id = data.get('subdivision_id')
     employee_id = data.get('employee_id')
-    begin_date = dateutil.parser.parse(data.get('begin_date'))
-    end_date = dateutil.parser.parse(data.get('end_date'))
+    begin_date = Global.add_timezone(dateutil.parser.parse(data.get('begin_date')))
+    end_date = Global.add_timezone(dateutil.parser.parse(data.get('end_date')))
     tomorrow_day = Global.get_current_midnight(datetime.datetime.now()) + datetime.timedelta(days=1)
     begin_date = max(begin_date, tomorrow_day)
     try:

@@ -564,12 +564,14 @@ class Demand_Detail_Task(models.Model):
 
 
 class Global_Parameters(models.Model):
-    demand_detail_interval_length = models.PositiveIntegerField('Длина периода детализации потребности', default=0)
+    demand_detail_interval_length = models.PositiveIntegerField('Длина периода детализации потребности', default=0,
+                                                                editable=False)
     scheduling_period = models.PositiveIntegerField('Длина периода для построения графика запланированных задач',
-                                                    default=0)
+                                                    default=0, editable=False)
     colorForWithoutDemand = ColorField('Цвет для задач без потребности', default='#0000FF')
     colorForAvailabilityWithDoc = ColorField('Цвет для временного отсутствия с кадровым документом', default='#0000FF')
-    colorForAvailabilityWithoutDoc = ColorField('Цвет для временного отсутствия без кадрового документа', default='#0000FF')
+    colorForAvailabilityWithoutDoc = ColorField('Цвет для временного отсутствия без кадрового документа',
+                                                default='#0000FF')
 
     class Meta:
         verbose_name = 'Глобальные параметры'
@@ -685,7 +687,7 @@ class Personal_Documents(models.Model):
     ref_id_1C = models.CharField('Идентификатор сотрудника', max_length=30, null=True, blank=True)
     juristic_person_id = models.CharField('Юридическое лицо', max_length=10, null=True, blank=True)
     ref_doc_num = models.CharField('Документ основания', max_length=20, null=True, blank=True)
-    doc_type = models.PositiveIntegerField('Тип документа',  choices=doc_type_choose, default=0)
+    doc_type = models.PositiveIntegerField('Тип документа', choices=doc_type_choose, default=0)
     operation_type = models.CharField('Тип операции', max_length=5, choices=operation_type_choose, default='INS')
     date_create_doc = models.DateField('Дата создания документа', null=True, blank=True)
     recId = models.BigIntegerField('Идентификатор документа', null=True, blank=True)
@@ -701,14 +703,15 @@ class Employee_Availability(models.Model):
         (1, 'handle'),
     )
     availability_type_choose = (
-        (0, 'availability'),
-        (1, 'not_availability'),
+        (0, 'available'),
+        (1, 'not_available'),
     )
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, verbose_name='Сотрудник',
                                  related_name='availability_set', null=True, blank=True)
     subdivision = models.ForeignKey(Subdivision, on_delete=models.CASCADE, verbose_name='Подразделение',
                                     related_name='availability_set')
-    personnel_document = models.ForeignKey(Personal_Documents, on_delete=models.CASCADE, verbose_name='Кадровые документы',
+    personnel_document = models.ForeignKey(Personal_Documents, on_delete=models.CASCADE,
+                                           verbose_name='Кадровые документы',
                                            related_name='availability_set', null=True, blank=True)
     begin_date_time = models.DateTimeField('Дата/время начала')
     end_date_time = models.DateTimeField('Дата/время окончания')

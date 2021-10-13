@@ -1,3 +1,5 @@
+import pandas
+import sys
 from django.db import transaction
 from django.db.models import Q, Max
 from django.http import JsonResponse
@@ -10,6 +12,9 @@ from .models import Employee_Availability_Templates, Employee_Availability, Avai
 import datetime as datetime
 
 from .shiftPlanning import ShiftPlanning
+
+sys.path.append('..')
+from LamaWFM.settings import TIME_ZONE
 
 
 class AvailabilityProcessing:
@@ -45,12 +50,23 @@ class AvailabilityProcessing:
             employee_availability = employee_availability.filter(employee_id=employee_id, subdivision_id=subdivision_id)
         else:
             employee_availability = employee_availability.filter(subdivision_id=subdivision_id)
-        employee_availability.filter(begin_date_time__gte=begin_date, begin_date_time__lt=end_date).delete()
+        employee_availability = employee_availability.filter(begin_date_time__gte=begin_date, begin_date_time__lt=end_date)
+        # удаляем незаблокированную доступность
+        employee_availability.filter(availability_type=0).delete()
+        # получаем список заблокированной доступности
+        employee_availability = employee_availability.filter(availability_type=1)
+        df_blocked_availability = pandas.DataFrame(
+            employee_availability.values_list('employee_id', 'begin_date_time'),
+            columns=['employee_id', 'begin_date_time'])
+        df_blocked_availability.begin_date_time = df_blocked_availability.begin_date_time.dt.tz_convert(TIME_ZONE)
+        df_blocked_availability['date'] = df_blocked_availability.begin_date_time.dt.date
         # собираем назначенные сотрудникам шаблоны
         templates = Employee_Availability_Templates.objects.filter(
             Q(end_date__gt=begin_date) | Q(end_date__isnull=True)).order_by('begin_date')
         if employee_id:
             templates = templates.filter(employee_id=employee_id)
+        else:
+            templates = templates.select_related('employee').filter(employee__subdivision_id=subdivision_id)
 
         objects = []
 
@@ -72,6 +88,11 @@ class AvailabilityProcessing:
 
             date_step = min_border
             while date_step < max_border:
+                df_blocked_availability_step = df_blocked_availability[(df_blocked_availability.date == date_step.date())
+                                                                       & (df_blocked_availability.employee_id == template.employee_id)]
+                if not df_blocked_availability_step.empty:
+                    date_step += datetime.timedelta(days=1)
+                    continue
                 week_delta = Global.get_week_delta(template_begin_date, date_step)
                 df_day_of_week = date_step.weekday()
                 df_week_num = (week_delta + template.week_num_appointed) % week_count
