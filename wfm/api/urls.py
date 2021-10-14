@@ -188,7 +188,7 @@ urlpatterns = [
          views.plan_shift_breaks,
          name='plan_shift_breaks'),
 
-    path('global_parameters/<int:pk>/',
+    path('get_project_global_parameters/<int:pk>/',
          views.get_project_global_parameters,
          name='global_parameters_list'),
 
@@ -196,7 +196,7 @@ urlpatterns = [
          views.load_availability_from_documents,
          name='load_availability_from_documents'),
 
-    path('personal_documents/<int:pk>/',
+    path('get_personal_document/<int:pk>/',
          views.get_personal_document,
          name='personal_documents'),
 
