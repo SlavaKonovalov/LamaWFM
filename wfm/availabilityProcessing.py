@@ -119,11 +119,7 @@ class AvailabilityProcessing:
     @transaction.atomic
     def create_not_availability_handle(subdivision, begin_date, end_date, employee):
         datetime_start = Global.get_current_midnight(begin_date)
-        # Global.add_timezone(begin_date)
-        # datetime_start += datetime.timedelta(hours=11)
         datetime_end = Global.get_current_midnight(end_date)
-        # Global.add_timezone(end_date)
-        # datetime_end += datetime.timedelta(hours=11)
         date_step = datetime_start
         availabilities_for_update = []
         availabilities_for_create = []
@@ -147,17 +143,15 @@ class AvailabilityProcessing:
                         return JsonResponse({'message': 'availability with document already exists'},
                                             status=status.HTTP_400_BAD_REQUEST)
                     if row.availability_type == 0:
-                        row.begin_date_time = date_step  # datetime.datetime.combine(date_step, datetime.time.min)
-                        row.end_date_time = date_step_start  # datetime.datetime.combine(date_step, datetime.time.max)
+                        row.begin_date_time = date_step
+                        row.end_date_time = date_step_start
                         row.availability_type = 1
                         row.type = 1
                         availabilities_for_update.append(row)
             else:
                 row = Employee_Availability(employee=employee, subdivision=subdivision, type=1, availability_type=1,
                                             begin_date_time=date_step,
-                                            # datetime.datetime.combine(date_step, datetime.time.min),
                                             end_date_time=date_step_start)
-                                            # datetime.datetime.combine(date_step, datetime.time.max))
                 availabilities_for_create.append(row)
             date_step += datetime.timedelta(days=1)
         Employee_Availability.objects.bulk_create(availabilities_for_create)
@@ -181,9 +175,7 @@ class AvailabilityProcessing:
                 continue
 
             date_start = Global.get_current_midnight(personal_document.date_from)
-            # date_start += datetime.timedelta(hours=11)
             date_end = Global.get_current_midnight(personal_document.date_to)
-            # date_end += datetime.timedelta(hours=11)
             date_step = date_start
 
             employee_list = [employee.id]
@@ -209,20 +201,13 @@ class AvailabilityProcessing:
                         # автоматический тип создания
                         line.type = 0
                         line.begin_date_time = date_step
-                        # datetime.datetime.combine(date_step, datetime.time.min)
-                        # line.begin_date_time = Global.add_timezone(line.begin_date_time)
                         line.end_date_time = date_step_start
-                        # datetime.datetime.combine(date_step, datetime.time.max)
-                        # line.end_date_time = Global.add_timezone(line.end_date_time)
                         availabilities_for_update.append(line)
                 else:
                     line = Employee_Availability(employee=employee, subdivision=subdivision, type=0,
                                                  availability_type=1, personnel_document=personal_document,
                                                  begin_date_time=date_step,
-                                                 # datetime.datetime.combine(date_step,
-                                                 # datetime.time.min),
                                                  end_date_time=date_step_start)
-                                                 # datetime.datetime.combine(date_step, datetime.time.max))
                     availabilities_for_create.append(line)
 
                 date_step += datetime.timedelta(days=1)
