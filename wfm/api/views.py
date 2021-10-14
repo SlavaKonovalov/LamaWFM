@@ -85,7 +85,7 @@ def scheduled_task_detail(request, pk):
 
     elif request.method == 'DELETE':
         scheduled_task.delete()
-        return JsonResponse({'message': 'Scheduled task was deleted successfully!'},
+        return JsonResponse({'message': 'The scheduled task was deleted successfully!'},
                             status=status.HTTP_204_NO_CONTENT)
 
 
@@ -153,7 +153,7 @@ def organization_detail(request, pk):
 
     elif request.method == 'DELETE':
         organization.delete()
-        return JsonResponse({'message': 'Organization was deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
+        return JsonResponse({'message': 'The organization was deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
 
 
 class EmployeePositionListView(generics.ListAPIView):
@@ -298,8 +298,8 @@ class DemandMainListView(generics.ListAPIView):
             date_to = datetime.datetime.strptime(date_to_str, "%Y-%m-%d")
             queryset = queryset.filter(subdivision_id=subdivision_id)
             queryset = queryset.filter(date_time_value__range=[
-                datetime.datetime.combine(date_from, datetime.time.min),
-                datetime.datetime.combine(date_to, datetime.time.max)
+                Global.get_combine_datetime(date_from, datetime.time.min),
+                Global.get_combine_datetime(date_to, datetime.time.max)
             ])
 
         return queryset
@@ -407,7 +407,7 @@ def availability_template_detail(request, pk):
     try:
         availability_template = Availability_Template.objects.get(pk=pk)
     except Availability_Template.DoesNotExist:
-        return JsonResponse({'message': 'The organization does not exist'}, status=status.HTTP_404_NOT_FOUND)
+        return JsonResponse({'message': 'The template does not exist'}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
         availability_template_serializer = AvailabilityTemplateSerializer(availability_template)
@@ -424,7 +424,7 @@ def availability_template_detail(request, pk):
 
     elif request.method == 'DELETE':
         availability_template.delete()
-        return JsonResponse({'message': 'Organization was deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
+        return JsonResponse({'message': 'The template was deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(['DELETE'])
@@ -432,10 +432,10 @@ def availability_template_data_detail(request, pk):
     try:
         availability_template_data = Availability_Template_Data.objects.get(pk=pk)
     except Availability_Template_Data.DoesNotExist:
-        return JsonResponse({'message': 'The organization does not exist'}, status=status.HTTP_404_NOT_FOUND)
+        return JsonResponse({'message': 'Template data does not exist'}, status=status.HTTP_404_NOT_FOUND)
     if request.method == 'DELETE':
         availability_template_data.delete()
-        return JsonResponse({'message': 'Organization was deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
+        return JsonResponse({'message': 'The template data was deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(['POST'])
@@ -541,8 +541,7 @@ def plan_shifts(request):
     if begin_date is None or end_date is None or begin_date >= end_date:
         return JsonResponse({'message': 'Wrong date parameters'}, status=status.HTTP_400_BAD_REQUEST)
     ShiftPlanning.plan_shifts(subdivision_id, begin_date, end_date, employee_list)
-    return JsonResponse({'message': 'Scheduled task was deleted successfully!'},
-                        status=status.HTTP_204_NO_CONTENT)
+    return JsonResponse({'message': 'request processed'}, status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(['POST'])
@@ -670,7 +669,7 @@ def open_shift_data_detail(request, pk):
 
     elif request.method == 'DELETE':
         open_shift.delete()
-        return JsonResponse({'message': 'Open shift was deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
+        return JsonResponse({'message': 'The open shift was deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(['POST'])
@@ -725,7 +724,7 @@ def delete_shift_to_demand(request, pk):
         except demand_hour_shift.DoesNotExist:
             return JsonResponse({'message': 'The demand_hour_shift does not exist'}, status=status.HTTP_404_NOT_FOUND)
         demand_hour_shift.delete()
-        return JsonResponse({'message': 'demand_hour_shift was deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
+        return JsonResponse({'message': 'The demand_hour_shift was deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(['POST'])
@@ -769,8 +768,8 @@ def plan_shift_breaks(request):
     except subdivision.DoesNotExist:
         return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_404_NOT_FOUND)
 
-    begin_date_time = dateutil.parser.parse(data.get('begin_date_time')) #data.get('begin_date_time', None)
-    end_date_time = dateutil.parser.parse(data.get('end_date_time')) #data.get('end_date_time', None)
+    begin_date_time = dateutil.parser.parse(data.get('begin_date_time'))
+    end_date_time = dateutil.parser.parse(data.get('end_date_time'))
     employee_id = data.get('employee_id')
     list_empl = []
     try:
@@ -786,11 +785,11 @@ def plan_shift_breaks(request):
 
 
 @api_view(['GET'])
-def project_global_param(request, pk):
+def get_project_global_parameters(request, pk):
     try:
         param = Global_Parameters.objects.get(pk=pk)
     except param.DoesNotExist:
-        return JsonResponse({'message': 'The global param does not exist'}, status=status.HTTP_404_NOT_FOUND)
+        return JsonResponse({'message': 'The global parameters does not exist'}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
         serializer_class = GlobalParametersSerializer(param)
@@ -808,14 +807,14 @@ def load_availability_from_documents(request):
 
 
 @api_view(['GET'])
-def personal_documents(request, pk):
+def get_personal_document(request, pk):
     try:
-        param = Personal_Documents.objects.get(pk=pk)
-    except param.DoesNotExist:
+        personal_document = Personal_Documents.objects.get(pk=pk)
+    except personal_document.DoesNotExist:
         return JsonResponse({'message': 'The personnel document does not exist'}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        serializer_class = PersonalDocumentsSerializer(param)
+        serializer_class = PersonalDocumentsSerializer(personal_document)
         return JsonResponse(serializer_class.data)
 
 
@@ -823,13 +822,15 @@ def personal_documents(request, pk):
 def create_not_availability(request):
     data = JSONParser().parse(request)
     subdivision_id = data.get('subdivision_id')
-    subdivision = Subdivision.objects.get(id=subdivision_id)
-    if not subdivision:
-        return JsonResponse({'message': 'subdivision error'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        subdivision = Subdivision.objects.get(pk=subdivision_id)
+    except subdivision.DoesNotExist:
+        return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_404_NOT_FOUND)
     employee_id = data.get('employee_id')
-    employee = Employee.objects.get(pk=employee_id)
-    if not employee:
-        return JsonResponse({'message': 'employee error'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        employee = Employee.objects.get(pk=employee_id)
+    except employee.DoesNotExist:
+        return JsonResponse({'message': 'The employee does not exist'}, status=status.HTTP_404_NOT_FOUND)
     date_from = dateutil.parser.parse(data.get('date_from'))
     date_to = dateutil.parser.parse(data.get('date_to'))
     try:
