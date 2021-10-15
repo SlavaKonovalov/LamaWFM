@@ -307,6 +307,7 @@ class Employee_Position(models.Model):
     short_name = models.CharField('Краткое название', max_length=20, unique=True)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE,
                                      verbose_name='Организация', related_name='employee_position_set')
+    duties_default = models.ManyToManyField(Job_Duty, verbose_name='Обязанности по умолчанию', null=True, blank=True)
 
     class Meta:
         verbose_name = 'Должность сотрудника'
