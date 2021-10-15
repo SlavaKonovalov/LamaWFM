@@ -711,7 +711,7 @@ class Employee_Availability(models.Model):
     subdivision = models.ForeignKey(Subdivision, on_delete=models.CASCADE, verbose_name='Подразделение',
                                     related_name='availability_set')
     personnel_document = models.ForeignKey(Personal_Documents, on_delete=models.CASCADE,
-                                           verbose_name='Кадровые документы',
+                                           verbose_name='Кадровый документ',
                                            related_name='availability_set', null=True, blank=True)
     begin_date_time = models.DateTimeField('Дата/время начала')
     end_date_time = models.DateTimeField('Дата/время окончания')

@@ -800,7 +800,7 @@ def get_project_global_parameters(request, pk):
 def load_availability_from_documents(request):
     try:
         availability_processing = AvailabilityProcessing()
-        availability_processing.load_not_availability()
+        availability_processing.load_availability_from_documents()
         return JsonResponse({'message': 'employees were loaded'}, status=status.HTTP_200_OK)
     except BaseException as e:
         return JsonResponse({'message': 'internal server error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -160,63 +160,87 @@ class AvailabilityProcessing:
         return JsonResponse({'message': 'success'}, status=status.HTTP_200_OK)
 
     @staticmethod
-    @transaction.atomic
-    def load_not_availability():
+    def load_availability_from_doc_ins():
         personal_documents = Personal_Documents.objects.filter(operation_type='INS')
-        availabilities_for_update = []
         availabilities_for_create = []
         documents = []
         for personal_document in personal_documents.iterator():
-            employee = Employee.objects.get(personnel_number=personal_document.personnel_number)
-            if not employee:
+            try:
+                employee = Employee.objects.get(ref_id_1C=personal_document.ref_id_1C)
+            except employee.DoesNotExist:
                 continue
-            subdivision = Subdivision.objects.get(id=employee.subdivision_id)
-            if not subdivision:
+            try:
+                subdivision = Subdivision.objects.get(pk=employee.subdivision_id)
+            except subdivision.DoesNotExist:
                 continue
 
             date_start = Global.get_current_midnight(personal_document.date_from)
-            date_end = Global.get_current_midnight(personal_document.date_to)
+            date_end = Global.get_current_midnight(personal_document.date_to) + datetime.timedelta(days=1)
             date_step = date_start
 
             employee_list = [employee.id]
-            shift_planning = ShiftPlanning()
-            shift_planning.delete_all_shifts(subdivision.id, date_start, date_end, employee_list)
-
-            demand_processing = DemandProcessing()
-            demand_processing.recalculate_covering(subdivision.id, date_start.date())
-
+            # Удаляем все смены по сотруднику за этот период
+            ShiftPlanning.delete_all_shifts(subdivision.id, date_start, date_end, employee_list)
+            # Пересчитываем покрытие
+            DemandProcessing.recalculate_covering(subdivision.id, date_start.date())
+            # Удаляем доступность сотрудника
+            Employee_Availability.objects.filter(employee_id=employee.id,
+                                                 subdivision_id=subdivision.id,
+                                                 begin_date_time__gte=date_start,
+                                                 begin_date_time__lt=date_end).delete()
             while date_step < date_end:
-                date_step_start = date_step + datetime.timedelta(days=1) - datetime.timedelta(hours=1)
-
-                employee_availability = Employee_Availability.objects.filter(employee_id=employee.id,
-                                                                             subdivision_id=subdivision.id,
-                                                                             begin_date_time__lt=date_step_start,
-                                                                             end_date_time__gte=date_step)
-                if employee_availability:
-                    for row in employee_availability.iterator():
-                        line = row
-                        # временное отсутствие
-                        line.availability_type = 1
-                        line.personnel_document = personal_document
-                        # автоматический тип создания
-                        line.type = 0
-                        line.begin_date_time = date_step
-                        line.end_date_time = date_step_start
-                        availabilities_for_update.append(line)
-                else:
-                    line = Employee_Availability(employee=employee, subdivision=subdivision, type=0,
-                                                 availability_type=1, personnel_document=personal_document,
-                                                 begin_date_time=date_step,
-                                                 end_date_time=date_step_start)
-                    availabilities_for_create.append(line)
+                date_step_end = date_step + datetime.timedelta(days=1) - datetime.timedelta(hours=1)
+                line = Employee_Availability(employee=employee, subdivision=subdivision, type=0,
+                                             availability_type=1, personnel_document=personal_document,
+                                             begin_date_time=date_step,
+                                             end_date_time=date_step_end)
+                availabilities_for_create.append(line)
 
                 date_step += datetime.timedelta(days=1)
 
             doc_line = personal_document
             doc_line.operation_type = 'FIN'
             documents.append(doc_line)
+        # Создание заблокированной доступности
         Employee_Availability.objects.bulk_create(availabilities_for_create)
-        Employee_Availability.objects.bulk_update(availabilities_for_update, ['availability_type', 'personnel_document',
-                                                                              'begin_date_time', 'end_date_time', 'type'])
+        # Обновляем статусы обработанных документов
         Personal_Documents.objects.bulk_update(documents, ['operation_type'])
 
+    @staticmethod
+    def load_availability_from_doc_upd():
+        personal_documents = Personal_Documents.objects.filter(operation_type='UPD')
+        documents = []
+        for personal_document in personal_documents.iterator():
+            try:
+                employee = Employee.objects.get(ref_id_1C=personal_document.ref_id_1C)
+            except employee.DoesNotExist:
+                continue
+            try:
+                subdivision = Subdivision.objects.get(pk=employee.subdivision_id)
+            except subdivision.DoesNotExist:
+                continue
+
+            # Удаляем доступность сотрудника
+            Employee_Availability.objects.filter(employee_id=employee.id,
+                                                 subdivision_id=subdivision.id,
+                                                 personnel_document_id=personal_document.id).delete()
+
+            doc_line = personal_document
+            # Меняем статус на повторную вставку
+            doc_line.operation_type = 'INS'
+            documents.append(doc_line)
+        # Обновляем статусы обработанных документов
+        Personal_Documents.objects.bulk_update(documents, ['operation_type'])
+
+    @staticmethod
+    def load_availability_from_doc_del():
+        Personal_Documents.objects.filter(operation_type='DEL').delete()
+        return
+
+    @staticmethod
+    @transaction.atomic
+    def load_availability_from_documents():
+        # Порядок выполнения: DEL, UPD, INS
+        AvailabilityProcessing.load_availability_from_doc_del()
+        AvailabilityProcessing.load_availability_from_doc_upd()
+        AvailabilityProcessing.load_availability_from_doc_ins()
