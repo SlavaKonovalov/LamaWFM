@@ -13,6 +13,7 @@ from ..availabilityProcessing import AvailabilityProcessing
 from ..demandProcessing import DemandProcessing
 from ..integration.demand_by_history_calculate import DemandByHistoryDataCalculate
 from ..integration.integration_download_data import CreateEmployeesByUploadedData
+from ..loginProcessing import LoginProcessing
 from ..shiftPlanning import ShiftPlanning
 from ..taskProcessing import TaskProcessing
 from ..models import Production_Task, Organization, Subdivision, Employee, Employee_Position, Job_Duty, \
@@ -847,3 +848,37 @@ def calculate_holiday_coefficient(request):
     except Exception:
         return JsonResponse({'message': 'Error'}, status=status.HTTP_400_BAD_REQUEST)
     return JsonResponse({'message': 'Success'}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET'])
+def login_in_system(request):
+    if request.method == 'GET':
+        response_data = {}
+        email = request.query_params.get('email')
+        if email is None:
+            response_data['login'] = 'false'
+            response_data['message'] = 'e-mail не указан'
+            response_data['type_user'] = ''
+            response_data['subdivision'] = ''
+            response_data['organization'] = ''
+            return JsonResponse(response_data, status=status.HTTP_401_UNAUTHORIZED)
+        username = request.query_params.get('snils')
+        if username is None:
+            response_data['login'] = 'false'
+            response_data['message'] = 'пароль не указан'
+            response_data['type_user'] = ''
+            response_data['subdivision'] = ''
+            response_data['organization'] = ''
+            return JsonResponse(response_data, status=status.HTTP_401_UNAUTHORIZED)
+        try:
+            login_processing = LoginProcessing()
+            return login_processing.log_in(email, username)
+        except Exception:
+            response_data['login'] = 'false'
+            response_data['message'] = 'Непредвиденная ошибка'
+            response_data['type_user'] = ''
+            response_data['subdivision'] = ''
+            response_data['organization'] = ''
+            return JsonResponse(response_data, status=status.HTTP_400_BAD_REQUEST)
+
+

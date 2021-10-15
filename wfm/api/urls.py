@@ -203,4 +203,8 @@ urlpatterns = [
     path('create_availability_for_personnel_doc/',
          views.create_not_availability,
          name='create_availability_for_personnel_doc'),
+
+    path('login_in_system/',
+         views.login_in_system,
+         name='login_in_system'),
 ]
