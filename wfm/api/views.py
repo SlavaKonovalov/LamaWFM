@@ -882,3 +882,24 @@ def login_in_system(request):
             return JsonResponse(response_data, status=status.HTTP_400_BAD_REQUEST)
 
 
+@api_view(['POST'])
+def delete_not_confirmed_availability(request):
+    data = JSONParser().parse(request)
+    subdivision_id = data.get('subdivision_id')
+    try:
+        subdivision = Subdivision.objects.get(pk=subdivision_id)
+    except subdivision.DoesNotExist:
+        return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    employee_id = data.get('employee_id')
+    try:
+        employee = Employee.objects.get(pk=employee_id)
+    except employee.DoesNotExist:
+        return JsonResponse({'message': 'The employee does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    date = dateutil.parser.parse(data.get('date'))
+    try:
+        availability_processing = AvailabilityProcessing()
+        return availability_processing.delete_not_confirmed_availability(subdivision, date, employee)
+    except BaseException as e:
+        return JsonResponse({'message': 'internal server error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+

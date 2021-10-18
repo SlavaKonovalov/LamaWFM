@@ -207,4 +207,8 @@ urlpatterns = [
     path('login_in_system/',
          views.login_in_system,
          name='login_in_system'),
+
+    path('delete_not_confirmed_availability/',
+         views.delete_not_confirmed_availability,
+         name='delete_not_confirmed_availability'),
 ]

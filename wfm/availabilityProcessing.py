@@ -247,3 +247,49 @@ class AvailabilityProcessing:
         AvailabilityProcessing.load_availability_from_doc_del()
         AvailabilityProcessing.load_availability_from_doc_upd()
         AvailabilityProcessing.load_availability_from_doc_ins()
+
+    @staticmethod
+    @transaction.atomic
+    def delete_not_confirmed_availability(subdivision, date, employee):
+        datetime_start_day = Global.get_current_midnight(date)
+        date_step = datetime_start_day
+        res = True
+        while res:
+            datetime_end_day = date_step + datetime.timedelta(days=1) - datetime.timedelta(minutes=1)
+            employee_availability = Employee_Availability.objects.filter(employee_id=employee.id,
+                                                                         subdivision_id=subdivision.id,
+                                                                         begin_date_time__lt=datetime_end_day,
+                                                                         end_date_time__gte=date_step)
+            if employee_availability:
+                for row in employee_availability.iterator():
+                    if row.availability_type == 1 and not row.personnel_document:
+                        employee_availability.delete()
+                        res = True
+                        date_step += datetime.timedelta(days=1)
+                    else:
+                        res = False
+            else:
+                res = False
+        res = True
+        date_step = datetime_start_day - datetime.timedelta(days=1)
+        while res:
+            datetime_end_day = date_step + datetime.timedelta(days=1) - datetime.timedelta(minutes=1)
+            employee_availability = Employee_Availability.objects.filter(employee_id=employee.id,
+                                                                         subdivision_id=subdivision.id,
+                                                                         begin_date_time__lt=datetime_end_day,
+                                                                         end_date_time__gte=date_step)
+            if employee_availability:
+                for row in employee_availability.iterator():
+                    if row.availability_type == 1 and not row.personnel_document:
+                        employee_availability.delete()
+                        res = True
+                        date_step -= datetime.timedelta(days=1)
+                    else:
+                        res = False
+            else:
+                res = False
+        return JsonResponse({'message': 'success'}, status=status.HTTP_200_OK)
+
+
+
+
