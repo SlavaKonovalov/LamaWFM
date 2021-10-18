@@ -211,4 +211,8 @@ urlpatterns = [
     path('delete_not_confirmed_availability/',
          views.delete_not_confirmed_availability,
          name='delete_not_confirmed_availability'),
+
+    path('get_count_handle_shift/',
+         views.get_count_handle_shift,
+         name='get_count_handle_shift'),
 ]
