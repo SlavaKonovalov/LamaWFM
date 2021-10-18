@@ -1,3 +1,5 @@
+from abc import ABC
+
 from django.contrib.auth.models import User
 from django.core.exceptions import NON_FIELD_ERRORS
 from django.db import connection
@@ -230,21 +232,18 @@ class AvailabilityTemplateSerializer(serializers.ModelSerializer):
 
 
 class EmployeeAvailabilityTemplateSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Employee_Availability_Templates
         fields = '__all__'
 
 
 class AssignEmployeePlanningRulesSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Employee_Planning_Rules
         fields = '__all__'
 
 
 class EmployeeAvailabilitySerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Employee_Availability
         fields = '__all__'
@@ -259,7 +258,6 @@ class EmployeeShiftDetailPlanSerializer(serializers.ModelSerializer):
 
 
 class EmployeeShiftSerializerHeader(serializers.ModelSerializer):
-
     class Meta:
         model = Employee_Shift
         fields = '__all__'
@@ -331,7 +329,6 @@ class EmployeeShiftSerializerForUpdate(serializers.ModelSerializer):
 
 
 class HolidayPeriodSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Holiday_Period
         fields = '__all__'
@@ -346,7 +343,6 @@ class HolidaySerializer(serializers.ModelSerializer):
 
 
 class RetailStoreFormatSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Retail_Store_Format
         fields = '__all__'
@@ -361,7 +357,6 @@ class OpenShiftDetailSerializer(serializers.ModelSerializer):
 
 
 class OpenShiftSerializerHeader(serializers.ModelSerializer):
-
     class Meta:
         model = Open_Shift
         fields = '__all__'
@@ -399,10 +394,10 @@ class OpenShiftSerializer(serializers.ModelSerializer):
 
 
 class EmployeeUpdateSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Employee
-        fields = ['id', 'subdivision', 'middle_name', 'personnel_number', 'pf_reg_id', 'position', 'duties', 'part_time_job_org']
+        fields = ['id', 'subdivision', 'middle_name', 'personnel_number', 'pf_reg_id', 'position', 'duties',
+                  'part_time_job_org']
 
     def update(self, instance, validated_data):
         subdivision = validated_data.get('subdivision', None)
@@ -430,7 +425,8 @@ class EmployeeUpdateSerializer(serializers.ModelSerializer):
 
         for line_step in lines:
             cursor = connection.cursor()
-            query = "INSERT INTO public.wfm_employee_duties(employee_id, job_duty_id) VALUES (%i, %i) " % (instance.id, line_step.id)
+            query = "INSERT INTO public.wfm_employee_duties(employee_id, job_duty_id) VALUES (%i, %i) " % (
+            instance.id, line_step.id)
             cursor.execute(query)
 
         cursor = connection.cursor()
@@ -441,22 +437,32 @@ class EmployeeUpdateSerializer(serializers.ModelSerializer):
 
         for line_step in lines:
             cursor = connection.cursor()
-            query = "INSERT INTO public.wfm_employee_part_time_job_org(employee_id, company_id) VALUES (%i, %i) " % (instance.id, line_step.id)
+            query = "INSERT INTO public.wfm_employee_part_time_job_org(employee_id, company_id) VALUES (%i, %i) " % (
+            instance.id, line_step.id)
             cursor.execute(query)
 
         return instance
 
 
 class GlobalParametersSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Global_Parameters
         fields = '__all__'
 
 
 class PersonalDocumentsSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Personal_Documents
         fields = '__all__'
+
+
+class MetricsSerializer(serializers.Serializer):
+    subdivision_id = serializers.IntegerField()
+    from_date = serializers.DateTimeField()
+    to_date = serializers.DateTimeField()
+    output_data = serializers.ListField()
+    # product = serializers.IntegerField(max_length=255)
+    # customer = serializers.CharField(max_lenght=255)
+    # price = serializers.DecimalField(max_digits=5, decimal_places=2)
+    # date = serializers.DateField()
 

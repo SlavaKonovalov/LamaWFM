@@ -207,4 +207,9 @@ urlpatterns = [
     path('login_in_system/',
          views.login_in_system,
          name='login_in_system'),
+
+    path('get_metrics/',
+         views.get_metrics,
+         name='get_metrics'),
 ]
+

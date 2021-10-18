@@ -14,6 +14,7 @@ from ..demandProcessing import DemandProcessing
 from ..integration.demand_by_history_calculate import DemandByHistoryDataCalculate
 from ..integration.integration_download_data import CreateEmployeesByUploadedData
 from ..loginProcessing import LoginProcessing
+from ..metricsCalculation import MetricsCalculation
 from ..shiftPlanning import ShiftPlanning
 from ..taskProcessing import TaskProcessing
 from ..models import Production_Task, Organization, Subdivision, Employee, Employee_Position, Job_Duty, \
@@ -882,3 +883,22 @@ def login_in_system(request):
             return JsonResponse(response_data, status=status.HTTP_400_BAD_REQUEST)
 
 
+@api_view(['POST'])
+def get_metrics(request):
+    data = JSONParser().parse(request)
+    subdivision_id = data.get('subdivision_id')
+    from_date = dateutil.parser.parse(data.get('begin_date'))
+    to_date = dateutil.parser.parse(data.get('end_date'))
+
+    try:
+        subdivision = Subdivision.objects.get(pk=subdivision_id)
+    except Subdivision.DoesNotExist:
+        return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_404_NOT_FOUND)
+
+    metricsCalculation = MetricsCalculation(subdivision_id, from_date, to_date)
+    metrics_serializer = metricsCalculation.calculate_output_data()
+
+    if metrics_serializer.data:
+        return JsonResponse(metrics_serializer.data)
+
+    return JsonResponse({'message': 'Error'}, status=status.HTTP_400_BAD_REQUEST)
