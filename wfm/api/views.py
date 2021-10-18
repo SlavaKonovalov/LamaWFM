@@ -884,6 +884,49 @@ def login_in_system(request):
 
 
 @api_view(['POST'])
+def delete_not_confirmed_availability(request):
+    data = JSONParser().parse(request)
+    subdivision_id = data.get('subdivision_id')
+    try:
+        subdivision = Subdivision.objects.get(pk=subdivision_id)
+    except subdivision.DoesNotExist:
+        return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    employee_id = data.get('employee_id')
+    try:
+        employee = Employee.objects.get(pk=employee_id)
+    except employee.DoesNotExist:
+        return JsonResponse({'message': 'The employee does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    date = dateutil.parser.parse(data.get('date'))
+    try:
+        availability_processing = AvailabilityProcessing()
+        return availability_processing.delete_not_confirmed_availability(subdivision, date, employee)
+    except BaseException as e:
+        return JsonResponse({'message': 'internal server error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+def get_count_handle_shift(request):
+    subdivision_id = request.query_params.get('subdivision_id')
+    response_data = {}
+    try:
+        subdivision = Subdivision.objects.get(pk=subdivision_id)
+    except subdivision.DoesNotExist:
+        return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_404_NOT_FOUND)
+
+    date_from = dateutil.parser.parse(request.query_params.get('date_from')).date()
+    fnd_date = request.query_params.get('date_to', None)
+    if fnd_date is not None:
+        date_to = dateutil.parser.parse(fnd_date).date()
+        count_set = Employee_Shift.objects.filter(subdivision_id=subdivision.id,
+                                                  shift_date__range=[date_from, date_to]).count()
+    else:
+        count_set = Employee_Shift.objects.filter(subdivision_id=subdivision.id,
+                                                  shift_date=date_from).count()
+    response_data['count'] = count_set
+    return JsonResponse(response_data, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
 def get_metrics(request):
     data = JSONParser().parse(request)
     subdivision_id = data.get('subdivision_id')

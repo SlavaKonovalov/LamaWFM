@@ -50,7 +50,8 @@ class AvailabilityProcessing:
             employee_availability = employee_availability.filter(employee_id=employee_id, subdivision_id=subdivision_id)
         else:
             employee_availability = employee_availability.filter(subdivision_id=subdivision_id)
-        employee_availability = employee_availability.filter(begin_date_time__gte=begin_date, begin_date_time__lt=end_date)
+        employee_availability = employee_availability.filter(begin_date_time__gte=begin_date,
+                                                             begin_date_time__lt=end_date)
         # удаляем незаблокированную доступность
         employee_availability.filter(availability_type=0).delete()
         # получаем список заблокированной доступности
@@ -88,8 +89,9 @@ class AvailabilityProcessing:
 
             date_step = min_border
             while date_step < max_border:
-                df_blocked_availability_step = df_blocked_availability[(df_blocked_availability.date == date_step.date())
-                                                                       & (df_blocked_availability.employee_id == template.employee_id)]
+                df_blocked_availability_step = df_blocked_availability[
+                    (df_blocked_availability.date == date_step.date())
+                    & (df_blocked_availability.employee_id == template.employee_id)]
                 # проверяем заблокированную доступность
                 if not df_blocked_availability_step.empty:
                     date_step += datetime.timedelta(days=1)
@@ -174,8 +176,9 @@ class AvailabilityProcessing:
             except subdivision.DoesNotExist:
                 continue
 
-            date_start = Global.get_current_midnight(personal_document.date_from)
-            date_end = Global.get_current_midnight(personal_document.date_to) + datetime.timedelta(days=1)
+            date_start = Global.get_combine_datetime(personal_document.date_from, datetime.time.min)
+            date_end = Global.get_combine_datetime(personal_document.date_to, datetime.time.min) + datetime.timedelta(
+                days=1)
             date_step = date_start
 
             employee_list = [employee.id]
@@ -244,3 +247,49 @@ class AvailabilityProcessing:
         AvailabilityProcessing.load_availability_from_doc_del()
         AvailabilityProcessing.load_availability_from_doc_upd()
         AvailabilityProcessing.load_availability_from_doc_ins()
+
+    @staticmethod
+    @transaction.atomic
+    def delete_not_confirmed_availability(subdivision, date, employee):
+        datetime_start_day = Global.get_current_midnight(date)
+        date_step = datetime_start_day
+        res = True
+        while res:
+            datetime_end_day = date_step + datetime.timedelta(days=1) - datetime.timedelta(minutes=1)
+            employee_availability = Employee_Availability.objects.filter(employee_id=employee.id,
+                                                                         subdivision_id=subdivision.id,
+                                                                         begin_date_time__lt=datetime_end_day,
+                                                                         end_date_time__gte=date_step)
+            if employee_availability:
+                for row in employee_availability.iterator():
+                    if row.availability_type == 1 and not row.personnel_document:
+                        employee_availability.delete()
+                        res = True
+                        date_step += datetime.timedelta(days=1)
+                    else:
+                        res = False
+            else:
+                res = False
+        res = True
+        date_step = datetime_start_day - datetime.timedelta(days=1)
+        while res:
+            datetime_end_day = date_step + datetime.timedelta(days=1) - datetime.timedelta(minutes=1)
+            employee_availability = Employee_Availability.objects.filter(employee_id=employee.id,
+                                                                         subdivision_id=subdivision.id,
+                                                                         begin_date_time__lt=datetime_end_day,
+                                                                         end_date_time__gte=date_step)
+            if employee_availability:
+                for row in employee_availability.iterator():
+                    if row.availability_type == 1 and not row.personnel_document:
+                        employee_availability.delete()
+                        res = True
+                        date_step -= datetime.timedelta(days=1)
+                    else:
+                        res = False
+            else:
+                res = False
+        return JsonResponse({'message': 'success'}, status=status.HTTP_200_OK)
+
+
+
+

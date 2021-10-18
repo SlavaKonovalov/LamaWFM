@@ -208,8 +208,15 @@ urlpatterns = [
          views.login_in_system,
          name='login_in_system'),
 
+    path('delete_not_confirmed_availability/',
+         views.delete_not_confirmed_availability,
+         name='delete_not_confirmed_availability'),
+
+    path('get_count_handle_shift/',
+         views.get_count_handle_shift,
+         name='get_count_handle_shift'),
+
     path('get_metrics/',
          views.get_metrics,
          name='get_metrics'),
 ]
-
