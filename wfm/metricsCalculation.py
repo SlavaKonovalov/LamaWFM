@@ -54,7 +54,7 @@ class MetricsCalculation:
     def calculate_output_data(self):
         demand_hour_main = Demand_Hour_Main.objects.filter(subdivision_id=self.subdivision_id,
                                                            demand_date__gte=self.from_date,
-                                                           demand_date__lt=self.to_date)
+                                                           demand_date__lte=self.to_date)
 
         df_dhm_on_hour = pandas.DataFrame(
             demand_hour_main.values_list('demand_date', 'demand_hour', 'duty_id', 'demand_value',
