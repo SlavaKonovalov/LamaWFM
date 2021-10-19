@@ -938,8 +938,8 @@ def get_metrics(request):
     except Subdivision.DoesNotExist:
         return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_404_NOT_FOUND)
 
-    metricsCalculation = MetricsCalculation(subdivision_id, from_date, to_date)
-    metrics_serializer = metricsCalculation.calculate_output_data()
+    metrics_calculation = MetricsCalculation(subdivision.id, from_date, to_date)
+    metrics_serializer = metrics_calculation.calculate_output_data()
 
     if metrics_serializer.data:
         return JsonResponse(metrics_serializer.data)
