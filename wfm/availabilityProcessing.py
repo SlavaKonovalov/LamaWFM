@@ -59,8 +59,9 @@ class AvailabilityProcessing:
         df_blocked_availability = pandas.DataFrame(
             employee_availability.values_list('employee_id', 'begin_date_time'),
             columns=['employee_id', 'begin_date_time'])
-        df_blocked_availability.begin_date_time = df_blocked_availability.begin_date_time.dt.tz_convert(TIME_ZONE)
-        df_blocked_availability['date'] = df_blocked_availability.begin_date_time.dt.date
+        if not df_blocked_availability.empty:
+            df_blocked_availability.begin_date_time = df_blocked_availability.begin_date_time.dt.tz_convert(TIME_ZONE)
+            df_blocked_availability['date'] = df_blocked_availability.begin_date_time.dt.date
         # собираем назначенные сотрудникам шаблоны
         templates = Employee_Availability_Templates.objects.filter(
             Q(end_date__gt=begin_date) | Q(end_date__isnull=True)).order_by('begin_date')
@@ -89,13 +90,14 @@ class AvailabilityProcessing:
 
             date_step = min_border
             while date_step < max_border:
-                df_blocked_availability_step = df_blocked_availability[
-                    (df_blocked_availability.date == date_step.date())
-                    & (df_blocked_availability.employee_id == template.employee_id)]
-                # проверяем заблокированную доступность
-                if not df_blocked_availability_step.empty:
-                    date_step += datetime.timedelta(days=1)
-                    continue
+                if not df_blocked_availability.empty:
+                    df_blocked_availability_step = df_blocked_availability[
+                        (df_blocked_availability.date == date_step.date())
+                        & (df_blocked_availability.employee_id == template.employee_id)]
+                    # проверяем заблокированную доступность
+                    if not df_blocked_availability_step.empty:
+                        date_step += datetime.timedelta(days=1)
+                        continue
                 week_delta = Global.get_week_delta(template_begin_date, date_step)
                 df_day_of_week = date_step.weekday()
                 df_week_num = (week_delta + template.week_num_appointed) % week_count
