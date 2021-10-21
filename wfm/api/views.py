@@ -918,9 +918,11 @@ def get_count_handle_shift(request):
     if fnd_date is not None:
         date_to = dateutil.parser.parse(fnd_date).date()
         count_set = Employee_Shift.objects.filter(subdivision_id=subdivision.id,
+                                                  handle_correct=1,
                                                   shift_date__range=[date_from, date_to]).count()
     else:
         count_set = Employee_Shift.objects.filter(subdivision_id=subdivision.id,
+                                                  handle_correct=1,
                                                   shift_date=date_from).count()
     response_data['count'] = count_set
     return JsonResponse(response_data, status=status.HTTP_200_OK)
