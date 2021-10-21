@@ -246,6 +246,8 @@ class ShiftPlanning:
             shift__shift_type='flexible',
             shift__shift_date__gte=min_date,
             shift__shift_date__lt=end_date)
+        if employees:
+            shift_detail_plan = shift_detail_plan.filter(shift__employee_id__in=employees)
         df_shift_plan = pandas.DataFrame(
             shift_detail_plan.values_list('shift__employee_id', 'shift__subdivision_id', 'shift__shift_date', 'type',
                                           'time_from', 'time_to', 'shift__fixed'),
@@ -283,6 +285,11 @@ class ShiftPlanning:
             df_prev_shift_plan['works'] = df_prev_shift_plan['date_diff'].apply(lambda x: 1 if x == 0 else 0)
             # work_check - промежуточный признак для расчета рабочих дней подряд
             df_prev_shift_plan['work_check'] = df_prev_shift_plan['works']
+            # для отдыхающих qty = date_diff
+            # для работающих выставляем на начальном этапе qty = 1
+            df_prev_shift_plan['qty'] = df_prev_shift_plan.date_diff
+            df_prev_shift_plan.loc[(df_prev_shift_plan.work_check == 1) &
+                                   (df_prev_shift_plan.shift_date == prev_date), ['qty']] = 1
 
             # Зануляем work_check для строк, если человек работал в день перед началом пересчета
             df_prev_shift_plan.loc[(df_prev_shift_plan.work_check == 1) &
@@ -295,13 +302,15 @@ class ShiftPlanning:
                 prev_date = (begin_date_time - datetime.timedelta(days=date_step)).date()
                 df_prev_shift_plan.loc[(df_prev_shift_plan.work_check == 1), ['date_diff']] = (
                         prev_date - df_prev_shift_plan.last_date).dt.days
+
                 df_prev_shift_plan.loc[(df_prev_shift_plan.work_check == 1) &
-                                       (df_prev_shift_plan.date_diff > 0), ['date_diff']] = date_step - 1
+                                       (df_prev_shift_plan.shift_date == prev_date), ['qty']] = date_step
+
                 df_prev_shift_plan.loc[(df_prev_shift_plan.work_check == 1) &
                                        ((df_prev_shift_plan.date_diff > 0) |
                                         (df_prev_shift_plan.shift_date == prev_date)), ['work_check']] = 0
             # в qty кол-во рабочих или выходных дней подряд перед началом пересчета
-            df_prev_shift_plan['qty'] = df_prev_shift_plan.groupby('employee')['date_diff'].transform("max")
+            df_prev_shift_plan['qty'] = df_prev_shift_plan.groupby('employee')['qty'].transform("max")
         else:
             df_prev_shift_plan['works'] = 0
             df_prev_shift_plan['qty'] = 0
@@ -484,8 +493,14 @@ class ShiftPlanning:
                     if empty_hours_list:
                         # нужно занять сотрудника на эти часы
                         for empty_hours_value in empty_hours_list:
-                            # берем любую потребность на выбранный час для любой другой ФО
+                            # ищем доступные ФО
+                            df_available_duties = df_availability[(df_availability.employee == res_sample.employee) &
+                                                                  (df_availability.date == row_date.date)
+                                                                  ][['duty']]
+                            duties_list = df_available_duties['duty'].values.tolist()
+                            # берем любую потребность на выбранный час для любой другой доступной ФО
                             df_demand_to_cover = df_demand_on_date[df_demand_on_date['hour'].isin([empty_hours_value])
+                                                                   & df_demand_on_date['duty'].isin(duties_list)
                                                                    & (df_demand_on_date.duty != row_demand.duty)
                                                                    & (df_demand_on_date.qty > 0)]
                             if not df_demand_to_cover.empty:
@@ -684,16 +699,19 @@ class ShiftPlanning:
         df_existing_breaks['minute_begin'] = pandas.to_datetime(df_existing_breaks['time_from'],
                                                                 format='%H:%M:%S').dt.minute
         # break_qty - кол-во обедов сотрудников за каждый получас
-        df_existing_breaks['break_qty'] = df_existing_breaks.groupby(['shift_date', 'hour', 'minute_begin'])['time_from'].transform("count")
+        df_existing_breaks['break_qty'] = df_existing_breaks.groupby(['shift_date', 'hour', 'minute_begin'])[
+            'time_from'].transform("count")
         # Потребность с покрытием:
         df_demand_hour_main = ShiftPlanning.get_demand_for_break_dataframe(subdivision_id, begin_date, end_date)
-        df_demand_hour_main['qty'] = df_demand_hour_main.covering_value - df_demand_hour_main.demand_value - df_demand_hour_main.breaks_value
+        df_demand_hour_main[
+            'qty'] = df_demand_hour_main.covering_value - df_demand_hour_main.demand_value - df_demand_hour_main.breaks_value
 
         # Цикл по датам
         for row_date in df_date.itertuples():
             # Фильтруем датафреймы за текущий день
             df_shift_for_calc_on_date = df_shift_for_calc[(df_shift_for_calc.shift_date == row_date.shift_date)]
-            df_existing_breaks_on_date = df_existing_breaks[(df_existing_breaks.shift_date == row_date.shift_date)][['hour', 'minute_begin', 'break_qty']]
+            df_existing_breaks_on_date = df_existing_breaks[(df_existing_breaks.shift_date == row_date.shift_date)][
+                ['hour', 'minute_begin', 'break_qty']]
             df_existing_breaks_on_date = df_existing_breaks_on_date.drop_duplicates()
             # df_break_list - temp dataframe для заполнения обедов
             df_break_list = pandas.DataFrame([x for x in range(24)],

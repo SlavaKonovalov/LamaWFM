@@ -54,7 +54,7 @@ class MetricsCalculation:
     def calculate_output_data(self):
         demand_hour_main = Demand_Hour_Main.objects.filter(subdivision_id=self.subdivision_id,
                                                            demand_date__gte=self.from_date,
-                                                           demand_date__lt=self.to_date)
+                                                           demand_date__lte=self.to_date)
 
         df_dhm_on_hour = pandas.DataFrame(
             demand_hour_main.values_list('demand_date', 'demand_hour', 'duty_id', 'demand_value',
@@ -85,6 +85,8 @@ class MetricsCalculation:
             ['date', 'duty', 'demand_sum', 'covering_sum', 'breaks_sum', 'overcovering_value',
              'undercovering_value']].drop_duplicates()
         df_dhm_on_date['covering_clear'] = df_dhm_on_date.covering_sum - df_dhm_on_date.breaks_sum
+        # отрицательные значения чистого покрытия сводим к 0:
+        df_dhm_on_date.covering_clear = df_dhm_on_date.covering_clear.apply(lambda x: 0 if x < 0 else x)
         df_dhm_on_date['covering_percentage'] = ((df_dhm_on_date.covering_clear - df_dhm_on_date.overcovering_value
                                                   ) / df_dhm_on_date.demand_sum).astype('float')
         df_dhm_on_date['utilization_percentage'] = df_dhm_on_date.apply(

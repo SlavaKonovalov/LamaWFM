@@ -95,7 +95,8 @@ class DemandProcessing:
                 FROM
                 (
                 SELECT
-                CASE WHEN COALESCE(ROUND(SUM(task_sum.demand_sum)), 0) = 0 THEN 1
+                CASE WHEN COALESCE(SUM(task_sum.demand_sum), 0) = 0 THEN 0
+                WHEN COALESCE(ROUND(SUM(task_sum.demand_sum)), 0) = 0 THEN 1
                 ELSE COALESCE(ROUND(SUM(task_sum.demand_sum)), 0)
                 END AS demand_sum,
                 date, hour, duty_id
@@ -161,7 +162,8 @@ class DemandProcessing:
                     date,
                     hour,
                     duty_id,
-                    CASE WHEN COALESCE(ROUND(SUM(task_sum.demand_sum)), 0) = 0 THEN 1
+                    CASE WHEN COALESCE(SUM(task_sum.demand_sum), 0) = 0 THEN 0
+                    WHEN COALESCE(ROUND(SUM(task_sum.demand_sum)), 0) = 0 THEN 1
                     ELSE COALESCE(ROUND(SUM(task_sum.demand_sum)), 0)
                     END AS demand_value,
                     0,
