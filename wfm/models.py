@@ -565,10 +565,12 @@ class Demand_Detail_Task(models.Model):
 
 
 class Global_Parameters(models.Model):
-    demand_detail_interval_length = models.PositiveIntegerField('Длина периода детализации потребности', default=0,
-                                                                editable=False)
-    scheduling_period = models.PositiveIntegerField('Длина периода для построения графика запланированных задач',
+    demand_detail_interval_length = models.PositiveIntegerField('Длина периода детализации потребности (минуты)',
+                                                                default=0, editable=False)
+    scheduling_period = models.PositiveIntegerField('Длина периода для построения графика запланированных задач (дни)',
                                                     default=0, editable=False)
+    time_between_shifts = models.PositiveIntegerField('Мин. время между сменами сотрудника (часы)',
+                                                      default=1, editable=False)
     colorForWithoutDemand = ColorField('Цвет для задач без потребности', default='#0000FF')
     colorForAvailabilityWithDoc = ColorField('Цвет для временного отсутствия с кадровым документом', default='#0000FF')
     colorForAvailabilityWithoutDoc = ColorField('Цвет для временного отсутствия без кадрового документа',

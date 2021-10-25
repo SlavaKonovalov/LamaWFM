@@ -10,7 +10,7 @@ from random import randint
 from .additionalFunctions import Global
 from .demandProcessing import DemandProcessing
 from .models import Employee_Shift, Employee_Shift_Detail_Plan, Employee_Planning_Rules, Demand_Hour_Main, \
-    Open_Shift, Demand_Hour_Shift
+    Open_Shift, Demand_Hour_Shift, Global_Parameters
 
 sys.path.append('..')
 from LamaWFM.settings import TIME_ZONE
@@ -207,6 +207,10 @@ class ShiftPlanning:
     def plan_flexible_shifts(subdivision_id, begin_date_time, end_date_time, employees=None):
         begin_date = begin_date_time.date()
         end_date = end_date_time.date()
+        # time_between_shifts - Мин. время между сменами сотрудника (часы)
+        time_between_shifts = Global_Parameters.objects.all().first().time_between_shifts
+        if not time_between_shifts:
+            time_between_shifts = 8
 
         # Получаем dataframe для потребности
         demand_hour_main = Demand_Hour_Main.objects.filter(subdivision_id=subdivision_id,
@@ -249,18 +253,20 @@ class ShiftPlanning:
         if employees:
             shift_detail_plan = shift_detail_plan.filter(shift__employee_id__in=employees)
         df_shift_plan = pandas.DataFrame(
-            shift_detail_plan.values_list('shift__employee_id', 'shift__subdivision_id', 'shift__shift_date', 'type',
+            shift_detail_plan.values_list('shift_id', 'shift__employee_id', 'shift__subdivision_id', 'shift__shift_date', 'type',
                                           'time_from', 'time_to', 'shift__fixed'),
-            columns=['employee', 'subdivision', 'shift_date', 'type', 'time_from', 'time_to', 'fixed'])
+            columns=['shift_id', 'employee', 'subdivision', 'shift_date', 'type', 'time_from', 'time_to', 'fixed'])
         df_shift_plan['hour_from'] = pandas.to_datetime(df_shift_plan['time_from'], format='%H:%M:%S').dt.hour
         df_shift_plan['hour_to'] = pandas.to_datetime(df_shift_plan['time_to'], format='%H:%M:%S').dt.hour
         df_shift_plan['hours'] = df_shift_plan.hour_to - df_shift_plan.hour_from
         # Исключаем доступность с существующими сменами
         df_covering = df_shift_plan[(df_shift_plan.type == 'job') &
                                     (df_shift_plan.shift_date >= begin_date)][
-            ['employee', 'shift_date', 'hours', 'fixed']]
+            ['shift_id', 'employee', 'shift_date', 'hours', 'fixed', 'hour_from', 'hour_to']]
         df_existing_shifts = df_covering[(df_covering.shift_date >= begin_date_time.date())]
-        df_availability = pandas.merge(df_availability, df_existing_shifts, how='left',
+        # df_existing_shifts_short используется только для merge с df_availability
+        df_existing_shifts_short = df_existing_shifts[['employee', 'shift_date', 'hours', 'fixed']]
+        df_availability = pandas.merge(df_availability, df_existing_shifts_short, how='left',
                                        left_on=['employee', 'date'],
                                        right_on=['employee', 'shift_date'])
         df_availability = df_availability[(df_availability.fixed.isna())]
@@ -320,15 +326,21 @@ class ShiftPlanning:
         df_shift_period['shift_check'] = 0
         # <-- Конец
 
+        # смены за день (объявление переменной)
+        df_shift_on_date = pandas.DataFrame(columns=['employee', 'shift_id', 'hour_from',
+                                                     'hour_to', 'shift_duration_max'])
+
         # Цикл по датам
         for row_date in df_demand_date.itertuples():
             # Берем потребность за выбранную дату
             df_demand_on_date = df_demand_unique[(df_demand_unique.date == row_date.date)]
             # Добавляем признак "Покрывалось". Устанавливается на ФО, если назначалась хоть одна смена
             df_demand_on_date['covered'] = -df_demand_on_date['covering_value']
+            # df_shift_on_date_prev - смены за предыдущий день. Для соблюдения интервала между сменами
+            df_shift_on_date_prev = df_shift_on_date
+            # обнуляем df_shift_on_date
+            df_shift_on_date = df_shift_on_date[0:0]
 
-            df_shift_on_date = pandas.DataFrame(columns=['employee', 'shift_id', 'hour_from',
-                                                         'hour_to', 'shift_duration_max'])
             while True:
                 df_res_with_shifts = pandas.DataFrame()
                 # Бегаем, пока df_demand_on_date не пуст
@@ -352,6 +364,26 @@ class ShiftPlanning:
                     # минимальная длина смены укладывается в доступность:
                     (df_availability.av_end_hour - df_availability.av_begin_hour >= df_availability.shift_duration_min)
                     & (row_demand.duty == df_availability.duty)]
+
+                # Учитываем ограничение по времени между сменами по каждому сотруднику
+                if not df_res.empty:
+                    # Добавляем предыдущие смены
+                    df_res = pandas.merge(df_res, df_shift_on_date_prev[['employee', 'hour_to']], on=['employee'], how='left')
+                    df_res.hour_to = df_res.hour_to.fillna(0)
+                    # Оставляем только те, у которых прошло более time_between_shifts часов с окончания прошлой смены
+                    df_res = df_res[24 - df_res.hour_to + row_demand.hour >= time_between_shifts]
+                    df_res['begin_hour_div'] = (df_res.hour_to + time_between_shifts) // 24
+                    df_res['begin_hour_mod'] = (df_res.hour_to + time_between_shifts) % 24
+                    # Корректируем начало доступности сотрудника с учетом прошлой смены
+                    df_res.loc[(df_res.begin_hour_div == 1) &
+                               (df_res.begin_hour_mod > df_res.av_begin_hour), ['av_begin_hour']] = df_res.begin_hour_mod
+                    # Повторные проверки доступности по конкретному часу row_demand.hour
+                    df_res = df_res[
+                        (df_res.av_begin_hour <= row_demand.hour) &  # доступен в этом часу
+                        # минимальная длина смены укладывается в доступность:
+                        (df_res.av_end_hour - df_res.av_begin_hour >= df_res.shift_duration_min)
+                    ]
+
                 # добавляем df_shift_period, проверяем параметры продолжительности рабочих и выходных дней
                 if not df_res.empty:
                     df_res = pandas.merge(df_res, df_shift_period, on=['employee'], how='left')
@@ -566,6 +598,15 @@ class ShiftPlanning:
                             (df_shift_period.employee == row_existing_shifts.employee), ['qty']] = 0
                     df_shift_period.loc[
                         (df_shift_period.employee == row_existing_shifts.employee), ['shift_check']] = 1
+
+                    # Добавляем существующие смены в df_shift_on_date
+                    # df_shift_on_date необходим для учета времени между сменами
+                    df_shift_on_date_row = pandas.Series(data={'employee': row_existing_shifts.employee,
+                                                               'shift_id': row_existing_shifts.shift_id,
+                                                               'hour_from': row_existing_shifts.hour_from,
+                                                               'hour_to': row_existing_shifts.hour_to,
+                                                               'shift_duration_max': 0})
+                    df_shift_on_date = df_shift_on_date.append(df_shift_on_date_row, ignore_index=True)
             # <-- Конец
 
             # Ставим выходные, если смены не назначены
