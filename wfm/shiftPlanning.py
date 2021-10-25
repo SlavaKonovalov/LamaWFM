@@ -210,7 +210,7 @@ class ShiftPlanning:
         # time_between_shifts - Мин. время между сменами сотрудника (часы)
         time_between_shifts = Global_Parameters.objects.all().first().time_between_shifts
         if not time_between_shifts:
-            time_between_shifts = 8
+            time_between_shifts = 10
 
         # Получаем dataframe для потребности
         demand_hour_main = Demand_Hour_Main.objects.filter(subdivision_id=subdivision_id,
@@ -242,8 +242,10 @@ class ShiftPlanning:
         # Дата для расчета смен за неделю до пересчета
         prev_shifts_date = (begin_date_time - datetime.timedelta(days=7)).date()
         # Сделаем begin_date началом месяца
-        begin_date = begin_date.replace(day=1)
-        min_date = min(begin_date, prev_shifts_date)
+        begin_month_date = begin_date.replace(day=1)
+        min_date = min(begin_month_date, prev_shifts_date)
+        # begin_date_prev - день перед началом планирования
+        begin_date_prev = (begin_date_time - datetime.timedelta(days=1)).date()
         # Получаем dataframe текущих смен за месяц
         shift_detail_plan = Employee_Shift_Detail_Plan.objects.select_related('shift').filter(
             shift__subdivision_id=subdivision_id,
@@ -261,9 +263,12 @@ class ShiftPlanning:
         df_shift_plan['hours'] = df_shift_plan.hour_to - df_shift_plan.hour_from
         # Исключаем доступность с существующими сменами
         df_covering = df_shift_plan[(df_shift_plan.type == 'job') &
-                                    (df_shift_plan.shift_date >= begin_date)][
+                                    (df_shift_plan.shift_date >= begin_month_date)][
             ['shift_id', 'employee', 'shift_date', 'hours', 'fixed', 'hour_from', 'hour_to']]
-        df_existing_shifts = df_covering[(df_covering.shift_date >= begin_date_time.date())]
+        # Смены берем со смещением на день назад, чтобы учесть ограничение по времени между сменами
+        df_existing_shifts = df_covering[
+            (df_covering.shift_date >= begin_date_prev)
+        ]
         # df_existing_shifts_short используется только для merge с df_availability
         df_existing_shifts_short = df_existing_shifts[['employee', 'shift_date', 'hours', 'fixed']]
         df_availability = pandas.merge(df_availability, df_existing_shifts_short, how='left',
@@ -329,6 +334,18 @@ class ShiftPlanning:
         # смены за день (объявление переменной)
         df_shift_on_date = pandas.DataFrame(columns=['employee', 'shift_id', 'hour_from',
                                                      'hour_to', 'shift_duration_max'])
+
+        # находим смены за день до начала моделирования
+        # для соблюдения интервала между сменами
+        df_existing_shifts_prev_date = df_existing_shifts[(df_existing_shifts.shift_date == begin_date_prev)]
+
+        for row_existing_shifts in df_existing_shifts_prev_date.itertuples():
+            df_shift_on_date_row = pandas.Series(data={'employee': row_existing_shifts.employee,
+                                                       'shift_id': row_existing_shifts.shift_id,
+                                                       'hour_from': row_existing_shifts.hour_from,
+                                                       'hour_to': row_existing_shifts.hour_to,
+                                                       'shift_duration_max': 0})
+            df_shift_on_date = df_shift_on_date.append(df_shift_on_date_row, ignore_index=True)
 
         # Цикл по датам
         for row_date in df_demand_date.itertuples():
