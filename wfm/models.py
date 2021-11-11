@@ -818,6 +818,49 @@ class Employee_Planning_Rules(models.Model):
         verbose_name_plural = 'Сотрудник - Правила планирования'
 
 
+class Part_Time_Job_Vacancy(models.Model):
+    vacancy_status_choices = (
+        ('created', 'Создано'),
+        ('confirmed', 'Подтверждено'),
+        ('approved', 'Утверждено'),
+    )
+
+    creation_date_time = models.DateTimeField('Дата создания вакансии', auto_now_add=True)
+    subdivision = models.ForeignKey(Subdivision, on_delete=models.CASCADE, verbose_name='Подразделение')
+    requested_date = models.DateField('Дата выхода на работу')
+    shift_begin_time = models.TimeField('Время начала смены')
+    shift_end_time = models.TimeField('Время окончания смены')
+    vacancy_status = models.CharField('Статус', max_length=20, choices=vacancy_status_choices, default='created')
+    duties = models.ManyToManyField(Job_Duty, verbose_name='Обязанности', null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'Вакансия на подработку'
+        verbose_name_plural = 'Вакансии на подработку'
+
+
+class Part_Time_Job_Employee_Request(models.Model):
+    request_status_choices = (
+        ('created', 'Создано'),
+        ('published', 'Опубликовано'),
+        ('shift_created', 'Смена создана'),
+        ('employee_notified', 'Сотрудник оповещен'),
+    )
+
+    creation_date_time = models.DateTimeField('Дата создания запроса', auto_now_add=True)
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, verbose_name='Сотрудник',
+                                 related_name='part_time_job_request_set')
+    requested_date = models.DateField('Дата выхода на работу')
+    shift_begin_time = models.TimeField('Время начала смены')
+    shift_end_time = models.TimeField('Время окончания смены')
+    request_status = models.CharField('Статус', max_length=20, choices=request_status_choices, default='created')
+    vacancy = models.ForeignKey(Subdivision, on_delete=models.PROTECT, verbose_name='Вакансия на подработку',
+                                null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'Запрос на подработку'
+        verbose_name_plural = 'Запросы на подработку'
+
+
 class Employee_Shift(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, verbose_name='Сотрудник',
                                  related_name='shift_set')
@@ -827,6 +870,8 @@ class Employee_Shift(models.Model):
     handle_correct = models.PositiveIntegerField('Ручная корректировка смены', default=0)
     fixed = models.PositiveIntegerField('Фиксированный', default=0)
     shift_type = models.CharField('Тип графика', max_length=40, default='flexible')
+    part_time_job_request = models.ForeignKey(Part_Time_Job_Employee_Request, on_delete=models.PROTECT,
+                                              verbose_name='Запрос на подработку', null=True, blank=True)
 
     objects = DataFrameManager()
 

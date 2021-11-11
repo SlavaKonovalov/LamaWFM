@@ -21,7 +21,8 @@ from ..models import Production_Task, Organization, Subdivision, Employee, Emplo
     Appointed_Production_Task, Scheduled_Production_Task, Demand_Detail_Main, Company, Availability_Template, \
     Employee_Availability_Templates, Availability_Template_Data, Planning_Method, Working_Hours_Rate, \
     Work_Shift_Planning_Rule, Breaking_Rule, Employee_Planning_Rules, Employee_Availability, Employee_Shift, Holiday, \
-    Retail_Store_Format, Open_Shift, Demand_Hour_Main, Demand_Hour_Shift, Global_Parameters, Personal_Documents
+    Retail_Store_Format, Open_Shift, Demand_Hour_Main, Demand_Hour_Shift, Global_Parameters, Personal_Documents, \
+    Part_Time_Job_Vacancy
 from .serializers import ProductionTaskSerializer, OrganizationSerializer, SubdivisionSerializer, EmployeeSerializer, \
     EmployeePositionSerializer, JobDutySerializer, AppointedTaskSerializer, ScheduledProductionTaskSerializer, \
     DemandMainSerializer, CompanySerializer, AvailabilityTemplateSerializer, EmployeeAvailabilityTemplatesSerializer, \
@@ -29,7 +30,8 @@ from .serializers import ProductionTaskSerializer, OrganizationSerializer, Subdi
     WorkShiftPlanningRuleSerializer, BreakingRuleSerializer, EmployeePlanningRuleSerializer, \
     AssignEmployeePlanningRulesSerializer, EmployeeAvailabilitySerializer, EmployeeShiftSerializer, HolidaySerializer, \
     RetailStoreFormatSerializer, EmployeeShiftSerializerForUpdate, OpenShiftSerializer, OpenShiftSerializerHeader, \
-    EmployeeShiftSerializerHeader, EmployeeUpdateSerializer, GlobalParametersSerializer, PersonalDocumentsSerializer
+    EmployeeShiftSerializerHeader, EmployeeUpdateSerializer, GlobalParametersSerializer, PersonalDocumentsSerializer, \
+    PartTimeJobVacancySerializer
 
 
 class ProductionTaskListView(generics.ListAPIView):
@@ -947,3 +949,67 @@ def get_metrics(request):
         return JsonResponse(metrics_serializer.data)
 
     return JsonResponse({'message': 'Error'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'POST'])
+def part_time_job_vacancy_list(request):
+    if request.method == 'GET':
+        subdivision_id = request.query_params.get('subdivision_id', None)
+        date_from_str = request.query_params.get('date_from', None)
+        date_from = datetime.datetime.strptime(date_from_str, "%Y-%m-%d").date() if date_from_str else None
+        date_to_str = request.query_params.get('date_to', None)
+        date_to = datetime.datetime.strptime(date_to_str, "%Y-%m-%d").date() if date_to_str else None
+        vacancy_status = request.query_params.get('status', None)
+
+        job_vacancy = Part_Time_Job_Vacancy.objects.all()
+
+        if subdivision_id is not None:
+            job_vacancy = job_vacancy.filter(subdivision_id=subdivision_id)
+
+        if date_from is not None:
+            job_vacancy = job_vacancy.filter(requested_date__gte=date_from)
+
+        if date_to is not None:
+            job_vacancy = job_vacancy.filter(requested_date__lte=date_to)
+
+        if vacancy_status is not None:
+            job_vacancy = job_vacancy.filter(vacancy_status=vacancy_status)
+
+        job_vacancy_serializer = PartTimeJobVacancySerializer(job_vacancy, many=True)
+        return JsonResponse(job_vacancy_serializer.data, safe=False)
+
+    elif request.method == 'POST':
+        job_vacancy_data = JSONParser().parse(request)
+        job_vacancy_serializer = PartTimeJobVacancySerializer(data=job_vacancy_data)
+        if job_vacancy_serializer.is_valid():
+            job_vacancy_serializer.save()
+            return JsonResponse(job_vacancy_serializer.data, status=status.HTTP_201_CREATED)
+        return JsonResponse(job_vacancy_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# TODO part_time_job_vacancy_detail
+@api_view(['GET', 'POST', 'DELETE'])
+def part_time_job_vacancy_detail(request, pk):
+    try:
+        job_vacancy = Part_Time_Job_Vacancy.objects.get(pk=pk)
+    except Part_Time_Job_Vacancy.DoesNotExist:
+        return JsonResponse({'message': 'The organization does not exist'}, status=status.HTTP_404_NOT_FOUND)
+
+    """
+    if request.method == 'GET':
+        organization_serializer = OrganizationSerializer(organization)
+        return JsonResponse(organization_serializer.data)
+
+    elif request.method == 'POST':
+        organization_data = JSONParser().parse(request)
+        organization_serializer = OrganizationSerializer(organization, data=organization_data)
+        if organization_serializer.is_valid():
+            organization_serializer.save()
+            return JsonResponse(organization_serializer.data)
+        return JsonResponse(organization_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        organization.delete()
+        return JsonResponse({'message': 'The organization was deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
+    """
+    return JsonResponse({'message': 'OK'}, status=status.HTTP_204_NO_CONTENT)

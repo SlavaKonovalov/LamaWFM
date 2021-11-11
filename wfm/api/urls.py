@@ -219,4 +219,12 @@ urlpatterns = [
     path('get_metrics/',
          views.get_metrics,
          name='get_metrics'),
+
+    path('part_time_job_vacancies/',
+         views.part_time_job_vacancy_list,
+         name='job_vacancy_list'),
+
+    path('part_time_job_vacancies/<int:pk>/',
+         views.part_time_job_vacancy_detail,
+         name='job_vacancy_detail'),
 ]

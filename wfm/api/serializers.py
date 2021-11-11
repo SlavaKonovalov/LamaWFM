@@ -10,7 +10,8 @@ from ..models import Production_Task, Subdivision, Employee, Scheduled_Productio
     Availability_Template, Availability_Template_Data, Employee_Availability_Templates, Planning_Method, \
     Working_Hours_Rate, Work_Shift_Planning_Rule, Breaking_Rule, Employee_Planning_Rules, Employee_Availability, \
     Employee_Shift_Detail_Plan, Employee_Shift, Holiday_Period, Holiday, Retail_Store_Format, Open_Shift_Detail, \
-    Open_Shift, Demand_Hour_Shift, Demand_Hour_Main, Global_Parameters, Personal_Documents
+    Open_Shift, Demand_Hour_Shift, Demand_Hour_Main, Global_Parameters, Personal_Documents, Part_Time_Job_Vacancy, \
+    Part_Time_Job_Employee_Request
 
 
 class ScheduledProductionTaskSerializer(serializers.ModelSerializer):
@@ -257,6 +258,21 @@ class EmployeeShiftDetailPlanSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class PartTimeJobVacancySerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(required=False)
+    creation_date_time = serializers.DateTimeField(required=False)
+
+    class Meta:
+        model = Part_Time_Job_Vacancy
+        fields = '__all__'
+
+
+class PartTimeJobRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Part_Time_Job_Employee_Request
+        fields = '__all__'
+
+
 class EmployeeShiftSerializerHeader(serializers.ModelSerializer):
     class Meta:
         model = Employee_Shift
@@ -461,8 +477,3 @@ class MetricsSerializer(serializers.Serializer):
     from_date = serializers.DateTimeField()
     to_date = serializers.DateTimeField()
     output_data = serializers.ListField()
-    # product = serializers.IntegerField(max_length=255)
-    # customer = serializers.CharField(max_lenght=255)
-    # price = serializers.DecimalField(max_digits=5, decimal_places=2)
-    # date = serializers.DateField()
-
