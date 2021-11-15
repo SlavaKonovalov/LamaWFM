@@ -865,6 +865,7 @@ def login_in_system(request):
             response_data['type_user'] = ''
             response_data['subdivision'] = ''
             response_data['organization'] = ''
+            response_data['user_name'] = ''
             return JsonResponse(response_data, status=status.HTTP_401_UNAUTHORIZED)
         username = request.query_params.get('snils')
         if username is None:
@@ -873,6 +874,7 @@ def login_in_system(request):
             response_data['type_user'] = ''
             response_data['subdivision'] = ''
             response_data['organization'] = ''
+            response_data['user_name'] = ''
             return JsonResponse(response_data, status=status.HTTP_401_UNAUTHORIZED)
         try:
             login_processing = LoginProcessing()
@@ -883,6 +885,7 @@ def login_in_system(request):
             response_data['type_user'] = ''
             response_data['subdivision'] = ''
             response_data['organization'] = ''
+            response_data['user_name'] = ''
             return JsonResponse(response_data, status=status.HTTP_400_BAD_REQUEST)
 
 
