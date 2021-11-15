@@ -6,7 +6,7 @@ from .models import Part_Time_Job_Vacancy
 class PartTimeJobProcessing:
 
     @staticmethod
-    def check_vacancy(serializer):
+    def update_vacancy_check(serializer):
         errors = []
         vacancy = Part_Time_Job_Vacancy()
         vacancy_id = serializer.validated_data.get('id')

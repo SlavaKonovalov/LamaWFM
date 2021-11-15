@@ -15,6 +15,7 @@ from ..integration.demand_by_history_calculate import DemandByHistoryDataCalcula
 from ..integration.integration_download_data import CreateEmployeesByUploadedData
 from ..loginProcessing import LoginProcessing
 from ..metricsCalculation import MetricsCalculation
+from ..partTimeJobProcessing import PartTimeJobProcessing
 from ..shiftPlanning import ShiftPlanning
 from ..taskProcessing import TaskProcessing
 from ..models import Production_Task, Organization, Subdivision, Employee, Employee_Position, Job_Duty, \
@@ -993,23 +994,25 @@ def part_time_job_vacancy_detail(request, pk):
     try:
         job_vacancy = Part_Time_Job_Vacancy.objects.get(pk=pk)
     except Part_Time_Job_Vacancy.DoesNotExist:
-        return JsonResponse({'message': 'The organization does not exist'}, status=status.HTTP_404_NOT_FOUND)
+        return JsonResponse({'message': 'The job vacancy does not exist'}, status=status.HTTP_404_NOT_FOUND)
 
-    """
     if request.method == 'GET':
-        organization_serializer = OrganizationSerializer(organization)
-        return JsonResponse(organization_serializer.data)
+        job_vacancy_serializer = PartTimeJobVacancySerializer(job_vacancy)
+        return JsonResponse(job_vacancy_serializer.data)
 
     elif request.method == 'POST':
-        organization_data = JSONParser().parse(request)
-        organization_serializer = OrganizationSerializer(organization, data=organization_data)
-        if organization_serializer.is_valid():
-            organization_serializer.save()
-            return JsonResponse(organization_serializer.data)
-        return JsonResponse(organization_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        job_vacancy_data = JSONParser().parse(request)
+        job_vacancy_serializer = PartTimeJobVacancySerializer(job_vacancy, data=job_vacancy_data)
+        if job_vacancy_serializer.is_valid():
+            job_vacancy_serializer.save()
+            return JsonResponse(job_vacancy_serializer.data)
+        return JsonResponse(job_vacancy_serializer.error_list, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
-        organization.delete()
-        return JsonResponse({'message': 'The organization was deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
-    """
-    return JsonResponse({'message': 'OK'}, status=status.HTTP_204_NO_CONTENT)
+        if job_vacancy.vacancy_status == 'created':
+            job_vacancy.delete()
+            return JsonResponse({'message': 'The job vacancy was deleted successfully!'},
+                                status=status.HTTP_204_NO_CONTENT)
+        else:
+            return JsonResponse({'message': 'Job vacancy status should be "created"!'},
+                                status=status.HTTP_204_NO_CONTENT)
