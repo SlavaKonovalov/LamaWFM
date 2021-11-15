@@ -22,6 +22,7 @@ class LoginProcessing:
                 response_data['type_user'] = ''
                 response_data['subdivision'] = ''
                 response_data['organization'] = ''
+                response_data['user_name'] = ''
                 return JsonResponse(response_data, status=status.HTTP_401_UNAUTHORIZED)
             if not user.is_superuser:
                 response_data['login'] = 'false'
@@ -29,6 +30,7 @@ class LoginProcessing:
                 response_data['type_user'] = ''
                 response_data['subdivision'] = ''
                 response_data['organization'] = ''
+                response_data['user_name'] = ''
                 return JsonResponse(response_data, status=status.HTTP_401_UNAUTHORIZED)
             groups = user.groups.filter(name='administrator')
             if groups:
@@ -37,6 +39,7 @@ class LoginProcessing:
                 response_data['type_user'] = 'admin'
                 response_data['subdivision'] = 'ALL'
                 response_data['organization'] = 'ALL'
+                response_data['user_name'] = user.first_name + ' ' + user.last_name
                 return JsonResponse(response_data, status=status.HTTP_200_OK)
             else:
                 groups = user.groups.filter(name='manager')
@@ -48,6 +51,7 @@ class LoginProcessing:
                     response_data['type_user'] = 'manager'
                     response_data['subdivision'] = employee.subdivision_id
                     response_data['organization'] = subdivision.organization_id
+                    response_data['user_name'] = user.first_name + ' ' + user.last_name
                     return JsonResponse(response_data, status=status.HTTP_200_OK)
                 else:
                     response_data['login'] = 'false'
@@ -55,6 +59,7 @@ class LoginProcessing:
                     response_data['type_user'] = ''
                     response_data['subdivision'] = ''
                     response_data['organization'] = ''
+                    response_data['user_name'] = ''
                     return JsonResponse(response_data, status=status.HTTP_401_UNAUTHORIZED)
         except Exception:
             response_data['login'] = 'false'
@@ -62,4 +67,5 @@ class LoginProcessing:
             response_data['type_user'] = ''
             response_data['subdivision'] = ''
             response_data['organization'] = ''
+            response_data['user_name'] = ''
             return JsonResponse(response_data, status=status.HTTP_401_UNAUTHORIZED)
