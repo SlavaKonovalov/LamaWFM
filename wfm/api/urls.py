@@ -227,4 +227,12 @@ urlpatterns = [
     path('part_time_job_vacancies/<int:pk>/',
          views.part_time_job_vacancy_detail,
          name='job_vacancy_detail'),
+
+    path('part_time_job_requests/',
+         views.part_time_job_request_list,
+         name='job_request_list'),
+
+    path('part_time_job_requests/<int:pk>/',
+         views.part_time_job_request_detail,
+         name='job_request_detail'),
 ]

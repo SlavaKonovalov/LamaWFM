@@ -106,6 +106,16 @@ class EmployeeSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class EmployeeDutiesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Employee
+        fields = [
+            'id',
+            'subdivision',
+            'duties'
+        ]
+
+
 class EmployeePositionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Employee_Position
@@ -318,6 +328,12 @@ class PartTimeJobVacancySerializer(serializers.ModelSerializer):
 
 
 class PartTimeJobRequestSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(required=False)
+    vacancy = serializers.IntegerField(required=False)
+    creation_date_time = serializers.DateTimeField(required=False)
+    error_list = {}
+    employee = EmployeeDutiesSerializer(read_only=True, many=False)
+
     class Meta:
         model = Part_Time_Job_Employee_Request
         fields = '__all__'

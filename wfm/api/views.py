@@ -1,6 +1,7 @@
 import datetime as datetime
 import dateutil.parser
 from django.db import transaction
+from django.db.models import Q
 from django.http import JsonResponse
 from rest_framework import generics, status
 from rest_framework.decorators import api_view
@@ -23,7 +24,7 @@ from ..models import Production_Task, Organization, Subdivision, Employee, Emplo
     Employee_Availability_Templates, Availability_Template_Data, Planning_Method, Working_Hours_Rate, \
     Work_Shift_Planning_Rule, Breaking_Rule, Employee_Planning_Rules, Employee_Availability, Employee_Shift, Holiday, \
     Retail_Store_Format, Open_Shift, Demand_Hour_Main, Demand_Hour_Shift, Global_Parameters, Personal_Documents, \
-    Part_Time_Job_Vacancy
+    Part_Time_Job_Vacancy, Part_Time_Job_Employee_Request
 from .serializers import ProductionTaskSerializer, OrganizationSerializer, SubdivisionSerializer, EmployeeSerializer, \
     EmployeePositionSerializer, JobDutySerializer, AppointedTaskSerializer, ScheduledProductionTaskSerializer, \
     DemandMainSerializer, CompanySerializer, AvailabilityTemplateSerializer, EmployeeAvailabilityTemplatesSerializer, \
@@ -32,7 +33,7 @@ from .serializers import ProductionTaskSerializer, OrganizationSerializer, Subdi
     AssignEmployeePlanningRulesSerializer, EmployeeAvailabilitySerializer, EmployeeShiftSerializer, HolidaySerializer, \
     RetailStoreFormatSerializer, EmployeeShiftSerializerForUpdate, OpenShiftSerializer, OpenShiftSerializerHeader, \
     EmployeeShiftSerializerHeader, EmployeeUpdateSerializer, GlobalParametersSerializer, PersonalDocumentsSerializer, \
-    PartTimeJobVacancySerializer
+    PartTimeJobVacancySerializer, PartTimeJobRequestSerializer
 
 
 class ProductionTaskListView(generics.ListAPIView):
@@ -988,7 +989,6 @@ def part_time_job_vacancy_list(request):
         return JsonResponse(job_vacancy_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-# TODO part_time_job_vacancy_detail
 @api_view(['GET', 'POST', 'DELETE'])
 def part_time_job_vacancy_detail(request, pk):
     try:
@@ -1016,3 +1016,77 @@ def part_time_job_vacancy_detail(request, pk):
         else:
             return JsonResponse({'message': 'Job vacancy status should be "created"!'},
                                 status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET', 'POST'])
+def part_time_job_request_list(request):
+    if request.method == 'GET':
+        subdivision_id = request.query_params.get('subdivision_id', None)
+        employee_id = request.query_params.get('employee_id', None)
+        requested_date_str = request.query_params.get('date_from', None)
+        requested_date = datetime.datetime.strptime(requested_date_str, "%Y-%m-%d").date() if requested_date_str \
+            else None
+        begin_time_str = request.query_params.get('time_from', None)
+        begin_time = datetime.datetime.strptime(begin_time_str, "%H:%M").time() if begin_time_str else None
+        end_time_str = request.query_params.get('time_to', None)
+        end_time = datetime.datetime.strptime(end_time_str, "%H:%M").time() if end_time_str else None
+        request_status = request.query_params.get('status', None)
+
+        job_request = Part_Time_Job_Employee_Request.objects.all()
+
+        if subdivision_id is not None:
+            job_request = job_request.filter(employee__subdivision_id=subdivision_id)
+
+        if employee_id is not None:
+            job_request = job_request.filter(employee_id=employee_id)
+
+        if requested_date is not None:
+            job_request = job_request.filter(requested_date=requested_date)
+
+        if end_time is not None and begin_time is not None:
+            job_request = job_request.filter(
+                Q(shift_begin_time__lt=end_time) & Q(shift_end_time__gt=begin_time))
+
+        if request_status is not None:
+            job_request = job_request.filter(request_status=request_status)
+
+        job_request_serializer = PartTimeJobRequestSerializer(job_request, many=True)
+        return JsonResponse(job_request_serializer.data, safe=False)
+
+    elif request.method == 'POST':
+        job_request_data = JSONParser().parse(request)
+        job_request_serializer = PartTimeJobRequestSerializer(data=job_request_data)
+        if job_request_serializer.is_valid():
+            job_request_serializer.save()
+            return JsonResponse(job_request_serializer.data, status=status.HTTP_201_CREATED)
+        return JsonResponse(job_request_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'POST', 'DELETE'])
+def part_time_job_request_detail(request, pk):
+    try:
+        job_vacancy = Part_Time_Job_Vacancy.objects.get(pk=pk)
+    except Part_Time_Job_Vacancy.DoesNotExist:
+        return JsonResponse({'message': 'The job vacancy does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    """
+    if request.method == 'GET':
+        job_vacancy_serializer = PartTimeJobVacancySerializer(job_vacancy)
+        return JsonResponse(job_vacancy_serializer.data)
+
+    elif request.method == 'POST':
+        job_vacancy_data = JSONParser().parse(request)
+        job_vacancy_serializer = PartTimeJobVacancySerializer(job_vacancy, data=job_vacancy_data)
+        if job_vacancy_serializer.is_valid():
+            job_vacancy_serializer.save()
+            return JsonResponse(job_vacancy_serializer.data)
+        return JsonResponse(job_vacancy_serializer.error_list, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        if job_vacancy.vacancy_status == 'created':
+            job_vacancy.delete()
+            return JsonResponse({'message': 'The job vacancy was deleted successfully!'},
+                                status=status.HTTP_204_NO_CONTENT)
+        else:
+            return JsonResponse({'message': 'Job vacancy status should be "created"!'},
+                                status=status.HTTP_204_NO_CONTENT)
+    """
