@@ -1079,8 +1079,14 @@ def part_time_job_request_detail(request, pk):
         job_request_data = JSONParser().parse(request)
         job_request_serializer = PartTimeJobRequestSerializer(job_request, data=job_request_data)
         if job_request_serializer.is_valid():
-            job_request_serializer.save()
-            return JsonResponse(job_request_serializer.data)
+            job_processing = PartTimeJobProcessing(job_request_serializer)
+            res = job_processing.check_request()
+            if res:
+                res = job_processing.update_request()
+            if res:
+                return JsonResponse(job_request_serializer.data)
+            else:
+                return JsonResponse(job_processing.serializer.error_list, status=status.HTTP_400_BAD_REQUEST)
         return JsonResponse(job_request_serializer.error_list, status=status.HTTP_400_BAD_REQUEST)
     elif request.method == 'DELETE':
         if job_request.request_status == 'created':

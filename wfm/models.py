@@ -854,7 +854,7 @@ class Part_Time_Job_Employee_Request(models.Model):
     shift_end_time = models.TimeField('Время окончания смены')
     request_status = models.CharField('Статус', max_length=20, choices=request_status_choices, default='created')
     vacancy = models.ForeignKey(Part_Time_Job_Vacancy, on_delete=models.PROTECT, verbose_name='Вакансия на подработку',
-                                null=True, blank=True)
+                                related_name='request_set', null=True, blank=True)
 
     class Meta:
         verbose_name = 'Запрос на подработку'

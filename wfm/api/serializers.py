@@ -315,7 +315,8 @@ class PartTimeJobVacancySerializer(serializers.ModelSerializer):
                     error_list.update({'requested_date': "Дата вакансии должна быть позже текущей"})
 
             if job_vacancy_instance.vacancy_status == 'approved':
-                error_list.update({'vacancy_status': "Откат данного статуса вакансии выполнятся через 'Запрос на подработку'!"})
+                error_list.update(
+                    {'vacancy_status': "Откат данного статуса вакансии выполнятся через 'Запрос на подработку'!"})
 
         elif self.validated_data.get('vacancy_status') == 'approved':
             if job_vacancy_instance.vacancy_status == 'confirmed':
@@ -329,14 +330,23 @@ class PartTimeJobVacancySerializer(serializers.ModelSerializer):
 
 class PartTimeJobRequestSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(required=False)
-    vacancy = serializers.IntegerField(required=False)
-    creation_date_time = serializers.DateTimeField(required=False)
-    employee_detail = EmployeeDutiesSerializer(source='employee', many=False, required=False)
+    # vacancy = serializers.IntegerField(required=False)
+    creation_date_time = serializers.DateTimeField(required=False, read_only=True)
+    employee_detail = EmployeeDutiesSerializer(source='employee', many=False, required=False, read_only=True)
     error_list = {}
 
     class Meta:
         model = Part_Time_Job_Employee_Request
         fields = '__all__'
+
+    def is_valid(self, raise_exception=False):
+        ret = super().is_valid(raise_exception)
+        if not ret:
+            # выходим, если есть ошибки валидации
+            self.error_list = self.errors
+            return ret
+        else:
+            return True
 
 
 class EmployeeShiftSerializerHeader(serializers.ModelSerializer):
@@ -508,7 +518,7 @@ class EmployeeUpdateSerializer(serializers.ModelSerializer):
         for line_step in lines:
             cursor = connection.cursor()
             query = "INSERT INTO public.wfm_employee_duties(employee_id, job_duty_id) VALUES (%i, %i) " % (
-            instance.id, line_step.id)
+                instance.id, line_step.id)
             cursor.execute(query)
 
         cursor = connection.cursor()
@@ -520,7 +530,7 @@ class EmployeeUpdateSerializer(serializers.ModelSerializer):
         for line_step in lines:
             cursor = connection.cursor()
             query = "INSERT INTO public.wfm_employee_part_time_job_org(employee_id, company_id) VALUES (%i, %i) " % (
-            instance.id, line_step.id)
+                instance.id, line_step.id)
             cursor.execute(query)
 
         return instance
