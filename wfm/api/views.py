@@ -1068,28 +1068,25 @@ def part_time_job_request_list(request):
 @api_view(['GET', 'POST', 'DELETE'])
 def part_time_job_request_detail(request, pk):
     try:
-        job_vacancy = Part_Time_Job_Vacancy.objects.get(pk=pk)
-    except Part_Time_Job_Vacancy.DoesNotExist:
-        return JsonResponse({'message': 'The job vacancy does not exist'}, status=status.HTTP_404_NOT_FOUND)
-    """
+        job_request = Part_Time_Job_Employee_Request.objects.get(pk=pk)
+    except Part_Time_Job_Employee_Request.DoesNotExist:
+        return JsonResponse({'message': 'The job request does not exist'}, status=status.HTTP_404_NOT_FOUND)
+
     if request.method == 'GET':
-        job_vacancy_serializer = PartTimeJobVacancySerializer(job_vacancy)
-        return JsonResponse(job_vacancy_serializer.data)
-
+        job_request_serializer = PartTimeJobRequestSerializer(job_request)
+        return JsonResponse(job_request_serializer.data)
     elif request.method == 'POST':
-        job_vacancy_data = JSONParser().parse(request)
-        job_vacancy_serializer = PartTimeJobVacancySerializer(job_vacancy, data=job_vacancy_data)
-        if job_vacancy_serializer.is_valid():
-            job_vacancy_serializer.save()
-            return JsonResponse(job_vacancy_serializer.data)
-        return JsonResponse(job_vacancy_serializer.error_list, status=status.HTTP_400_BAD_REQUEST)
-
+        job_request_data = JSONParser().parse(request)
+        job_request_serializer = PartTimeJobRequestSerializer(job_request, data=job_request_data)
+        if job_request_serializer.is_valid():
+            job_request_serializer.save()
+            return JsonResponse(job_request_serializer.data)
+        return JsonResponse(job_request_serializer.error_list, status=status.HTTP_400_BAD_REQUEST)
     elif request.method == 'DELETE':
-        if job_vacancy.vacancy_status == 'created':
-            job_vacancy.delete()
-            return JsonResponse({'message': 'The job vacancy was deleted successfully!'},
+        if job_request.request_status == 'created':
+            job_request.delete()
+            return JsonResponse({'message': 'The job request was deleted successfully!'},
                                 status=status.HTTP_204_NO_CONTENT)
         else:
-            return JsonResponse({'message': 'Job vacancy status should be "created"!'},
+            return JsonResponse({'message': 'Job request status should be "created"!'},
                                 status=status.HTTP_204_NO_CONTENT)
-    """

@@ -331,8 +331,8 @@ class PartTimeJobRequestSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(required=False)
     vacancy = serializers.IntegerField(required=False)
     creation_date_time = serializers.DateTimeField(required=False)
+    employee_detail = EmployeeDutiesSerializer(source='employee', many=False, required=False)
     error_list = {}
-    employee = EmployeeDutiesSerializer(read_only=True, many=False)
 
     class Meta:
         model = Part_Time_Job_Employee_Request
