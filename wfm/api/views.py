@@ -1026,9 +1026,13 @@ def part_time_job_request_list(request):
     if request.method == 'GET':
         subdivision_id = request.query_params.get('subdivision_id', None)
         employee_id = request.query_params.get('employee_id', None)
-        requested_date_str = request.query_params.get('date_from', None)
+        requested_date_str = request.query_params.get('date_request', None)
         requested_date = datetime.datetime.strptime(requested_date_str, "%Y-%m-%d").date() if requested_date_str \
             else None
+        date_from_str = request.query_params.get('date_from', None)
+        date_from = datetime.datetime.strptime(date_from_str, "%Y-%m-%d").date() if date_from_str else None
+        date_to_str = request.query_params.get('date_to', None)
+        date_to = datetime.datetime.strptime(date_to_str, "%Y-%m-%d").date() if date_to_str else None
         begin_time_str = request.query_params.get('time_from', None)
         begin_time = datetime.datetime.strptime(begin_time_str, "%H:%M").time() if begin_time_str else None
         end_time_str = request.query_params.get('time_to', None)
@@ -1042,6 +1046,12 @@ def part_time_job_request_list(request):
 
         if employee_id is not None:
             job_request = job_request.filter(employee_id=employee_id)
+
+        if date_from is not None:
+            job_request = job_request.filter(requested_date__gte=date_from)
+
+        if date_to is not None:
+            job_request = job_request.filter(requested_date__lte=date_to)
 
         if requested_date is not None:
             job_request = job_request.filter(requested_date=requested_date)
