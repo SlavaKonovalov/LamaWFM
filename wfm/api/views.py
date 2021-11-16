@@ -1007,8 +1007,13 @@ def part_time_job_vacancy_detail(request, pk):
         job_vacancy_data = JSONParser().parse(request)
         job_vacancy_serializer = PartTimeJobVacancySerializer(job_vacancy, data=job_vacancy_data)
         if job_vacancy_serializer.is_valid():
-            job_vacancy_serializer.save()
-            return JsonResponse(job_vacancy_serializer.data)
+            job_processing = PartTimeJobProcessing(job_vacancy_serializer)
+            res = job_processing.check_vacancy()
+            if res:
+                job_vacancy_serializer.save()
+                return JsonResponse(job_vacancy_serializer.data)
+            else:
+                return JsonResponse(job_processing.serializer.error_list, status=status.HTTP_400_BAD_REQUEST)
         return JsonResponse(job_vacancy_serializer.error_list, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
@@ -1085,6 +1090,7 @@ def part_time_job_request_detail(request, pk):
     if request.method == 'GET':
         job_request_serializer = PartTimeJobRequestSerializer(job_request)
         return JsonResponse(job_request_serializer.data)
+
     elif request.method == 'POST':
         job_request_data = JSONParser().parse(request)
         job_request_serializer = PartTimeJobRequestSerializer(job_request, data=job_request_data)
@@ -1098,6 +1104,7 @@ def part_time_job_request_detail(request, pk):
             else:
                 return JsonResponse(job_processing.serializer.error_list, status=status.HTTP_400_BAD_REQUEST)
         return JsonResponse(job_request_serializer.error_list, status=status.HTTP_400_BAD_REQUEST)
+
     elif request.method == 'DELETE':
         if job_request.request_status == 'created':
             job_request.delete()

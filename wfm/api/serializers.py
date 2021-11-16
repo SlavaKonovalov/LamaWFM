@@ -1,6 +1,3 @@
-import datetime
-from abc import ABC
-
 from django.contrib.auth.models import User
 from django.core.exceptions import NON_FIELD_ERRORS
 from django.db import connection
@@ -271,7 +268,7 @@ class EmployeeShiftDetailPlanSerializer(serializers.ModelSerializer):
 
 class PartTimeJobVacancySerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(required=False)
-    creation_date_time = serializers.DateTimeField(required=False)
+    creation_date_time = serializers.DateTimeField(required=False, read_only=True)
     error_list = {}
 
     class Meta:
@@ -284,53 +281,12 @@ class PartTimeJobVacancySerializer(serializers.ModelSerializer):
             # выходим, если есть ошибки валидации
             self.error_list = self.errors
             return ret
-
-        error_list = {}
-
-        instance_pk = None
-        if self.instance:
-            instance_pk = self.instance.pk
         else:
-            # выходим при сохранении нового объекта
-            if self.validated_data.get('requested_date') <= datetime.date.today():
-                error_list.update({'requested_date': "Дата вакансии должна быть позже текущей"})
-                self.error_list = error_list
-                return False
-            else:
-                return True
-
-        job_vacancy_instance = self.instance
-
-        if self.validated_data.get('vacancy_status') == 'created':
-            if job_vacancy_instance.vacancy_status == 'created':
-                if self.validated_data.get('subdivision') != job_vacancy_instance.subdivision:
-                    error_list.update({'subdivision': "Подразделение не может быть изменено!"})
-
-                if self.validated_data.get('requested_date') <= datetime.date.today():
-                    error_list.update({'requested_date': "Дата вакансии должна быть позже текущей"})
-
-        elif self.validated_data.get('vacancy_status') == 'confirmed':
-            if job_vacancy_instance.vacancy_status == 'created':
-                if self.validated_data.get('requested_date') <= datetime.date.today():
-                    error_list.update({'requested_date': "Дата вакансии должна быть позже текущей"})
-
-            if job_vacancy_instance.vacancy_status == 'approved':
-                error_list.update(
-                    {'vacancy_status': "Откат данного статуса вакансии выполнятся через 'Запрос на подработку'!"})
-
-        elif self.validated_data.get('vacancy_status') == 'approved':
-            if job_vacancy_instance.vacancy_status == 'confirmed':
-                error_list.update({'vacancy_status': "Утверждение вакансии выполнятся через 'Запрос на подработку'!"})
-
-        if error_list:
-            self.error_list = error_list
-
-        return not bool(self.error_list)
+            return True
 
 
 class PartTimeJobRequestSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(required=False)
-    # vacancy = serializers.IntegerField(required=False)
     creation_date_time = serializers.DateTimeField(required=False, read_only=True)
     employee_detail = EmployeeDutiesSerializer(source='employee', many=False, required=False, read_only=True)
     error_list = {}
