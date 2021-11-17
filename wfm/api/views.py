@@ -1039,9 +1039,9 @@ def part_time_job_request_list(request):
         date_to_str = request.query_params.get('date_to', None)
         date_to = datetime.datetime.strptime(date_to_str, "%Y-%m-%d").date() if date_to_str else None
         begin_time_str = request.query_params.get('time_from', None)
-        begin_time = datetime.datetime.strptime(begin_time_str, "%H:%M").time() if begin_time_str else None
+        begin_time = datetime.datetime.strptime(begin_time_str, "%H:%M:%S").time() if begin_time_str else None
         end_time_str = request.query_params.get('time_to', None)
-        end_time = datetime.datetime.strptime(end_time_str, "%H:%M").time() if end_time_str else None
+        end_time = datetime.datetime.strptime(end_time_str, "%H:%M:%S").time() if end_time_str else None
         request_status = request.query_params.get('status', None)
 
         job_request = Part_Time_Job_Employee_Request.objects.all()
