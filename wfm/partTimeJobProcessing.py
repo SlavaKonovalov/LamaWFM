@@ -145,8 +145,8 @@ class PartTimeJobProcessing:
                 if job_vacancy.vacancy_status == 'approved':
                     job_vacancy.vacancy_status = 'confirmed'
                     job_vacancy.save(update_fields=['vacancy_status'])
+                self.serializer.validated_data['vacancy'] = None
 
-        self.serializer.validated_data['vacancy'] = None
         if self.serializer.is_valid():
             self.serializer.save()
         return True
