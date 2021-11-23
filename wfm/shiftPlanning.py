@@ -657,8 +657,6 @@ class ShiftPlanning:
                                                            demand_value__gt=F('covering_value')
                                                            )
 
-        # df_demand_hour_main = demand_hour_main.to_dataframe(['demand_date', 'demand_hour', 'duty_id', 'demand_value',
-        #                                                    'covering_value', 'breaks_value'])
         df_demand_hour_main = pandas.DataFrame(
             demand_hour_main.values_list('demand_hour', 'duty_id', 'demand_value',
                                          'covering_value', 'breaks_value'),
@@ -668,18 +666,23 @@ class ShiftPlanning:
             # не нашли, что покрыть - создаем фикс. смену на всё время
             ShiftPlanning.add_shift(subdivision_id, employee, shift_date, 'fix', begin_time_hour, end_time_hour, fixed)
         else:
+            # qty - осталось покрыть с учетом обедов
             df_demand_hour_main[
                 'qty'] = df_demand_hour_main.demand_value + df_demand_hour_main.breaks_value - df_demand_hour_main.covering_value
+            # вычисляем границы смены
             df_dhm_positive_qty = df_demand_hour_main[(df_demand_hour_main.qty > 0)]
             demand_hour_min = df_dhm_positive_qty.demand_hour.min()
             demand_hour_max = df_dhm_positive_qty.demand_hour.max()
+            # будем смотреть потребность в границах смены
             df_demand_hour_main = df_demand_hour_main[(demand_hour_min <= df_demand_hour_main.demand_hour)
                                                       & (df_demand_hour_main.demand_hour <= demand_hour_max)]
+            # будем брать duty с макс потребностью на каждом часе
             df_demand_hour_main['max_qty'] = df_demand_hour_main.groupby('demand_hour')['qty'].transform('max')
             df_demand_hour_main = df_demand_hour_main[(df_demand_hour_main.max_qty == df_demand_hour_main.qty)]
+            # получаем часы для цикла
             df_hour_set = df_demand_hour_main[['demand_hour']].drop_duplicates()
             df_hour_set = df_hour_set.sort_values(by=['demand_hour'], ascending=[True])
-
+            # добавление смены со ссылкой на Запрос на подработку
             employee_shift_id = ShiftPlanning.add_shift(subdivision_id, employee, shift_date, 'flexible',
                                                         demand_hour_min, demand_hour_max, fixed, job_request_id)
 
@@ -690,6 +693,11 @@ class ShiftPlanning:
                 DemandProcessing.add_shift_to_demand_on_hour(subdivision_id, shift_date,
                                                              res_sample.duty, employee_shift_id,
                                                              res_sample.demand_hour)
+            # планирование обедов
+            begin_date_time = Global.get_combine_datetime(shift_date, datetime.time.min)
+            end_date_time = begin_date_time + datetime.timedelta(days=1)
+            ShiftPlanning.plan_shift_breaks(subdivision_id, begin_date_time, end_date_time, [employee])
+            DemandProcessing.recalculate_breaks_value_on_date(subdivision_id, begin_date_time.date())
 
     @staticmethod
     def get_shift_for_break_dataframe(subdivision_id, begin_date, end_date, employees=None):

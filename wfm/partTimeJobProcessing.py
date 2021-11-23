@@ -147,7 +147,8 @@ class PartTimeJobProcessing:
                 except Part_Time_Job_Vacancy.DoesNotExist:
                     self.serializer.error_list.update({'message': 'The job vacancy does not exist'})
                     return False
-                # TODO удаление смены
+                # удаление смены
+                Employee_Shift.objects.filter(part_time_job_request_id=job_request.id).delete()
                 # откат статуса вакансии
                 if job_vacancy.vacancy_status == 'approved':
                     job_vacancy.vacancy_status = 'confirmed'
