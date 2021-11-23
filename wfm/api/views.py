@@ -579,6 +579,9 @@ class EmployeeShiftView(generics.ListAPIView):
             date_from = datetime.datetime.strptime(date_from_str, "%Y-%m-%d").date()
             date_to = datetime.datetime.strptime(date_to_str, "%Y-%m-%d").date()
             queryset = queryset.filter(shift_date__range=[date_from, date_to])
+        part_time_job_sign = self.request.query_params.get('by_request', None)
+        if part_time_job_sign == 1:
+            queryset = queryset.filter(part_time_job_request__isnull=False)
         return queryset
 
 

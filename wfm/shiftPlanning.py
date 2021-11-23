@@ -112,12 +112,15 @@ class ShiftPlanning:
 
     @staticmethod
     # Создание смены
-    def add_shift(subdivision_id, employee_id, shift_date, shift_type, shift_begin, shift_end):
+    def add_shift(subdivision_id, employee_id, shift_date, shift_type, shift_begin, shift_end, fixed=0,
+                  job_request_id=None):
         employee_shift, created_shift = Employee_Shift.objects.get_or_create(
             employee_id=employee_id,
             subdivision_id=subdivision_id,
             shift_date=shift_date,
-            defaults={'shift_type': shift_type}
+            defaults={'shift_type': shift_type,
+                      'fixed': fixed,
+                      'part_time_job_request_id': job_request_id}
         )
         employee_shift_detail_plan, created_shift_plan = Employee_Shift_Detail_Plan.objects.update_or_create(
             shift_id=employee_shift.id,
@@ -255,7 +258,8 @@ class ShiftPlanning:
         if employees:
             shift_detail_plan = shift_detail_plan.filter(shift__employee_id__in=employees)
         df_shift_plan = pandas.DataFrame(
-            shift_detail_plan.values_list('shift_id', 'shift__employee_id', 'shift__subdivision_id', 'shift__shift_date', 'type',
+            shift_detail_plan.values_list('shift_id', 'shift__employee_id', 'shift__subdivision_id',
+                                          'shift__shift_date', 'type',
                                           'time_from', 'time_to', 'shift__fixed'),
             columns=['shift_id', 'employee', 'subdivision', 'shift_date', 'type', 'time_from', 'time_to', 'fixed'])
         df_shift_plan['hour_from'] = pandas.to_datetime(df_shift_plan['time_from'], format='%H:%M:%S').dt.hour
@@ -385,7 +389,8 @@ class ShiftPlanning:
                 # Учитываем ограничение по времени между сменами по каждому сотруднику
                 if not df_res.empty:
                     # Добавляем предыдущие смены
-                    df_res = pandas.merge(df_res, df_shift_on_date_prev[['employee', 'hour_to']], on=['employee'], how='left')
+                    df_res = pandas.merge(df_res, df_shift_on_date_prev[['employee', 'hour_to']], on=['employee'],
+                                          how='left')
                     df_res.hour_to = df_res.hour_to.fillna(0)
                     # Оставляем только те, у которых прошло более time_between_shifts часов с окончания прошлой смены
                     df_res = df_res[24 - df_res.hour_to + row_demand.hour >= time_between_shifts]
@@ -393,13 +398,14 @@ class ShiftPlanning:
                     df_res['begin_hour_mod'] = (df_res.hour_to + time_between_shifts) % 24
                     # Корректируем начало доступности сотрудника с учетом прошлой смены
                     df_res.loc[(df_res.begin_hour_div == 1) &
-                               (df_res.begin_hour_mod > df_res.av_begin_hour), ['av_begin_hour']] = df_res.begin_hour_mod
+                               (df_res.begin_hour_mod > df_res.av_begin_hour), [
+                                   'av_begin_hour']] = df_res.begin_hour_mod
                     # Повторные проверки доступности по конкретному часу row_demand.hour
                     df_res = df_res[
                         (df_res.av_begin_hour <= row_demand.hour) &  # доступен в этом часу
                         # минимальная длина смены укладывается в доступность:
                         (df_res.av_end_hour - df_res.av_begin_hour >= df_res.shift_duration_min)
-                    ]
+                        ]
 
                 # добавляем df_shift_period, проверяем параметры продолжительности рабочих и выходных дней
                 if not df_res.empty:
@@ -633,6 +639,65 @@ class ShiftPlanning:
             df_shift_period = df_shift_period.assign(qty=df_shift_period.qty + 1)
             # Сбрасываем shift_check
             df_shift_period['shift_check'] = 0
+
+    @staticmethod
+    # Планирование смены для подработки
+    def plan_part_time_job_shift(subdivision_id, employee, duties, shift_date, begin_time, end_time, job_request_id):
+
+        begin_time_hour = begin_time.hour
+        end_time_hour = end_time.hour
+        fixed = 1
+
+        # Получаем dataframe для потребности
+        demand_hour_main = Demand_Hour_Main.objects.filter(subdivision_id=subdivision_id,
+                                                           demand_date=shift_date,
+                                                           demand_hour__gte=begin_time_hour,
+                                                           demand_hour__lt=end_time_hour,
+                                                           duty_id__in=duties,
+                                                           demand_value__gt=F('covering_value')
+                                                           )
+
+        df_demand_hour_main = pandas.DataFrame(
+            demand_hour_main.values_list('demand_hour', 'duty_id', 'demand_value',
+                                         'covering_value', 'breaks_value'),
+            columns=['demand_hour', 'duty', 'demand_value', 'covering_value', 'breaks_value'])
+
+        if df_demand_hour_main.empty:
+            # не нашли, что покрыть - создаем фикс. смену на всё время
+            ShiftPlanning.add_shift(subdivision_id, employee, shift_date, 'fix', begin_time_hour, end_time_hour, fixed)
+        else:
+            # qty - осталось покрыть с учетом обедов
+            df_demand_hour_main[
+                'qty'] = df_demand_hour_main.demand_value + df_demand_hour_main.breaks_value - df_demand_hour_main.covering_value
+            # вычисляем границы смены
+            df_dhm_positive_qty = df_demand_hour_main[(df_demand_hour_main.qty > 0)]
+            demand_hour_min = df_dhm_positive_qty.demand_hour.min()
+            demand_hour_max = df_dhm_positive_qty.demand_hour.max()
+            # будем смотреть потребность в границах смены
+            df_demand_hour_main = df_demand_hour_main[(demand_hour_min <= df_demand_hour_main.demand_hour)
+                                                      & (df_demand_hour_main.demand_hour <= demand_hour_max)]
+            # будем брать duty с макс потребностью на каждом часе
+            df_demand_hour_main['max_qty'] = df_demand_hour_main.groupby('demand_hour')['qty'].transform('max')
+            df_demand_hour_main = df_demand_hour_main[(df_demand_hour_main.max_qty == df_demand_hour_main.qty)]
+            # получаем часы для цикла
+            df_hour_set = df_demand_hour_main[['demand_hour']].drop_duplicates()
+            df_hour_set = df_hour_set.sort_values(by=['demand_hour'], ascending=[True])
+            # добавление смены со ссылкой на Запрос на подработку
+            employee_shift_id = ShiftPlanning.add_shift(subdivision_id, employee, shift_date, 'flexible',
+                                                        demand_hour_min, demand_hour_max, fixed, job_request_id)
+
+            for df_hour_row in df_hour_set.itertuples():
+                df_dhm_on_hour = df_demand_hour_main[(df_demand_hour_main.demand_hour == df_hour_row.demand_hour)]
+                df_res_sample = df_dhm_on_hour.sample()  # берем любого
+                res_sample = df_res_sample.iloc[0]  # получаем серию из dataframe
+                DemandProcessing.add_shift_to_demand_on_hour(subdivision_id, shift_date,
+                                                             res_sample.duty, employee_shift_id,
+                                                             res_sample.demand_hour)
+            # планирование обедов
+            begin_date_time = Global.get_combine_datetime(shift_date, datetime.time.min)
+            end_date_time = begin_date_time + datetime.timedelta(days=1)
+            ShiftPlanning.plan_shift_breaks(subdivision_id, begin_date_time, end_date_time, [employee])
+            DemandProcessing.recalculate_breaks_value_on_date(subdivision_id, begin_date_time.date())
 
     @staticmethod
     def get_shift_for_break_dataframe(subdivision_id, begin_date, end_date, employees=None):

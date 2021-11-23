@@ -3,6 +3,7 @@ import datetime
 from django.db import transaction
 
 from .models import Part_Time_Job_Vacancy, Part_Time_Job_Employee_Request, Employee_Shift
+from .shiftPlanning import ShiftPlanning
 
 
 class PartTimeJobProcessing:
@@ -130,7 +131,13 @@ class PartTimeJobProcessing:
                 if job_vacancy.vacancy_status == 'confirmed':
                     job_vacancy.vacancy_status = 'approved'
                     job_vacancy.save(update_fields=['vacancy_status'])
-                # TODO создание смены
+                # создание смены
+                shift_begin_time = max(job_vacancy.shift_begin_time, job_request.shift_begin_time)
+                shift_end_time = min(job_vacancy.shift_end_time, job_request.shift_end_time)
+                duties_values = list(job_vacancy.duties.values_list('id', flat=True))
+                ShiftPlanning.plan_part_time_job_shift(job_vacancy.subdivision_id, job_request.employee_id,
+                                                       duties_values, job_vacancy.requested_date,
+                                                       shift_begin_time, shift_end_time, job_request.id)
 
         if request_status == 'published':
             if job_request.request_status == 'shift_created':
@@ -140,7 +147,8 @@ class PartTimeJobProcessing:
                 except Part_Time_Job_Vacancy.DoesNotExist:
                     self.serializer.error_list.update({'message': 'The job vacancy does not exist'})
                     return False
-                # TODO удаление смены
+                # удаление смены
+                Employee_Shift.objects.filter(part_time_job_request_id=job_request.id).delete()
                 # откат статуса вакансии
                 if job_vacancy.vacancy_status == 'approved':
                     job_vacancy.vacancy_status = 'confirmed'
