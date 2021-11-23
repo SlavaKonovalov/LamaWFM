@@ -235,4 +235,8 @@ urlpatterns = [
     path('part_time_job_requests/<int:pk>/',
          views.part_time_job_request_detail,
          name='job_request_detail'),
+
+    path('send_email_for_employee/',
+         views.send_email_for_employee,
+         name='send_email_for_employee'),
 ]

@@ -66,6 +66,7 @@ class Subdivision(models.Model):
     shop_open_time = models.TimeField('Время открытия магазина', null=True, blank=True)
     shop_close_time = models.TimeField('Время закрытия магазина', null=True, blank=True)
     area_coefficient = models.DecimalField(max_digits=7, decimal_places=3, verbose_name='Коэффициент площади')
+    email = models.CharField('Почтовый адрес руководителя подразделения', max_length=60, null=True, blank=True)
 
     companies = models.ManyToManyField(Company, verbose_name='Юр. лица', null=True, blank=True)
 

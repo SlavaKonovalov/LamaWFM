@@ -17,6 +17,7 @@ from ..integration.integration_download_data import CreateEmployeesByUploadedDat
 from ..loginProcessing import LoginProcessing
 from ..metricsCalculation import MetricsCalculation
 from ..partTimeJobProcessing import PartTimeJobProcessing
+from ..sendMailProcessing import SendMailProcessing
 from ..shiftPlanning import ShiftPlanning
 from ..taskProcessing import TaskProcessing
 from ..models import Production_Task, Organization, Subdivision, Employee, Employee_Position, Job_Duty, \
@@ -1117,3 +1118,14 @@ def part_time_job_request_detail(request, pk):
         else:
             return JsonResponse({'message': 'Job request status should be "created"!'},
                                 status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET'])
+def send_email_for_employee(request):
+    if request.method == 'GET':
+        subjects = request.query_params.get('subjects')
+        message = request.query_params.get('message')
+        from_email = request.query_params.get('from_email')
+        to_email = request.query_params.get('to_email')
+        send_mail_processing = SendMailProcessing()
+        return send_mail_processing.send_mail(subjects, message, from_email, to_email)
