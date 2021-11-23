@@ -9,7 +9,7 @@ class SendMailProcessing:
         to_email_list = [to_email]
         try:
 
-            send_mail(subjects, message, 'valitovstas@yandex.ru', to_email_list, False, 'valitovstas@yandex.ru', 'Greedisgood990922')
+            send_mail(subjects, message, from_email, to_email_list, False)
         except BadHeaderError:
             return JsonResponse({'message': 'error to send!'},
                                 status=status.HTTP_409_CONFLICT)

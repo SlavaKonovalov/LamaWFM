@@ -88,12 +88,11 @@ TEMPLATES = [
 ]
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = "smtp.yandex.ru"
-EMAIL_HOST_USER = "valitovstas@yandex.ru"
-EMAIL_HOST_PASSWORD = "Greedisgood990922"
-DEFAULT_FROM_EMAIL = 'admin'
+EMAIL_HOST = "relay.lama.tomsk.ru"
+EMAIL_HOST_USER = "ax-zakaz@lama.tomsk.ru"
+EMAIL_HOST_PASSWORD = "gIVDG*$M!bG*"
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
-EMAIL_PORT = 587
+EMAIL_PORT = 25
 EMAIL_USE_TLS = False
 EMAIL_USE_SSL = True
 
