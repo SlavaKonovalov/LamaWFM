@@ -171,11 +171,11 @@ class AvailabilityProcessing:
         for personal_document in personal_documents.iterator():
             try:
                 employee = Employee.objects.get(ref_id_1C=personal_document.ref_id_1C)
-            except employee.DoesNotExist:
+            except Employee.DoesNotExist:
                 continue
             try:
                 subdivision = Subdivision.objects.get(pk=employee.subdivision_id)
-            except subdivision.DoesNotExist:
+            except Subdivision.DoesNotExist:
                 continue
 
             date_start = Global.get_combine_datetime(personal_document.date_from, datetime.time.min)

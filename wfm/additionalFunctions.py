@@ -40,6 +40,7 @@ class Global:
     @staticmethod
     # математическое округление
     def round_math(value):
+        value = Global.toFixed(value, 2)
         return int(value + (0.5 if value > 0 else -0.5))
 
     @staticmethod

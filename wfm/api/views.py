@@ -331,14 +331,23 @@ class AppointedTaskListView(generics.ListAPIView):
 
 @api_view(['POST'])
 def recalculate_history_demand(request):
+    tomorrow_day = Global.get_current_midnight(datetime.datetime.now()) + datetime.timedelta(days=1)
     data = JSONParser().parse(request)
     subdivision_id = data.get('subdivision_id')
     from_date_str = data.get('from_date')
-    from_date = datetime.datetime.strptime(from_date_str, "%Y-%m-%d")
-    from_date = Global.get_current_midnight(from_date)
+    if from_date_str:
+        from_date = datetime.datetime.strptime(from_date_str, "%Y-%m-%d")
+        from_date = Global.get_current_midnight(from_date)
+    else:
+        from_date = tomorrow_day
+
     to_date_str = data.get('to_date')
-    to_date = datetime.datetime.strptime(to_date_str, "%Y-%m-%d")
-    to_date = Global.add_timezone(to_date)
+    if to_date_str:
+        to_date = datetime.datetime.strptime(to_date_str, "%Y-%m-%d")
+        to_date = Global.add_timezone(to_date)
+    else:
+        to_date = tomorrow_day + datetime.timedelta(days=40)
+
     try:
         Subdivision.objects.get(pk=subdivision_id)
     except Subdivision.DoesNotExist:
@@ -496,12 +505,20 @@ def assign_employee_planning_rules(request):
 
 @api_view(['POST'])
 def recalculate_availability(request):
+    tomorrow_day = Global.get_current_midnight(datetime.datetime.now()) + datetime.timedelta(days=1)
     data = JSONParser().parse(request)
     subdivision_id = data.get('subdivision_id')
     employee_id = data.get('employee_id')
-    begin_date = Global.add_timezone(dateutil.parser.parse(data.get('begin_date')))
-    end_date = Global.add_timezone(dateutil.parser.parse(data.get('end_date')))
-    tomorrow_day = Global.get_current_midnight(datetime.datetime.now()) + datetime.timedelta(days=1)
+    data_begin_date = data.get('begin_date')
+    if data_begin_date:
+        begin_date = Global.add_timezone(dateutil.parser.parse(data_begin_date))
+    else:
+        begin_date = tomorrow_day
+    data_end_date = data.get('end_date')
+    if data_end_date:
+        end_date = Global.add_timezone(dateutil.parser.parse(data_end_date))
+    else:
+        end_date = tomorrow_day + datetime.timedelta(days=40)
     begin_date = max(begin_date, tomorrow_day)
     try:
         subdivision = Subdivision.objects.get(pk=subdivision_id)
@@ -810,7 +827,7 @@ def load_availability_from_documents(request):
     try:
         availability_processing = AvailabilityProcessing()
         availability_processing.load_availability_from_documents()
-        return JsonResponse({'message': 'employees were loaded'}, status=status.HTTP_200_OK)
+        return JsonResponse({'message': 'employee documents were loaded'}, status=status.HTTP_200_OK)
     except BaseException as e:
         return JsonResponse({'message': 'internal server error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
