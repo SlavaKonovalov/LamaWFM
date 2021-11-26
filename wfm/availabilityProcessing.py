@@ -10,7 +10,7 @@ from .demandProcessing import DemandProcessing
 from .models import Employee_Availability_Templates, Employee_Availability, Availability_Template_Data, Subdivision, \
     Employee, Personal_Documents
 import datetime as datetime
-
+from django.core.exceptions import MultipleObjectsReturned
 from .shiftPlanning import ShiftPlanning
 
 sys.path.append('..')
@@ -170,8 +170,10 @@ class AvailabilityProcessing:
         documents = []
         for personal_document in personal_documents.iterator():
             try:
-                employee = Employee.objects.get(ref_id_1C=personal_document.ref_id_1C)
+                employee = Employee.objects.get(personnel_number=personal_document.personnel_number)
             except Employee.DoesNotExist:
+                continue
+            except MultipleObjectsReturned:
                 continue
             try:
                 subdivision = Subdivision.objects.get(pk=employee.subdivision_id)

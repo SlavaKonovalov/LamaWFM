@@ -90,5 +90,5 @@ class CreateEmployeesByUploadedData:
                                         ref_id_1C=row['REFID1C'], juristic_person_id=row['JURISTICPERSONID'])
 
         User.objects.bulk_update(users_arr, ['first_name', 'last_name', 'is_active'])
-        Employee.objects.bulk_update(employees_arr, ['middle_name', 'personnel_number'])
+        Employee.objects.bulk_update(employees_arr, ['middle_name', 'personnel_number', 'ref_id_1C', 'juristic_person_id'])
 
