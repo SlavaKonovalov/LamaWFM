@@ -87,7 +87,14 @@ TEMPLATES = [
     },
 ]
 
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = "relay.lama.tomsk.ru"
+EMAIL_HOST_USER = "ax-zakaz@lama.tomsk.ru"
+EMAIL_HOST_PASSWORD = "gIVDG*$M!bG*"
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+EMAIL_PORT = 25
+EMAIL_USE_TLS = False
+EMAIL_USE_SSL = True
 
 WSGI_APPLICATION = 'LamaWFM.wsgi.application'
 
