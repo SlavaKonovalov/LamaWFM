@@ -596,10 +596,43 @@ class EmployeeShiftView(generics.ListAPIView):
             date_from = datetime.datetime.strptime(date_from_str, "%Y-%m-%d").date()
             date_to = datetime.datetime.strptime(date_to_str, "%Y-%m-%d").date()
             queryset = queryset.filter(shift_date__range=[date_from, date_to])
-        part_time_job_sign = self.request.query_params.get('by_request', None)
-        if part_time_job_sign == 1:
-            queryset = queryset.filter(part_time_job_request__isnull=False)
+        part_time_job_sign_str = self.request.query_params.get('by_request', None)
+        if part_time_job_sign_str is not None:
+            part_time_job_sign = int(part_time_job_sign_str)
+            if part_time_job_sign == 1:
+                queryset = queryset.filter(part_time_job_request__isnull=False)
         return queryset
+
+
+class EmployeeListWhoWorkInPartTime(generics.ListAPIView):
+    serializer_class = EmployeeSerializer
+
+    def get_queryset(self):
+        queryset = Employee.objects.all()
+        subdivision_id = self.request.query_params.get('subdivision_id', None)
+        date_from_str = self.request.query_params.get('date_from', None)
+        date_to_str = self.request.query_params.get('date_to', None)
+        if date_from_str is not None and date_to_str is not None:
+            date_from = datetime.datetime.strptime(date_from_str, "%Y-%m-%d").date()
+            date_to = datetime.datetime.strptime(date_to_str, "%Y-%m-%d").date()
+
+        df = ShiftPlanning.get_employee_not_included_in_this_subdivision(subdivision_id,
+                                                                             date_from,
+                                                                             date_to)
+
+        #list_empl = df['id']
+        #for series in list_empl:
+        queryset = queryset.filter(pk__in=df['id'])
+        return queryset
+            #employee = Employee.objects.get(pk=employee_id)
+            #list_empl.append(employee_id)
+        #a = df.to_json()
+        #lists = df['id']
+        #for list_id in lists.iterator():
+            #queryset.filter(id=list_id)
+
+        #response_data = df.to_dict() #to_json()
+
 
 
 @api_view(['POST'])

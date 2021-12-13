@@ -239,4 +239,8 @@ urlpatterns = [
     path('send_email_for_employee/',
          views.send_email_for_employee,
          name='send_email_for_employee'),
+
+    path('employee_list_who_work_in_part_time/',
+         views.EmployeeListWhoWorkInPartTime.as_view(),
+         name='employee_list_who_work_in_part_time'),
 ]

@@ -765,6 +765,35 @@ class ShiftPlanning:
         return df
 
     @staticmethod
+    # Получение списка сотрудников не из этого subdivision, но есть подработка в данном subdivision
+    def get_employee_not_included_in_this_subdivision(subdivision_id, begin_date, end_date):
+        query = """
+                SELECT DISTINCT 
+                    public.wfm_employee.id, 
+                    public.wfm_employee.middle_name, 
+                    public.wfm_employee.personnel_number, 
+                    public.wfm_employee.position_id, 
+                    public.wfm_employee.subdivision_id, 
+                    public.wfm_employee.user_id, 
+                    public.wfm_employee.pf_reg_id, 
+                    public.wfm_employee.juristic_person_id, 
+                    public.wfm_employee."ref_id_1C", 
+                    public.wfm_employee.history_doc_load
+                FROM public.wfm_employee
+                JOIN public.wfm_employee_shift
+                    ON public.wfm_employee_shift.employee_id = public.wfm_employee.id
+                    WHERE public.wfm_employee.subdivision_id IS NOT NULL 
+                        AND public.wfm_employee.subdivision_id <> %s
+                        AND public.wfm_employee_shift.subdivision_id = %s
+                        AND public.wfm_employee_shift.shift_date >= '%s'
+                        AND public.wfm_employee_shift.shift_date <= '%s'
+                        AND public.wfm_employee_shift.part_time_job_request_id IS NOT NULL
+                """ % (subdivision_id, subdivision_id, begin_date, end_date)
+
+        df = pandas.read_sql_query(query, connection)
+        return df
+
+    @staticmethod
     # Поиск часа для назначения перерыва
     def find_hour_for_break(df_hour_break):
         df_hour_first_step_row = pandas.Series()
