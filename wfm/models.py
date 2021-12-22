@@ -905,6 +905,16 @@ class Employee_Shift_Detail_Fact(models.Model):
     time_to = models.TimeField('Время окончания')
 
 
+class Employee_Fact_Scan(models.Model):
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, verbose_name='Сотрудник',
+                                 related_name='fact_scan_set')
+    subdivision = models.ForeignKey(Subdivision, on_delete=models.CASCADE, verbose_name='Подразделение',
+                                    related_name='fact_scan_set')
+    scan_date = models.DateField('Дата фактической смены')
+    time_from = models.TimeField('Время начала')
+    time_to = models.TimeField('Время окончания')
+
+
 class Open_Shift(models.Model):
     subdivision = models.ForeignKey(Subdivision, on_delete=models.CASCADE, verbose_name='Подразделение',
                                     related_name='open_shift_set')

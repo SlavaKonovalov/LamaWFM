@@ -13,7 +13,7 @@ from ..additionalFunctions import Global
 from ..availabilityProcessing import AvailabilityProcessing
 from ..demandProcessing import DemandProcessing
 from ..integration.demand_by_history_calculate import DemandByHistoryDataCalculate
-from ..integration.integration_download_data import CreateEmployeesByUploadedData
+from ..integration.integration_download_data import CreateEmployeesByUploadedData, LoadFactScanForEmployees
 from ..loginProcessing import LoginProcessing
 from ..metricsCalculation import MetricsCalculation
 from ..partTimeJobProcessing import PartTimeJobProcessing
@@ -25,7 +25,7 @@ from ..models import Production_Task, Organization, Subdivision, Employee, Emplo
     Employee_Availability_Templates, Availability_Template_Data, Planning_Method, Working_Hours_Rate, \
     Work_Shift_Planning_Rule, Breaking_Rule, Employee_Planning_Rules, Employee_Availability, Employee_Shift, Holiday, \
     Retail_Store_Format, Open_Shift, Demand_Hour_Main, Demand_Hour_Shift, Global_Parameters, Personal_Documents, \
-    Part_Time_Job_Vacancy, Part_Time_Job_Employee_Request
+    Part_Time_Job_Vacancy, Part_Time_Job_Employee_Request, Employee_Fact_Scan
 from .serializers import ProductionTaskSerializer, OrganizationSerializer, SubdivisionSerializer, EmployeeSerializer, \
     EmployeePositionSerializer, JobDutySerializer, AppointedTaskSerializer, ScheduledProductionTaskSerializer, \
     DemandMainSerializer, CompanySerializer, AvailabilityTemplateSerializer, EmployeeAvailabilityTemplatesSerializer, \
@@ -34,7 +34,7 @@ from .serializers import ProductionTaskSerializer, OrganizationSerializer, Subdi
     AssignEmployeePlanningRulesSerializer, EmployeeAvailabilitySerializer, EmployeeShiftSerializer, HolidaySerializer, \
     RetailStoreFormatSerializer, EmployeeShiftSerializerForUpdate, OpenShiftSerializer, OpenShiftSerializerHeader, \
     EmployeeShiftSerializerHeader, EmployeeUpdateSerializer, GlobalParametersSerializer, PersonalDocumentsSerializer, \
-    PartTimeJobVacancySerializer, PartTimeJobRequestSerializer
+    PartTimeJobVacancySerializer, PartTimeJobRequestSerializer, EmployeeFactScanSerializer
 
 
 class ProductionTaskListView(generics.ListAPIView):
@@ -1182,3 +1182,42 @@ def send_email_for_employee(request):
         to_email = request.query_params.get('to_email')
         send_mail_processing = SendMailProcessing()
         return send_mail_processing.send_mail(subjects, message, from_email, to_email)
+
+
+@api_view(['POST'])
+def load_fact_scan(request):
+    try:
+        load_fact_scan_for_employees = LoadFactScanForEmployees()
+        load_fact_scan_for_employees.run()
+
+        return JsonResponse({'message': 'fact scans were loaded'}, status=status.HTTP_200_OK)
+    except BaseException as e:
+        return JsonResponse({'message': 'internal server error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+def employee_fact_scan_data(request):
+    if request.method == 'GET':
+        subdivision_id = request.query_params.get('subdivision_id', None)
+        employee_id = request.query_params.get('employee_id', None)
+        date_from_str = request.query_params.get('date_from', None)
+        date_from = datetime.datetime.strptime(date_from_str, "%Y-%m-%d").date() if date_from_str else None
+        date_to_str = request.query_params.get('date_to', None)
+        date_to = datetime.datetime.strptime(date_to_str, "%Y-%m-%d").date() if date_to_str else None
+
+        employee_Fact_Scan = Employee_Fact_Scan.objects.all()
+
+        if subdivision_id is not None:
+            employee_Fact_Scan = employee_Fact_Scan.filter(subdivision_id=subdivision_id)
+
+        if employee_id is not None:
+            employee_Fact_Scan = employee_Fact_Scan.filter(employee_id=employee_id)
+
+        if date_from is not None:
+            employee_Fact_Scan = employee_Fact_Scan.filter(scan_date__gte=date_from)
+
+        if date_to is not None:
+            employee_Fact_Scan = employee_Fact_Scan.filter(scan_date__lte=date_to)
+
+        employee_Fact_Scan_serializer = EmployeeFactScanSerializer(employee_Fact_Scan, many=True)
+        return JsonResponse(employee_Fact_Scan_serializer.data, safe=False)

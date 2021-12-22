@@ -243,4 +243,12 @@ urlpatterns = [
     path('employee_list_who_work_in_part_time/',
          views.EmployeeListWhoWorkInPartTime.as_view(),
          name='employee_list_who_work_in_part_time'),
+
+    path('load_fact_scan/',
+         views.load_fact_scan,
+         name='load_fact_scan'),
+
+    path('employee_fact_scan_data/',
+         views.employee_fact_scan_data,
+         name='employee_fact_scan_data'),
 ]

@@ -9,7 +9,7 @@ from ..models import Production_Task, Subdivision, Employee, Scheduled_Productio
     Working_Hours_Rate, Work_Shift_Planning_Rule, Breaking_Rule, Employee_Planning_Rules, Employee_Availability, \
     Employee_Shift_Detail_Plan, Employee_Shift, Holiday_Period, Holiday, Retail_Store_Format, Open_Shift_Detail, \
     Open_Shift, Demand_Hour_Shift, Demand_Hour_Main, Global_Parameters, Personal_Documents, Part_Time_Job_Vacancy, \
-    Part_Time_Job_Employee_Request
+    Part_Time_Job_Employee_Request, Employee_Fact_Scan
 
 
 class ScheduledProductionTaskSerializer(serializers.ModelSerializer):
@@ -509,3 +509,9 @@ class MetricsSerializer(serializers.Serializer):
     from_date = serializers.DateTimeField()
     to_date = serializers.DateTimeField()
     output_data = serializers.ListField()
+
+
+class EmployeeFactScanSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Employee_Fact_Scan
+        fields = '__all__'

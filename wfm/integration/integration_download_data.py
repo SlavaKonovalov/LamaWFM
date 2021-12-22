@@ -7,7 +7,7 @@ from django.contrib.auth.models import User
 from ..db import DataBase
 from ..demandProcessing import DemandProcessing
 from ..models import Business_Indicator, Business_Indicator_Data, Subdivision, Employee, Personal_Documents, \
-    Employee_Availability
+    Employee_Availability, Employee_Fact_Scan
 from ..shiftPlanning import ShiftPlanning
 
 
@@ -91,4 +91,47 @@ class CreateEmployeesByUploadedData:
 
         User.objects.bulk_update(users_arr, ['first_name', 'last_name', 'is_active'])
         Employee.objects.bulk_update(employees_arr, ['middle_name', 'personnel_number', 'ref_id_1C', 'juristic_person_id'])
+
+
+class LoadFactScanForEmployees:
+    def run(self):
+
+        query = """SELECT DISTINCT 
+                        a.ScanDate, 
+                        a.StoreNumber, 
+                        a.PersonnelNumber, 
+                        b.ScanTimeStart,
+                        c.ScanTimeEnd
+                    FROM public.datai_scan_history_log a
+                    JOIN (SELECT MIN(ScanTime) AS ScanTimeStart, ScanDate, StoreNumber, PersonnelNumber, ScanType
+                          FROM public.datai_scan_history_log 
+                          WHERE ScanType = 0 AND ScanDate = CURRENT_DATE  - INTERVAL '1 Day' 
+                          GROUP BY ScanDate, StoreNumber, PersonnelNumber, ScanType) b ON b.ScanDate = a.ScanDate 
+                          AND b.StoreNumber = a.StoreNumber AND b.PersonnelNumber = a.PersonnelNumber
+                    JOIN (SELECT MIN(ScanTime) AS ScanTimeEnd, ScanDate, StoreNumber, PersonnelNumber, ScanType
+                          FROM public.datai_scan_history_log 
+                          WHERE ScanType = 1 AND ScanDate = CURRENT_DATE  - INTERVAL '1 Day' 
+                          GROUP BY ScanDate, StoreNumber, PersonnelNumber, ScanType) c ON c.ScanDate = a.ScanDate 
+                          AND c.StoreNumber = a.StoreNumber AND c.PersonnelNumber = a.PersonnelNumber
+                    WHERE a.ScanDate = CURRENT_DATE  - INTERVAL '1 Day' """
+        dataframe = DataBase.get_dataframe_by_query(query)
+
+        for index, row in dataframe.iterrows():
+            storeNumber = row['storenumber']
+            try:
+                subdivision = Subdivision.objects.get(external_code=storeNumber)
+            except Subdivision.DoesNotExist:
+                continue
+            personnelNumber = row['personnelnumber']
+            try:
+                employee = Employee.objects.get(personnel_number=personnelNumber)
+            except Employee.DoesNotExist:
+                continue
+
+            Employee_Fact_Scan.objects.create(scan_date=row['scandate'], subdivision=subdivision, employee=employee,
+                                              time_from=row['scantimestart'], time_to=row['scantimeend'])
+
+
+
+
 
