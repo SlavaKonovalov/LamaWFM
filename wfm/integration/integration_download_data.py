@@ -77,9 +77,10 @@ class CreateEmployeesByUploadedData:
                         employee.middle_name = row['middle_name']
                         employee.personnel_number = row['personnel_number']
                         employees_arr.append(employee)
-                    if employee.ref_id_1C != row['REFID1C'] or employee.juristic_person_id != row['JURISTICPERSONID']:
+                    if employee.ref_id_1C != row['REFID1C'] or employee.juristic_person_id != row['JURISTICPERSONID'] or employee.dateTo != row['dateTo']:
                         employee.ref_id_1C = row['REFID1C']
                         employee.juristic_person_id = row['JURISTICPERSONID']
+                        employee.dateTo = row['dateTo']
                         employees_arr.append(employee)
                 else:
                     continue
@@ -87,10 +88,10 @@ class CreateEmployeesByUploadedData:
             else:
                 Employee.objects.create(user=user, subdivision=subdivision, middle_name=row['middle_name'],
                                         personnel_number=row['personnel_number'], pf_reg_id=row['pf_reg_num'],
-                                        ref_id_1C=row['REFID1C'], juristic_person_id=row['JURISTICPERSONID'])
+                                        ref_id_1C=row['REFID1C'], juristic_person_id=row['JURISTICPERSONID'], dateTo=row['dateTo'])
 
         User.objects.bulk_update(users_arr, ['first_name', 'last_name', 'is_active'])
-        Employee.objects.bulk_update(employees_arr, ['middle_name', 'personnel_number', 'ref_id_1C', 'juristic_person_id'])
+        Employee.objects.bulk_update(employees_arr, ['middle_name', 'personnel_number', 'ref_id_1C', 'juristic_person_id', 'dateTo'])
 
 
 class LoadFactScanForEmployees:

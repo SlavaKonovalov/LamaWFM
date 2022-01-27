@@ -336,6 +336,7 @@ class Employee(models.Model):
     ref_id_1C = models.CharField('Идентификатор сотрудника', max_length=30, null=True, blank=True)
     juristic_person_id = models.CharField('Юридическое лицо', max_length=10, null=True, blank=True)
     history_doc_load = models.PositiveIntegerField('Загружены исторические документы по сотруднику', default=0)
+    dateTo = models.DateField('Дата увольнения', null=True, blank=True)
 
     objects = DataFrameManager()
 
