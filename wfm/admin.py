@@ -87,6 +87,7 @@ class EmployeeAdmin(admin.ModelAdmin):
                     'pf_reg_id',
                     'get_duties',
                     'get_part_job_org')
+    list_filter = ('subdivision', 'position')
 
 
 @admin.register(Business_Indicator)
@@ -175,7 +176,12 @@ class Employee_Planning_RulesAdmin(admin.ModelAdmin):
                     'planning_method',
                     'breaking_rule',
                     'date_rules_start',
-                    "date_rules_end"]
+                    'date_rules_end', 'employee__subdivision']
+
+    @admin.display(ordering='employee__subdivision', description='Подразделение')
+    def employee__subdivision(self, obj):
+        return obj.employee.subdivision
+    list_filter = ('employee__subdivision', 'working_hours_rate', 'planning_method', 'breaking_rule')
 
 
 @admin.register(Global_Parameters)

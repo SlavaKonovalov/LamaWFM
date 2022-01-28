@@ -71,7 +71,11 @@ class CreateEmployeesByUploadedData:
                     if user.first_name != row['first_name'] or user.last_name != row['last_name'] or user.is_active is not True:
                         user.first_name = row['first_name']
                         user.last_name = row['last_name']
-                        user.is_active = True
+                        dateTo = datetime.date(1900, 1, 1)
+                        if row['dateTo'] == dateTo:
+                            user.is_active = True
+                        else:
+                            user.is_active = False
                         users_arr.append(user)
                     if employee.middle_name != row['middle_name'] or employee.personnel_number != row['personnel_number']:
                         employee.middle_name = row['middle_name']
@@ -82,6 +86,14 @@ class CreateEmployeesByUploadedData:
                         employee.juristic_person_id = row['JURISTICPERSONID']
                         employee.dateTo = row['dateTo']
                         employees_arr.append(employee)
+                        dateTo = datetime.date(1900, 1, 1)
+                        if row['dateTo'] == dateTo:
+                            user.is_active = True
+                        else:
+                            user.is_active = False
+                        user.first_name = row['first_name']
+                        user.last_name = row['last_name']
+                        users_arr.append(user)
                 else:
                     continue
 
