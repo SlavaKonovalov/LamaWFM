@@ -27,7 +27,8 @@ class RetailStoreFormatAdmin(admin.ModelAdmin):
 
 @admin.register(Subdivision)
 class SubdivisionAdmin(admin.ModelAdmin):
-    list_display = ['name', 'external_code', 'organization', 'retail_store_format', 'get_companies', 'shop_open_time', 'shop_close_time', 'area_coefficient']
+    list_display = ['name', 'external_code', 'organization', 'retail_store_format', 'get_companies', 'shop_open_time',
+                    'shop_close_time', 'area_coefficient']
 
 
 # @admin.register(Department)
@@ -38,7 +39,8 @@ class SubdivisionAdmin(admin.ModelAdmin):
 @admin.register(Production_Task)
 class TaskAdmin(admin.ModelAdmin):
     list_display = ('name', 'demand_calculate', 'organization',
-                    'demand_data_source', 'work_scope_measure', 'demand_allocation_method', 'use_area_coefficient', 'pieces_to_minutes_coefficient')
+                    'demand_data_source', 'work_scope_measure', 'demand_allocation_method', 'use_area_coefficient',
+                    'pieces_to_minutes_coefficient')
     list_filter = ('demand_calculate', 'demand_data_source', 'demand_allocation_method')
     search_fields = ['name']
 
@@ -176,11 +178,14 @@ class Employee_Planning_RulesAdmin(admin.ModelAdmin):
                     'planning_method',
                     'breaking_rule',
                     'date_rules_start',
-                    'date_rules_end', 'employee__subdivision']
+                    'date_rules_end',
+                    'employee__subdivision'
+                    ]
 
     @admin.display(ordering='employee__subdivision', description='Подразделение')
     def employee__subdivision(self, obj):
         return obj.employee.subdivision
+
     list_filter = ('employee__subdivision', 'working_hours_rate', 'planning_method', 'breaking_rule')
 
 

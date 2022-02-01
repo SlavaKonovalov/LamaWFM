@@ -63,12 +63,14 @@ class AvailabilityProcessing:
             df_blocked_availability.begin_date_time = df_blocked_availability.begin_date_time.dt.tz_convert(TIME_ZONE)
             df_blocked_availability['date'] = df_blocked_availability.begin_date_time.dt.date
         # собираем назначенные сотрудникам шаблоны
-        templates = Employee_Availability_Templates.objects.filter(
-            Q(end_date__gt=begin_date) | Q(end_date__isnull=True)).order_by('begin_date')
+        templates = Employee_Availability_Templates.objects.select_related('employee__user').filter(employee__user__is_active=True)
         if employee_id:
             templates = templates.filter(employee_id=employee_id)
         else:
-            templates = templates.select_related('employee').filter(employee__subdivision_id=subdivision_id)
+            # templates = templates.select_related('employee').filter(employee__subdivision_id=subdivision_id)
+            templates = templates.filter(employee__subdivision_id=subdivision_id)
+
+        templates = templates.filter(Q(end_date__gt=begin_date) | Q(end_date__isnull=True)).order_by('begin_date')
 
         objects = []
 
@@ -98,6 +100,11 @@ class AvailabilityProcessing:
                     if not df_blocked_availability_step.empty:
                         date_step += datetime.timedelta(days=1)
                         continue
+                # проверяем дату увольнения
+                if template.employee.dateTo is not None and template.employee.dateTo != datetime.date(1900, 1, 1):
+                    if date_step.date() >= template.employee.dateTo:
+                        continue
+
                 week_delta = Global.get_week_delta(template_begin_date, date_step)
                 df_day_of_week = date_step.weekday()
                 df_week_num = (week_delta + template.week_num_appointed) % week_count

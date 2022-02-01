@@ -54,6 +54,8 @@ class CreateEmployeesByUploadedData:
     def run(self):
         users_arr = []
         employees_arr = []
+        today = datetime.date.today()
+        dateToMin = datetime.date(1900, 1, 1)
 
         query = "SELECT  * FROM public.datai_employees_data WHERE subdivision_id <> 0"
 
@@ -71,10 +73,9 @@ class CreateEmployeesByUploadedData:
                     if user.first_name != row['first_name'] or user.last_name != row['last_name'] or user.is_active is not True:
                         user.first_name = row['first_name']
                         user.last_name = row['last_name']
-                        dateTo = datetime.date(1900, 1, 1)
-                        if row['dateTo'] == dateTo:
+                        if row['dateTo'] == dateToMin or row['dateTo'] is None:
                             user.is_active = True
-                        else:
+                        elif row['dateTo'] <= today:
                             user.is_active = False
                         users_arr.append(user)
                     if employee.middle_name != row['middle_name'] or employee.personnel_number != row['personnel_number']:
@@ -86,10 +87,9 @@ class CreateEmployeesByUploadedData:
                         employee.juristic_person_id = row['JURISTICPERSONID']
                         employee.dateTo = row['dateTo']
                         employees_arr.append(employee)
-                        dateTo = datetime.date(1900, 1, 1)
-                        if row['dateTo'] == dateTo:
+                        if row['dateTo'] == dateToMin or row['dateTo'] is None:
                             user.is_active = True
-                        else:
+                        elif row['dateTo'] <= today:
                             user.is_active = False
                         user.first_name = row['first_name']
                         user.last_name = row['last_name']
