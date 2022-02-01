@@ -61,6 +61,9 @@ class MetricsCalculation:
                                          'covering_value', 'breaks_value'),
             columns=['date', 'hour', 'duty', 'demand_value', 'covering_value', 'breaks_value'])
 
+        if df_dhm_on_hour.empty:
+            return MetricsSerializer(self)
+
         df_dhm_on_hour['covering_diff'] = df_dhm_on_hour['covering_value'] - df_dhm_on_hour['demand_value'] - \
                                           df_dhm_on_hour['breaks_value']
         df_dhm_on_hour['overcovering'] = df_dhm_on_hour[df_dhm_on_hour.covering_diff > 0]['covering_diff']
