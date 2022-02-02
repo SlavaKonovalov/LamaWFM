@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 import pandas
 from django.db import transaction, connection
 from django.db.models import Sum, OuterRef, F, Exists, Count, Subquery, Q
@@ -252,7 +254,7 @@ class DemandProcessing:
             .filter(date_time_value__gte=begin_date_time,
                     date_time_value__lt=end_date_time,
                     subdivision_id=appointed_task.scheduled_task.subdivision_id) \
-            .annotate(demand_sum=Coalesce(Sum("demand_detail_task_set__demand_value"), 0)) \
+            .annotate(demand_sum=Coalesce(Sum("demand_detail_task_set__demand_value"), Decimal(0))) \
             .order_by('date_time_value')
 
         df_demand = demand_detail_main_sum.to_dataframe(['demand_sum'], index='id')
@@ -304,7 +306,7 @@ class DemandProcessing:
             .filter(date_time_value__gte=begin_date_time,
                     date_time_value__lt=end_date_time,
                     subdivision_id=appointed_task.scheduled_task.subdivision_id) \
-            .annotate(demand_sum=Coalesce(Sum("demand_detail_task_set__demand_value"), 0)) \
+            .annotate(demand_sum=Coalesce(Sum("demand_detail_task_set__demand_value"), Decimal(0))) \
             .order_by('date_time_value')
 
         df_demand = demand_detail_main_sum.to_dataframe(['demand_sum'], index='id')
@@ -526,7 +528,7 @@ class DemandProcessing:
                 Demand_Hour_Main.objects.prefetch_related('demand_hour_shift_set').filter(
                     id=OuterRef('id'), subdivision_id=subdivision_id, demand_date__gte=date_begin
                 ).annotate(
-                    break_value_sum=Coalesce(Sum('demand_hour_shift_set__break_value'), 0)
+                    break_value_sum=Coalesce(Sum('demand_hour_shift_set__break_value'), Decimal(0))
                 ).values('break_value_sum')[:1]
             )
         )
@@ -539,7 +541,7 @@ class DemandProcessing:
                 Demand_Hour_Main.objects.prefetch_related('demand_hour_shift_set').filter(
                     id=OuterRef('id'), subdivision_id=subdivision_id, demand_date=date_begin
                 ).annotate(
-                    break_value_sum=Coalesce(Sum('demand_hour_shift_set__break_value'), 0)
+                    break_value_sum=Coalesce(Sum('demand_hour_shift_set__break_value'), Decimal(0))
                 ).values('break_value_sum')[:1]
             )
         )
