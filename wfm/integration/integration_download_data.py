@@ -104,6 +104,7 @@ class CreateEmployeesByUploadedData:
 
                     if employee.subdivision.id != subdivision.id:
                         employee.subdivision = subdivision
+                        employees_append_boolean = True
 
                     if users_append_boolean:
                         users_arr.append(user)
