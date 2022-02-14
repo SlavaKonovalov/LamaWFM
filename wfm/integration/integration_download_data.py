@@ -61,6 +61,9 @@ class CreateEmployeesByUploadedData:
 
         dataframe = DataBase.get_dataframe_by_query(query)
         for index, row in dataframe.iterrows():
+            users_append_boolean = False
+            employees_append_boolean = False
+
             username = row['username']
             user_fnd = User.objects.get_or_create(username=username, defaults={'first_name': row['first_name'],
                                                   'last_name': row['last_name'], 'is_active': True})
@@ -69,7 +72,7 @@ class CreateEmployeesByUploadedData:
             if not user_fnd[1]:
                 employee = Employee.objects.get(user_id=user.id)
 
-                if employee and subdivision.id == employee.subdivision.id:
+                if employee:
                     if user.first_name != row['first_name'] or user.last_name != row['last_name'] or user.is_active is not True:
                         user.first_name = row['first_name']
                         user.last_name = row['last_name']
@@ -77,23 +80,35 @@ class CreateEmployeesByUploadedData:
                             user.is_active = True
                         elif row['dateTo'] <= today:
                             user.is_active = False
-                        users_arr.append(user)
-                    if employee.middle_name != row['middle_name'] or employee.personnel_number != row['personnel_number']:
-                        employee.middle_name = row['middle_name']
-                        employee.personnel_number = row['personnel_number']
-                        employees_arr.append(employee)
-                    if employee.ref_id_1C != row['REFID1C'] or employee.juristic_person_id != row['JURISTICPERSONID'] or employee.dateTo != row['dateTo']:
-                        employee.ref_id_1C = row['REFID1C']
-                        employee.juristic_person_id = row['JURISTICPERSONID']
+                        users_append_boolean = True
+
+                    if employee.dateTo != row['dateTo']:
                         employee.dateTo = row['dateTo']
-                        employees_arr.append(employee)
+
                         if row['dateTo'] == dateToMin or row['dateTo'] is None:
                             user.is_active = True
                         elif row['dateTo'] <= today:
                             user.is_active = False
-                        user.first_name = row['first_name']
-                        user.last_name = row['last_name']
+
+                        users_append_boolean = True
+                        employees_append_boolean = True
+
+                    if employee.middle_name != row['middle_name'] or employee.personnel_number != row['personnel_number']:
+                        employee.middle_name = row['middle_name']
+                        employee.personnel_number = row['personnel_number']
+                        employees_append_boolean = True
+                    if employee.ref_id_1C != row['REFID1C'] or employee.juristic_person_id != row['JURISTICPERSONID']:
+                        employee.ref_id_1C = row['REFID1C']
+                        employee.juristic_person_id = row['JURISTICPERSONID']
+                        employees_append_boolean = True
+
+                    if employee.subdivision.id != subdivision.id:
+                        employee.subdivision = subdivision
+
+                    if users_append_boolean:
                         users_arr.append(user)
+                    if employees_append_boolean:
+                        employees_arr.append(employee)
                 else:
                     continue
 
