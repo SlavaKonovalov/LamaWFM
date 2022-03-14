@@ -178,7 +178,7 @@ class AppointedTaskSerializer(serializers.ModelSerializer):
 
 
 class DemandTaskSerializer(serializers.ModelSerializer):
-    task = ProductionTaskShortSerializer(read_only=True, many=False)
+    #task = ProductionTaskShortSerializer(read_only=True, many=False)
 
     class Meta:
         model = Demand_Detail_Task
