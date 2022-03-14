@@ -270,6 +270,7 @@ class Job_Duty(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE,
                                      verbose_name='Организация', related_name='duty_set')
     name = models.CharField('Название', max_length=60)
+    shift_planning_priority = models.PositiveIntegerField('Приоритет планирования', default=1)
     color = ColorField('Цвет', default='#FF0000')
 
     class Meta:

@@ -216,22 +216,22 @@ class ShiftPlanning:
             time_between_shifts = 10
 
         # Получаем dataframe для потребности
-        demand_hour_main = Demand_Hour_Main.objects.filter(subdivision_id=subdivision_id,
-                                                           demand_date__gte=begin_date,
-                                                           demand_date__lt=end_date,
-                                                           demand_value__gt=F('covering_value')
-                                                           )
+        demand_hour_main = Demand_Hour_Main.objects.select_related('duty').filter(subdivision_id=subdivision_id,
+                                                                                  demand_date__gte=begin_date,
+                                                                                  demand_date__lt=end_date,
+                                                                                  demand_value__gt=F('covering_value')
+                                                                                  )
         df_demand_unique = pandas.DataFrame(
-            demand_hour_main.values_list('id', 'demand_date', 'demand_hour', 'duty_id', 'demand_value',
-                                         'covering_value'),
-            columns=['id', 'date', 'hour', 'duty', 'demand_value', 'covering_value'])
+            demand_hour_main.values_list('id', 'demand_date', 'demand_hour', 'duty_id', 'duty__shift_planning_priority',
+                                         'demand_value', 'covering_value'),
+            columns=['id', 'date', 'hour', 'duty', 'planning_priority', 'demand_value', 'covering_value'])
         df_demand_unique['qty'] = df_demand_unique.demand_value - df_demand_unique.covering_value
         # Вычисляем значения "Кол-во часов" и "Последний требуемый час"
         df_demand_unique['count_hour'] = df_demand_unique.groupby(['date', 'duty'])['hour'].transform("count")
         df_demand_unique['last_hour'] = df_demand_unique.groupby(['date', 'duty'])['hour'].transform("max")
         # Сортируем
-        df_demand_unique = df_demand_unique.sort_values(by=['date', 'count_hour', 'duty', 'hour'],
-                                                        ascending=[True, True, True, True])
+        df_demand_unique = df_demand_unique.sort_values(by=['date', 'planning_priority', 'count_hour', 'duty', 'hour'],
+                                                        ascending=[True, True, True, True, True])
         # Получаем dataframe со списком дат
         df_demand_date = df_demand_unique[['date']].drop_duplicates()
 
