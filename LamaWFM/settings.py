@@ -100,7 +100,7 @@ DATABASES = {
         'NAME': 'wfm',
         'USER': 'postgres',
         'PASSWORD': 'postgres',  #'Awir7bee', #
-        'HOST': '10.0.6.159', #'10.0.0.238',  #
+        'HOST': '10.0.4.110', #'10.0.0.238',  #
         'PORT': '5432',
     }
 }
