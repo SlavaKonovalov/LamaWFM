@@ -137,6 +137,10 @@ class Production_Task(models.Model):
                                                         verbose_name='Коэффициент перевода штук в минуты',
                                                         validators=[MinValueValidator(Decimal('0.001'))],
                                                         default=1)
+    demand_distribution_coefficient = models.DecimalField(max_digits=7, decimal_places=3,
+                                                          verbose_name='Коэффициент распределения',
+                                                          validators=[MinValueValidator(Decimal('0.001'))],
+                                                          default=1)
 
     class Meta:
         verbose_name = 'Производственная задача'
@@ -392,6 +396,7 @@ class Business_Indicator(models.Model):
                                                     related_name='business_indicator_set')
     use_queue_coefficient = models.BooleanField('Использовать коэффициент очередей', default=False)
     is_calculated = models.BooleanField('Загружается спланированным', default=False)
+    use_area_coefficient = models.BooleanField('Использовать коэффициент площади', default=False)
 
     class Meta:
         verbose_name = 'Показатель бизнеса'
