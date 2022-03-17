@@ -58,7 +58,7 @@ class DemandByHistoryDataCalculate:
         self.clear_predicted_production_task(predictable_production_task.pk, business_indicator.pk)
 
         query = "SELECT " \
-                "begin_date_time::TIMESTAMP AS begin_date_time, " \
+                "begin_date_time AS begin_date_time, " \
                 "CAST(date_part('isodow',begin_date_time) AS INT) AS dayofweek, " \
                 "begin_date_time::time AS begin_time, " \
                 "CAST((EXTRACT(HOUR FROM begin_date_time) * 3600 + EXTRACT(MIN FROM begin_date_time) * 60 " \
@@ -128,7 +128,7 @@ class DemandByHistoryDataCalculate:
         work_scope_time = work_scope_time * predictable_production_task.subdivision.retail_store_format.queue_coefficient \
             if business_indicator.use_queue_coefficient \
             else work_scope_time
-        if predictable_production_task.task.use_area_coefficient:
+        if predictable_production_task.task.use_area_coefficient or business_indicator.use_area_coefficient:
             work_scope_time = Global.round_math(
                 predictable_production_task.subdivision.area_coefficient * work_scope_time)
         predicted_production_task.work_scope_time = work_scope_time if work_scope_time else 1
