@@ -155,6 +155,11 @@ class ShiftPlanning:
             employee_shift = employee_shift.filter(subdivision_id=subdivision_id)
         # Удаляем смены
         employee_shift.filter(fixed=0, shift_date__gte=begin_date, shift_date__lt=end_date).delete()
+        # Удаляем фиксированные смены неработающих сотрудников
+
+        employee_shift.select_related("employee__user").filter(fixed=1, employee__user__is_active=0,
+                                                               shift_date__gte=begin_date,
+                                                               shift_date__lt=end_date).delete()
         # Удаляем открытые смены
         if not employees:
             Open_Shift.objects.filter(subdivision_id=subdivision_id, shift_date__gte=begin_date,
@@ -357,6 +362,8 @@ class ShiftPlanning:
             df_demand_on_date = df_demand_unique[(df_demand_unique.date == row_date.date)]
             # Добавляем признак "Покрывалось". Устанавливается на ФО, если назначалась хоть одна смена
             df_demand_on_date['covered'] = -df_demand_on_date['covering_value']
+            # df_demand_on_date_check не изменяется. Используется для анализа ФО при построении смены
+            df_demand_on_date_check = df_demand_on_date
             # df_shift_on_date_prev - смены за предыдущий день. Для соблюдения интервала между сменами
             df_shift_on_date_prev = df_shift_on_date
             # обнуляем df_shift_on_date
@@ -489,7 +496,7 @@ class ShiftPlanning:
                     df_res.hours_sum = df_res.hours_sum.fillna(0)  # Меняем NULL на 0
                     min_hours_sum = df_res.hours_sum.min()  # находим минимальное кол-во часов
                     # Ищем сотрудников с минимальным кол-вом часов
-                    df_res = df_res[(df_res.hours_sum <= min_hours_sum + 2)]  # 2 - это погрешность (в часах)
+                    df_res = df_res[(df_res.hours_sum <= min_hours_sum + 10)]  # 10 - это погрешность (в часах)
 
                     # Минимальная доступность. Вариант отбора -->
                     # res['min_availability'] = df_availability.av_end_hour - df_availability.av_begin_hour
@@ -541,34 +548,53 @@ class ShiftPlanning:
                                                                 'flexible', shift_begin, shift_end)
 
                     # добавление смены в Demand_Hour_Shift
+                    # empty_hours_list - незанятые часы из выбранного промежутка
                     empty_hours_list = DemandProcessing.add_shift_to_demand(subdivision_id, row_demand.date,
                                                                             row_demand.duty, employee_shift_id,
-                                                                            shift_begin, shift_end)
-                    # empty_hours_list - часы без потребности
-                    if empty_hours_list:
-                        # нужно занять сотрудника на эти часы
-                        for empty_hours_value in empty_hours_list:
-                            # ищем доступные ФО
-                            df_available_duties = df_availability[(df_availability.employee == res_sample.employee) &
-                                                                  (df_availability.date == row_date.date)
-                                                                  ][['duty']]
-                            duties_list = df_available_duties['duty'].values.tolist()
-                            # берем любую потребность на выбранный час для любой другой доступной ФО
-                            df_demand_to_cover = df_demand_on_date[df_demand_on_date['hour'].isin([empty_hours_value])
-                                                                   & df_demand_on_date['duty'].isin(duties_list)
-                                                                   & (df_demand_on_date.duty != row_demand.duty)
-                                                                   & (df_demand_on_date.qty > 0)]
-                            if not df_demand_to_cover.empty:
-                                row_to_cover = df_demand_to_cover.iloc[0]
+                                                                            shift_begin, shift_end, df_demand_on_date)
 
-                                DemandProcessing.add_shift_to_demand_on_hour(subdivision_id, row_to_cover.date,
-                                                                             row_to_cover.duty, employee_shift_id,
-                                                                             empty_hours_value)
+                    # корректируем покрытие по назначенным часам
+                    df_demand_on_date.loc[(df_demand_on_date.duty == row_demand.duty) &
+                                          (~df_demand_on_date['hour'].isin([empty_hours_list])) &
+                                          (shift_begin <= df_demand_on_date.hour) &
+                                          (df_demand_on_date.hour < shift_end),
+                                          ['qty', 'covered']] -= 1
 
-                                df_demand_on_date.loc[(df_demand_on_date.date == row_to_cover.date) &
-                                                      (df_demand_on_date.duty == row_to_cover.duty) &
-                                                      (df_demand_on_date.hour == empty_hours_value),
-                                                      ['qty', 'covered']] -= 1
+                    # ищем доступные ФО
+                    df_available_duties = df_availability[(df_availability.employee == res_sample.employee) &
+                                                          (df_availability.date == row_date.date)
+                                                          ][['duty']]
+                    duties_list = df_available_duties['duty'].values.tolist()
+
+                    # цикл по неиспользованным часам
+                    # пытаемся найти задачи сотруднику по этим часам
+                    for hour_step in empty_hours_list:
+                        # берем любую потребность на выбранный час для любой доступной непокрытой ФО
+                        df_demand_to_cover = df_demand_on_date[
+                            (df_demand_on_date.hour == hour_step)
+                            & df_demand_on_date['duty'].isin(duties_list)
+                            & (df_demand_on_date.qty > 0)]
+                        # Если не нашли ФО с потребностью, то пробуем закрыть текущую ФО
+                        if df_demand_to_cover.empty:
+                            df_demand_to_cover = df_demand_on_date_check[
+                                (df_demand_on_date_check.hour == hour_step)
+                                & (df_demand_on_date_check.duty == row_demand.duty)]
+                        # Если не нашли текущую ФО, то пробуем закрыть любую ФО
+                        if df_demand_to_cover.empty:
+                            df_demand_to_cover = df_demand_on_date_check[
+                                (df_demand_on_date_check.hour == hour_step)
+                                & df_demand_on_date_check['duty'].isin(duties_list)]
+
+                        if not df_demand_to_cover.empty:
+                            row_to_cover = df_demand_to_cover.iloc[0]
+
+                            DemandProcessing.add_shift_to_demand_on_hour(subdivision_id, row_to_cover.date,
+                                                                         row_to_cover.duty, employee_shift_id,
+                                                                         hour_step)
+
+                            df_demand_on_date.loc[(df_demand_on_date.duty == row_to_cover.duty) &
+                                                  (df_demand_on_date.hour == hour_step),
+                                                  ['qty', 'covered']] -= 1
 
                     shift_duration_max = res_sample.shift_duration_max if res_sample.shift_duration_max else res_sample.shift_duration_min
                     df_shift_on_date_row = pandas.Series(data={'employee': res_sample.employee,
@@ -581,12 +607,8 @@ class ShiftPlanning:
                     # удаляем доступность сотрудника в этот день из dataframe
                     df_availability.loc[(df_availability.date == row_demand.date) &
                                         (df_availability.employee == res_sample.employee), ['appointed']] = 1
-                    # Уменьшаем qty (потребность) и covered на всём интервале на 1
-                    df_demand_on_date.loc[(df_demand_on_date.date == row_demand.date) &
-                                          (df_demand_on_date.duty == row_demand.duty) &
-                                          (shift_begin <= df_demand_on_date.hour) &
-                                          (df_demand_on_date.hour < shift_end), ['qty', 'covered']] -= 1
 
+                    # корректируем df_shift_period
                     if not res_sample.qty:
                         df_shift_period_row = pandas.Series(data={'employee': res_sample.employee,
                                                                   'works': 1,
@@ -598,7 +620,7 @@ class ShiftPlanning:
                         df_shift_period.loc[(df_shift_period.employee == res_sample.employee), ['qty']] = 0
                     df_shift_period.loc[(df_shift_period.employee == res_sample.employee), ['shift_check']] = 1
 
-            # обработка df_shift_period для фиксированных смен
+            # обработка df_shift_period для заблокированных смен
             # Начало -->
             df_existing_shifts_on_date = df_existing_shifts[(df_existing_shifts.shift_date == row_date.date)]
             if not df_existing_shifts_on_date.empty:
@@ -895,6 +917,10 @@ class ShiftPlanning:
                 # Для первого обеда обрезаем с конца время между перерывами
                 df_hour_break = df_hour[(df_hour.demand_hour < row_shift.hour_to - hours_after_second - time_between)]
 
+                # Если пусто - берем минимальный час (с учетом ограничения снизу)
+                if df_hour_break.empty:
+                    df_hour_break = df_hour[(df_hour.demand_hour == row_shift.hour_from + hours_before_first)]
+
                 if df_hour_break.empty:
                     continue
                 # Накладываем потребность
@@ -965,6 +991,11 @@ class ShiftPlanning:
                         # Смещаем теперь левую границу на time_between
                         df_hour_break = df_hour[(df_hour.demand_hour >= shift_begin_hour + time_between)
                                                 & (df_hour.demand_hour < row_shift.hour_to - hours_after_second)]
+
+                        # Если пусто - берем максимальный час (с учетом ограничения сверху)
+                        if df_hour_break.empty:
+                            df_hour_break = df_hour[(df_hour.demand_hour == row_shift.hour_to - hours_after_second - 1)]
+
                         if df_hour_break.empty:
                             continue
 
@@ -981,17 +1012,13 @@ class ShiftPlanning:
                         df_hour_first_step_row = ShiftPlanning.find_hour_for_break(df_hour_break)
 
                         if not df_hour_first_step_row.empty:
-                            # Если разница между часами = time_between, то берем начало с 30 минут.
-                            if df_hour_first_step_row.demand_hour - time_between == shift_begin_hour:
-                                shift_begin_min = 30
-                            else:
-                                df_break_list_on_hour = df_break_list[
-                                    (df_break_list.hour == df_hour_first_step_row.demand_hour)]
-                                df_break_list_on_hour = df_break_list_on_hour[
-                                    (df_break_list_on_hour.break_qty == df_break_list_on_hour.break_qty.min())]
-                                df_break_list_on_hour_row = df_break_list_on_hour.iloc[0]
+                            df_break_list_on_hour = df_break_list[
+                                (df_break_list.hour == df_hour_first_step_row.demand_hour)]
+                            df_break_list_on_hour = df_break_list_on_hour[
+                                (df_break_list_on_hour.break_qty == df_break_list_on_hour.break_qty.min())]
+                            df_break_list_on_hour_row = df_break_list_on_hour.iloc[0]
 
-                                shift_begin_min = df_break_list_on_hour_row.minute_begin
+                            shift_begin_min = df_break_list_on_hour_row.minute_begin
 
                             shift_begin_hour = df_hour_first_step_row.demand_hour
                             shift_end_hour = int((shift_begin_hour * 60 + shift_begin_min + break_second) / 60)

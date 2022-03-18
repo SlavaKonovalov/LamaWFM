@@ -464,24 +464,36 @@ class DemandProcessing:
 
     @staticmethod
     # Добавление смены за период (покрытие потребности)
-    def add_shift_to_demand(subdivision_id, demand_date, duty_id, shift_id, hour_from, hour_to):
+    def add_shift_to_demand(subdivision_id, demand_date, duty_id, shift_id, hour_from, hour_to,
+                            df_demand_on_date=pandas.DataFrame()):
+
         demand_hour_main = Demand_Hour_Main.objects.filter(subdivision_id=subdivision_id, demand_date=demand_date,
                                                            duty_id=duty_id,
                                                            demand_hour__gte=hour_from, demand_hour__lt=hour_to)
         objects = []
         hours_main = []
         hours_list = []
+        df_demand_on_date_loc = df_demand_on_date
+
         for dhm in demand_hour_main.iterator():
-            line = Demand_Hour_Shift(
-                demand_hour_main_id=dhm.id,
-                shift_id=shift_id
-            )
-            objects.append(line)
-            hours_main.append(dhm.demand_hour)
+            if not df_demand_on_date.empty:
+                # проверяем покрытие на конкретный час
+                # если ФО покрыта полностью (qty <= 0), то этот час пропускаем
+                df_demand_on_date_loc = df_demand_on_date[(df_demand_on_date.duty == duty_id) &
+                                                          (df_demand_on_date.hour == dhm.demand_hour) &
+                                                          (df_demand_on_date.qty > 0)]
+            if not df_demand_on_date_loc.empty or df_demand_on_date.empty:
+                line = Demand_Hour_Shift(
+                    demand_hour_main_id=dhm.id,
+                    shift_id=shift_id
+                )
+                objects.append(line)
+                hours_main.append(dhm.demand_hour)
 
         if objects:
             Demand_Hour_Shift.objects.bulk_create(objects, ignore_conflicts=True)
 
+        # формируем список пропущенных часов
         if (hour_to - hour_from) != len(hours_main):
             hour_step = hour_from
             while hour_step < hour_to:

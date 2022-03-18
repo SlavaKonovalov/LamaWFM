@@ -87,7 +87,7 @@ class MetricsCalculation:
         df_dhm_on_date = df_dhm_on_hour[
             ['date', 'duty', 'demand_sum', 'covering_sum', 'breaks_sum', 'overcovering_value',
              'undercovering_value']].drop_duplicates()
-        df_dhm_on_date['covering_clear'] = df_dhm_on_date.covering_sum - df_dhm_on_date.breaks_sum
+        df_dhm_on_date['covering_clear'] = df_dhm_on_date.covering_sum  # - df_dhm_on_date.breaks_sum
         # отрицательные значения чистого покрытия сводим к 0:
         df_dhm_on_date.covering_clear = df_dhm_on_date.covering_clear.apply(lambda x: 0 if x < 0 else x)
         df_dhm_on_date['covering_percentage'] = ((df_dhm_on_date.covering_clear - df_dhm_on_date.overcovering_value
