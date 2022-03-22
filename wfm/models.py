@@ -579,6 +579,8 @@ class Global_Parameters(models.Model):
                                                     default=0, editable=False)
     time_between_shifts = models.PositiveIntegerField('Мин. время между сменами сотрудника (часы)',
                                                       default=1, editable=False)
+    shift_employment_min_percent = models.PositiveIntegerField(
+        'Удалять смены с процентом занятости ниже данного значения (%)', editable=False, null=True)
     colorForWithoutDemand = ColorField('Цвет для задач без потребности', default='#0000FF')
     colorForAvailabilityWithDoc = ColorField('Цвет для временного отсутствия с кадровым документом', default='#0000FF')
     colorForAvailabilityWithoutDoc = ColorField('Цвет для временного отсутствия без кадрового документа',

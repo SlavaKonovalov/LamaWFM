@@ -72,8 +72,9 @@ class DemandProcessing:
                 )
             if source_type == 'statistical_scheduler':
                 appointed_production_task = Appointed_Production_Task.objects.select_related(
-                    'scheduled_task__task').filter(scheduled_task__task_id=predicted_task.get('task_id')).filter(
-                    date=predicted_task.get('begin_date_time')).first()
+                    'scheduled_task__task').filter(scheduled_task__task_id=predicted_task.get('task_id'),
+                                                   scheduled_task__subdivision_id=subdivision_id,
+                                                   date=predicted_task.get('begin_date_time')).first()
 
                 if appointed_production_task:
                     appointed_production_task.work_scope_time = float(predicted_task.get('demand_sum'))

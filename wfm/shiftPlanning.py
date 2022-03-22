@@ -182,6 +182,19 @@ class ShiftPlanning:
                                       shift_date__lt=end_date).delete()
 
     @staticmethod
+    def check_shift_expediency(df_demand_on_date, shift_begin, shift_end, duties_list):
+        hour_step = shift_begin
+        while hour_step < shift_end:
+            df_demand_to_cover = df_demand_on_date[
+                (df_demand_on_date.hour == hour_step)
+                & df_demand_on_date['duty'].isin(duties_list)
+                & (df_demand_on_date.qty > 0)]
+            # Если не нашли ФО с потребностью, то пробуем закрыть текущую ФО
+            if df_demand_to_cover.empty:
+                a = 1
+            hour_step += 1
+
+    @staticmethod
     def plan_fix_shifts(subdivision_id, begin_date_time, end_date_time, employees=None):
         begin_date = begin_date_time.date()
         end_date = end_date_time.date()
@@ -215,8 +228,13 @@ class ShiftPlanning:
     def plan_flexible_shifts(subdivision_id, begin_date_time, end_date_time, employees=None):
         begin_date = begin_date_time.date()
         end_date = end_date_time.date()
+
+        global_Parameters = Global_Parameters.objects.all().first()
+        # shift_min_percent - минимальная занятость сотрудника.
+        # Если эффективные часы в смене ниже этого процента - смена удаляется
+        shift_min_percent = global_Parameters.shift_employment_min_percent
         # time_between_shifts - Мин. время между сменами сотрудника (часы)
-        time_between_shifts = Global_Parameters.objects.all().first().time_between_shifts
+        time_between_shifts = global_Parameters.time_between_shifts
         if not time_between_shifts:
             time_between_shifts = 10
 
@@ -526,6 +544,7 @@ class ShiftPlanning:
                         shift_end = shift_begin + res_sample.shift_duration_min
                     else:
                         shift_begin = row_demand.hour
+                        """
                         if res_sample.shift_duration_max:  # если продолжительность смены не фиксирована
                             if max_hour_value - row_demand.hour <= res_sample.shift_duration_max:  # можем покрыть всё?
                                 shift_end = max_hour_value
@@ -534,7 +553,19 @@ class ShiftPlanning:
                                                                   res_sample.shift_duration_max)
                         else:
                             shift_end = shift_begin + res_sample.shift_duration_min
+                        """
+                        # Будем брать минимальную длину смены
+                        shift_end = shift_begin + res_sample.shift_duration_min
                     shift_length = shift_end - shift_begin
+
+                    # ищем доступные ФО для сотрудника
+                    df_available_duties = df_availability[(df_availability.employee == res_sample.employee) &
+                                                          (df_availability.date == row_date.date)
+                                                          ][['duty']]
+                    duties_list = df_available_duties['duty'].values.tolist()
+
+                    # проверямем целесообразность смены
+                    ShiftPlanning.check_shift_expediency(df_demand_on_date, shift_begin, shift_end, duties_list)
 
                     # Добавляем смену и кол-во часов новой смены сотруднику
                     if df_covering.employee.isin([res_sample.employee]).any().any():
@@ -559,12 +590,6 @@ class ShiftPlanning:
                                           (shift_begin <= df_demand_on_date.hour) &
                                           (df_demand_on_date.hour < shift_end),
                                           ['qty', 'covered']] -= 1
-
-                    # ищем доступные ФО
-                    df_available_duties = df_availability[(df_availability.employee == res_sample.employee) &
-                                                          (df_availability.date == row_date.date)
-                                                          ][['duty']]
-                    duties_list = df_available_duties['duty'].values.tolist()
 
                     # цикл по неиспользованным часам
                     # пытаемся найти задачи сотруднику по этим часам
@@ -834,12 +859,12 @@ class ShiftPlanning:
                 df_hour_first_step_row = df_hour_break_step.iloc[0]
         # Если таких нет, то ищем строку с demand_value > 1 и qty = 0
         if df_hour_first_step_row.empty:
-            df_hour_break_step = df_hour_break[(df_hour_break.demand_value > 1) & (df_hour_break.qty == 0)]
+            df_hour_break_step = df_hour_break[(df_hour_break.demand_value > 1) & (df_hour_break.qty <= 0)]
             if not df_hour_break_step.empty:
                 df_hour_first_step_row = df_hour_break_step.iloc[0]
         # Если таких нет, то ищем строку с demand_value = 1 и qty = 0
         if df_hour_first_step_row.empty:
-            df_hour_break_step = df_hour_break[(df_hour_break.demand_value == 1) & (df_hour_break.qty == 0)]
+            df_hour_break_step = df_hour_break[(df_hour_break.demand_value == 1) & (df_hour_break.qty <= 0)]
             if not df_hour_break_step.empty:
                 df_hour_first_step_row = df_hour_break_step.iloc[0]
         # Если таких нет, то ищем первую строку с demand_value = 1 и qty_max

@@ -347,7 +347,7 @@ def recalculate_history_demand(request):
         to_date = datetime.datetime.strptime(to_date_str, "%Y-%m-%d")
         to_date = Global.add_timezone(to_date)
     else:
-        to_date = tomorrow_day + datetime.timedelta(days=40)
+        to_date = tomorrow_day + datetime.timedelta(days=45)
 
     try:
         Subdivision.objects.get(pk=subdivision_id)
@@ -519,7 +519,7 @@ def recalculate_availability(request):
     if data_end_date:
         end_date = Global.add_timezone(dateutil.parser.parse(data_end_date))
     else:
-        end_date = tomorrow_day + datetime.timedelta(days=40)
+        end_date = tomorrow_day + datetime.timedelta(days=45)
     begin_date = max(begin_date, tomorrow_day)
     try:
         subdivision = Subdivision.objects.get(pk=subdivision_id)

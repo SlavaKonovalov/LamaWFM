@@ -128,7 +128,7 @@ class DemandByHistoryDataCalculate:
         work_scope_time = work_scope_time * predictable_production_task.subdivision.retail_store_format.queue_coefficient \
             if business_indicator.use_queue_coefficient \
             else work_scope_time
-        if predictable_production_task.task.use_area_coefficient or business_indicator.use_area_coefficient:
+        if predictable_production_task.task.use_area_coefficient and business_indicator.use_area_coefficient:
             work_scope_time = Global.round_math(
                 predictable_production_task.subdivision.area_coefficient * work_scope_time)
         predicted_production_task.work_scope_time = work_scope_time if work_scope_time else 1
