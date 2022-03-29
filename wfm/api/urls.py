@@ -251,4 +251,8 @@ urlpatterns = [
     path('employee_fact_scan_data/',
          views.employee_fact_scan_data,
          name='employee_fact_scan_data'),
+
+    path('get_demand_with_fix_rate/',
+         views.get_demand_with_fix_rate,
+         name='get_demand_with_fix_rate'),
 ]

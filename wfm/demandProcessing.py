@@ -8,6 +8,7 @@ from django.http import JsonResponse
 from rest_framework import status
 
 from .additionalFunctions import Global
+from .db import DataBase
 from .models import Demand_Detail_Main, Demand_Detail_Task, Global_Parameters, \
     Appointed_Production_Task, Predicted_Production_Task, Production_Task, Tasks_In_Duty, Demand_Hour_Main, \
     Demand_Hour_Shift
@@ -558,3 +559,35 @@ class DemandProcessing:
                 ).values('break_value_sum')[:1]
             )
         )
+
+    @staticmethod
+    def get_demand_with_fix_rate(subdivision_id, date_start, date_end, datetime_start, datetime_end):
+        response_data = {}
+        record_data = []
+        query = """
+            SELECT 
+                SUM(date_part('hour',age(ea.end_date_time, ea.begin_date_time))) AS hour_count, 
+                ep.short_name 
+            FROM public.wfm_employee_position ep 
+            JOIN public.wfm_employee e ON e.position_id = ep.id
+            JOIN public.wfm_employee_planning_rules epr ON epr.employee_id = e.id
+            JOIN public.wfm_planning_method pm ON pm.id = epr.planning_method_id
+            JOIN public.wfm_employee_availability ea ON ea.employee_id = e.id AND ea.availability_type = 0 
+                AND ea.subdivision_id = e.subdivision_id
+            WHERE e.subdivision_id = %s
+                AND (e."dateTo" = '1900-01-01' OR e."dateTo" <= '%s' OR e."dateTo" IS NULL)
+                AND epr.date_rules_start >= '%s'
+                AND (epr.date_rules_end <= '%s' OR epr.date_rules_end IS NULL)
+                AND pm.shift_type = 'fix'
+                AND ea.begin_date_time >= '%s'
+                AND ea.end_date_time <= '%s'
+            GROUP BY ep.short_name  
+            """ % (subdivision_id, date_end, date_start, date_end, datetime_start, datetime_end)
+        dataframe = DataBase.get_dataframe_by_query(query)
+        for list in dataframe.itertuples():
+            record = {'id': list.Index, 'short_name': list.short_name, 'hour_count': list.hour_count}
+            record_data.append(record)
+        response_data['data'] = record_data
+        return JsonResponse(response_data, status=status.HTTP_200_OK)
+
+
