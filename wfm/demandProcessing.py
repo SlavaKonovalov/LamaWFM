@@ -576,13 +576,12 @@ class DemandProcessing:
                 AND ea.subdivision_id = e.subdivision_id
             WHERE e.subdivision_id = %s
                 AND (e."dateTo" = '1900-01-01' OR e."dateTo" <= '%s' OR e."dateTo" IS NULL)
-                AND epr.date_rules_start >= '%s'
                 AND (epr.date_rules_end <= '%s' OR epr.date_rules_end IS NULL)
                 AND pm.shift_type = 'fix'
                 AND ea.begin_date_time >= '%s'
                 AND ea.end_date_time <= '%s'
             GROUP BY ep.short_name  
-            """ % (subdivision_id, date_end, date_start, date_end, datetime_start, datetime_end)
+            """ % (subdivision_id, date_end, date_end, datetime_start, datetime_end)
         dataframe = DataBase.get_dataframe_by_query(query)
         for list in dataframe.itertuples():
             record = {'id': list.Index, 'short_name': list.short_name, 'hour_count': list.hour_count}
