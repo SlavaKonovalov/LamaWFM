@@ -563,6 +563,7 @@ def plan_shifts(request):
     employees = data.get('employees')
     begin_date = dateutil.parser.parse(data.get('begin_date'))
     end_date = dateutil.parser.parse(data.get('end_date'))
+    end_date = end_date + datetime.timedelta(days=1)  # Из даты "до" делаем "по"
     tomorrow_day = Global.get_current_midnight(datetime.datetime.now()) + datetime.timedelta(days=1)
     begin_date = max(begin_date, tomorrow_day)
     # Обрезаем end_date до начала следующего месяца
