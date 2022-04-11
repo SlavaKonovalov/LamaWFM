@@ -92,6 +92,7 @@ class MetricsCalculation:
         df_dhm_on_date.covering_clear = df_dhm_on_date.covering_clear.apply(lambda x: 0 if x < 0 else x)
         df_dhm_on_date['covering_percentage'] = ((df_dhm_on_date.covering_clear - df_dhm_on_date.overcovering_value
                                                   ) / df_dhm_on_date.demand_sum).astype('float')
+        df_dhm_on_date.covering_percentage = df_dhm_on_date.covering_percentage.fillna(0)
         df_dhm_on_date['utilization_percentage'] = df_dhm_on_date.apply(
             lambda x: (x['demand_sum'] - x['undercovering_value']
                        ) / x['covering_clear'] if x['covering_clear'] != 0 else 0, axis=1).astype('float')
