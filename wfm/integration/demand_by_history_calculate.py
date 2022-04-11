@@ -80,6 +80,7 @@ class DemandByHistoryDataCalculate:
         df = DataBase.get_dataframe_by_query(query)
 
         if not df.empty:
+            df = df.drop_duplicates()
             if not business_indicator.is_calculated:
                 avg_by_dayofweek = df.groupby(['dayofweek', 'begin_time_in_sec'])[
                     'indicator_value'].median().reset_index()

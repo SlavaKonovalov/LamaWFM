@@ -575,16 +575,18 @@ class DemandProcessing:
             JOIN public.wfm_employee_availability ea ON ea.employee_id = e.id AND ea.availability_type = 0 
                 AND ea.subdivision_id = e.subdivision_id
             WHERE e.subdivision_id = %s
-                AND (e."dateTo" = '1900-01-01' OR e."dateTo" <= '%s' OR e."dateTo" IS NULL)
-                AND (epr.date_rules_end <= '%s' OR epr.date_rules_end IS NULL)
+                AND (epr.date_rules_end >= '%s' OR epr.date_rules_end IS NULL)
                 AND pm.shift_type = 'fix'
                 AND ea.begin_date_time >= '%s'
                 AND ea.end_date_time <= '%s'
+                AND ea.end_date_time >= epr.date_rules_start
+                AND ((ea.end_date_time < epr.date_rules_end AND epr.date_rules_end IS NOT NULL)
+                    OR epr.date_rules_end IS NULL)
             GROUP BY ep.short_name  
-            """ % (subdivision_id, date_end, date_end, datetime_start, datetime_end)
+            """ % (subdivision_id, date_start, datetime_start, datetime_end)
         dataframe = DataBase.get_dataframe_by_query(query)
-        for list in dataframe.itertuples():
-            record = {'id': list.Index, 'short_name': list.short_name, 'hour_count': list.hour_count}
+        for df_row in dataframe.itertuples():
+            record = {'id': df_row.Index, 'short_name': df_row.short_name, 'hour_count': df_row.hour_count}
             record_data.append(record)
         response_data['data'] = record_data
         return JsonResponse(response_data, status=status.HTTP_200_OK)
