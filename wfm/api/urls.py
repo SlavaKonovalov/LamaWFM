@@ -255,4 +255,8 @@ urlpatterns = [
     path('get_demand_with_fix_rate/',
          views.get_demand_with_fix_rate,
          name='get_demand_with_fix_rate'),
+
+    path('get_time_tracking_report_for_employee/',
+         views.get_time_tracking_report_for_employee,
+         name='get_time_tracking_report_for_employee'),
 ]

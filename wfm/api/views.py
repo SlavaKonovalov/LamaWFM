@@ -35,6 +35,7 @@ from .serializers import ProductionTaskSerializer, OrganizationSerializer, Subdi
     RetailStoreFormatSerializer, EmployeeShiftSerializerForUpdate, OpenShiftSerializer, OpenShiftSerializerHeader, \
     EmployeeShiftSerializerHeader, EmployeeUpdateSerializer, GlobalParametersSerializer, PersonalDocumentsSerializer, \
     PartTimeJobVacancySerializer, PartTimeJobRequestSerializer, EmployeeFactScanSerializer
+from ..timeTrackingReport import TimeTrackingReport
 
 
 class ProductionTaskListView(generics.ListAPIView):
@@ -502,6 +503,28 @@ def assign_employee_planning_rules(request):
         response = ShiftPlanning.assign_employee_planning_rules(epr_serializer)
         return response
     return JsonResponse(epr_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+def get_time_tracking_report_for_employee(request):
+    if request.method == 'GET':
+        subdivision_id = request.query_params.get('subdivision_id', None)
+        employee_id = request.query_params.get('employee_id', None)
+        date_begin_str = request.query_params.get('begin_date')
+        date_end_str = request.query_params.get('end_date')
+    try:
+        subdivision = Subdivision.objects.get(pk=subdivision_id)
+    except Subdivision.DoesNotExist:
+        return JsonResponse({'message': 'The subdivision does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    try:
+        employee = Employee.objects.get(pk=employee_id)
+    except Employee.DoesNotExist:
+        return JsonResponse({'message': 'The employee does not exist'}, status=status.HTTP_404_NOT_FOUND)
+    if date_begin_str:
+        date_begin = datetime.datetime.strptime(date_begin_str, "%Y-%m-%d").date()
+    if date_end_str:
+        date_end = datetime.datetime.strptime(date_end_str, "%Y-%m-%d").date()
+    return TimeTrackingReport.get_time_tracking_for_employee(subdivision_id, date_begin, date_end, employee_id)
 
 
 @api_view(['GET'])
