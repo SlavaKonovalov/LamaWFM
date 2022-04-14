@@ -259,4 +259,8 @@ urlpatterns = [
     path('get_time_tracking_report_for_employee/',
          views.get_time_tracking_report_for_employee,
          name='get_time_tracking_report_for_employee'),
+
+    path('get_time_tracking_report_for_subdivision/',
+         views.get_time_tracking_report_for_subdivision,
+         name='get_time_tracking_report_for_subdivision'),
 ]
