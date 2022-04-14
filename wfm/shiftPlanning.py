@@ -602,7 +602,8 @@ class ShiftPlanning:
 
                         # max_hour_value - либо граница потребности, либо граница доступности
                         max_hour_value_left = min(row_demand.last_hour + 1, res_sample.av_end_hour)
-                        max_hour_value_right = max(row_demand.last_hour, res_sample.av_end_hour)
+                        max_hour_value_right = res_sample.av_end_hour
+                        # max_hour_value_right = max(row_demand.last_hour, res_sample.av_end_hour)
                         check_result_left = 0
                         check_result_right = 0
 
