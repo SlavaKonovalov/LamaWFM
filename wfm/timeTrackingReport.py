@@ -80,14 +80,25 @@ class TimeTrackingReport:
         sum_hours_fact_shift = 0
         query = """
                     SELECT 
-                        SUM((DATE_PART('hour', time_to - time_from) * 60 +
-                        DATE_PART('minute', time_to - time_from))/60) AS CountHourFact
-                    FROM public.wfm_employee_fact_scan  
-                    WHERE employee_id = %s 
-                        AND subdivision_id = %s
-                        AND scan_date >= '%s' 
-                        AND scan_date <= '%s'
-                """ % (employee_id, subdivision_id, date_start, date_end)
+                        SUM((DATE_PART('hour', efs.time_to - efs.time_from) * 60 +
+                            DATE_PART('minute', efs.time_to - efs.time_from))/60) AS CountHourFact
+                    FROM public.wfm_employee_shift es
+                    JOIN public.wfm_employee_shift_detail_plan esdp
+                        ON esdp.shift_id = es.id  
+                        AND esdp.type = 'job'
+                    JOIN public.wfm_employee_fact_scan efs
+                        ON efs.employee_id = es.employee_id
+                        AND efs.subdivision_id = es.subdivision_id
+                        AND efs.scan_date = es.shift_date
+                    WHERE es.employee_id = %s
+                        AND es.shift_date >= '%s' 
+                        AND es.shift_date <= '%s'
+                        AND es.subdivision_id = %s
+                        AND ((esdp.time_from - efs.time_from) >= '-00:00:59') -- опоздание на минуту 
+                        AND ((esdp.time_from - efs.time_from) <= '00:15:00') -- сотрудник раньше не нужен
+                        AND ((esdp.time_to - efs.time_to) >= '-00:15:00') --  сотрудник позже не нужен
+                        AND ((esdp.time_to - efs.time_to) <= '00:00:59') -- ушел раньше на минуту
+                """ % (employee_id, date_start, date_end, subdivision_id)
 
         dataframe = DataBase.get_dataframe_by_query(query)
         for df_row in dataframe.itertuples():
@@ -127,33 +138,6 @@ class TimeTrackingReport:
 
     @staticmethod
     def get_part_off_lateness(subdivision_id, date_start, date_end, employee_id):
-        part_off_lateness = 0
-        query = """
-                     SELECT 
-                        count(*) AS countAllLateness
-                    FROM public.wfm_employee_shift es
-                    JOIN public.wfm_employee_shift_detail_plan esdp
-                        ON esdp.shift_id = es.id  
-                        AND esdp.type = 'job'
-                    JOIN public.wfm_employee_fact_scan efs
-                        ON efs.employee_id = es.employee_id
-                        AND efs.subdivision_id = es.subdivision_id
-                        AND efs.scan_date = es.shift_date
-                    WHERE es.employee_id = %s
-                        AND es.shift_date >= '%s' 
-                        AND es.shift_date <= '%s'
-                        AND es.subdivision_id = %s
-                        AND ((esdp.time_from - efs.time_from) < '-00:00:59') 
-                """ % (employee_id, date_start, date_end, subdivision_id)
-
-        dataframe = DataBase.get_dataframe_by_query(query)
-        for df_row in dataframe.itertuples():
-            part_off_lateness = df_row.countalllateness
-
-        return part_off_lateness
-
-    @staticmethod
-    def get_part_off_lateness_big(subdivision_id, date_start, date_end, employee_id):
         part_off_lateness = 0
         query = """
                          SELECT 
@@ -252,14 +236,11 @@ class TimeTrackingReport:
         if count_plan_shift > 0:
             part_off_equality_plan_fact = round((equality_plan_fact * 100 / count_plan_shift), 2)
 
-        lateness = TimeTrackingReport.get_part_off_lateness(subdivision_id, date_start, date_end,
-                                                            employee_id)
-        lateness_big = TimeTrackingReport.get_part_off_lateness_big(subdivision_id, date_start, date_end,
-                                                                    employee_id)
+        lateness = TimeTrackingReport.get_part_off_lateness(subdivision_id, date_start, date_end, employee_id)
 
         part_off_lateness = 0
-        if lateness:
-            part_off_lateness = round((lateness_big * 100)/lateness, 2)
+        if count_fact_shift:
+            part_off_lateness = round((lateness * 100)/count_fact_shift, 2)
 
         hour_late = math.fabs(TimeTrackingReport.get_hour_late(subdivision_id, date_start, date_end, employee_id))
         hour_earlier = math.fabs(TimeTrackingReport.get_hour_earlier(subdivision_id, date_start, date_end, employee_id))
