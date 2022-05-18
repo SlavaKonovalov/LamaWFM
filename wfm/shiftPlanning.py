@@ -417,6 +417,26 @@ class ShiftPlanning:
                                                        'shift_duration_max': 0})
             df_shift_on_date = df_shift_on_date.append(df_shift_on_date_row, ignore_index=True)
 
+        # находим кол-во часов с начала месяца для ФО с нулевым приоритетом (касса) по каждому сотруднику
+        # необходимо для выбора сотрудника при посадке на кассу
+        demand_hour_shift = Demand_Hour_Shift.objects.select_related('demand_hour_main__duty', 'shift').filter(
+            shift__subdivision_id=subdivision_id,
+            shift__shift_date__gte=begin_month_date,
+            shift__shift_date__lt=end_date,
+            demand_hour_main__duty__shift_planning_priority=0)
+
+        if employees:
+            demand_hour_shift = demand_hour_shift.filter(shift__employee_id__in=employees)
+
+        df_employee_hours_for_zero_priority = pandas.DataFrame(
+            demand_hour_shift.values_list('shift__shift_date', 'shift_id', 'shift__employee_id',
+                                          'shift__subdivision_id', 'demand_hour_main__duty_id',
+                                          'demand_hour_main__demand_hour'),
+            columns=['shift_date', 'shift_id', 'employee', 'subdivision', 'duty', 'hour'])
+        df_employee_hours_for_zero_priority['hours_0'] = df_employee_hours_for_zero_priority.groupby('employee')[
+            'hour'].transform('count')
+        df_hours_for_zero_priority = df_employee_hours_for_zero_priority[['employee', 'hours_0']].drop_duplicates()
+
         # Цикл по датам
         for row_date in df_demand_date.itertuples():
             # Берем потребность за выбранную дату
@@ -525,6 +545,10 @@ class ShiftPlanning:
 
                         df_covering.loc[df_covering.employee == res_sample.employee, ['hours_sum']] += value
 
+                        if row_demand.planning_priority == 0:
+                            df_hours_for_zero_priority.loc[
+                                df_hours_for_zero_priority.employee == res_sample.employee, ['hours_0']] += value
+
                         employee_shift_detail_plan, created_shift_plan = Employee_Shift_Detail_Plan.objects.update_or_create(
                             shift_id=res_sample.shift_id,
                             type='job',
@@ -559,6 +583,10 @@ class ShiftPlanning:
                     # Подключаем к доступным сотрудникам их плановые часы
                     df_res = pandas.merge(df_res, df_covering, on=['employee'], how='left')
                     df_res.hours_sum = df_res.hours_sum.fillna(0)  # Меняем NULL на 0
+                    # Подключаем к доступным сотрудникам кол-во часов по ФО с нулевым приоритетом
+                    df_res = pandas.merge(df_res, df_hours_for_zero_priority, on=['employee'], how='left')
+                    df_res.hours_0 = df_res.hours_0.fillna(0)  # Меняем NULL на 0
+
                     df_res['available'] = 1
                     employees_availability_flag = 1
 
@@ -569,6 +597,12 @@ class ShiftPlanning:
                         if df_res.empty:
                             employees_availability_flag = 0
                             break
+
+                        # Если в выбранной строке потребности ФО имеет нулевой приоритет,
+                        # то подключаем соответствующий фильтр
+                        if row_demand.planning_priority == 0:
+                            min_hours_0 = df_res.hours_0.min()
+                            df_res = df_res[(df_res.hours_0 <= min_hours_0 + 10)]  # 10 - это погрешность (в часах)
 
                         min_hours_sum = df_res.hours_sum.min()  # находим минимальное кол-во часов
                         # Ищем сотрудников с минимальным кол-вом часов
@@ -710,6 +744,19 @@ class ShiftPlanning:
                                                                             row_demand.duty, employee_shift_id,
                                                                             shift_begin, shift_end, df_demand_on_date)
 
+                    # Корректируем сотруднику кол-во часов по ФО с нулевым приоритетом (кол-во часов на кассе)
+                    if row_demand.planning_priority == 0:
+                        hours_0_length = shift_length - len(empty_hours_list)
+
+                        if df_hours_for_zero_priority.employee.isin([res_sample.employee]).any().any():
+                            df_hours_for_zero_priority.loc[df_hours_for_zero_priority.employee == res_sample.employee, [
+                                'hours_0']] += hours_0_length
+                        else:
+                            df_hours_for_zero_priority_row = pandas.Series(data={'employee': res_sample.employee,
+                                                                                 'hours_0': hours_0_length})
+                            df_hours_for_zero_priority = df_hours_for_zero_priority.append(
+                                df_hours_for_zero_priority_row, ignore_index=True)
+
                     # корректируем покрытие по назначенным часам
                     df_demand_on_date.loc[(df_demand_on_date.duty == row_demand.duty) &
                                           (~df_demand_on_date['hour'].isin([empty_hours_list])) &
@@ -746,6 +793,11 @@ class ShiftPlanning:
                             df_demand_on_date.loc[(df_demand_on_date.duty == row_to_cover.duty) &
                                                   (df_demand_on_date.hour == hour_step),
                                                   ['qty', 'covered']] -= 1
+
+                            # Корректируем сотруднику кол-во часов по ФО с нулевым приоритетом (кол-во часов на кассе)
+                            if row_to_cover.planning_priority == 0:
+                                df_hours_for_zero_priority.loc[
+                                    df_hours_for_zero_priority.employee == res_sample.employee, ['hours_0']] += 1
 
                     shift_duration_max = res_sample.shift_duration_max if res_sample.shift_duration_max else res_sample.shift_duration_min
                     df_shift_on_date_row = pandas.Series(data={'employee': res_sample.employee,
@@ -840,6 +892,12 @@ class ShiftPlanning:
                     df_demand_on_date.loc[(df_demand_on_date.duty == row_demand.duty) &
                                           (df_demand_on_date.hour == row_demand.hour),
                                           ['qty', 'covered']] -= 1
+
+                    # Корректируем сотруднику кол-во часов по ФО с нулевым приоритетом (кол-во часов на кассе)
+                    if row_demand.planning_priority == 0:
+                        df_hours_for_zero_priority.loc[
+                            df_hours_for_zero_priority.employee == res_sample.employee, ['hours_0']] += 1
+
                 else:
                     # зануляем qty
                     df_demand_on_date.loc[df_demand_on_date.id == row_demand.id, ['qty']] = 0
