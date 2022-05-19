@@ -10,7 +10,7 @@ from random import randint
 from .additionalFunctions import Global
 from .demandProcessing import DemandProcessing
 from .models import Employee_Shift, Employee_Shift_Detail_Plan, Employee_Planning_Rules, Demand_Hour_Main, \
-    Open_Shift, Demand_Hour_Shift, Global_Parameters
+    Open_Shift, Demand_Hour_Shift, Global_Parameters, Employee
 
 sys.path.append('..')
 from LamaWFM.settings import TIME_ZONE
@@ -437,6 +437,17 @@ class ShiftPlanning:
             'hour'].transform('count')
         df_hours_for_zero_priority = df_employee_hours_for_zero_priority[['employee', 'hours_0']].drop_duplicates()
 
+        employees_with_zero_priority = Employee.objects.prefetch_related('duties').filter(
+            duties__shift_planning_priority=0, subdivision_id=subdivision_id)
+        df_employees_with_zero_priority = pandas.DataFrame(
+            employees_with_zero_priority.values_list('id', 'duties__id'),
+            columns=['employee', 'duty'])
+        df_employees_with_zero_priority = df_employees_with_zero_priority[['employee']].drop_duplicates()
+
+        df_employees_with_zero_priority = pandas.merge(df_employees_with_zero_priority, df_hours_for_zero_priority,
+                                                       on=['employee'], how='left')
+        df_employees_with_zero_priority.hours_0 = df_employees_with_zero_priority.hours_0.fillna(0)  # Меняем NULL на 0
+
         # Цикл по датам
         for row_date in df_demand_date.itertuples():
             # Берем потребность за выбранную дату
@@ -546,8 +557,8 @@ class ShiftPlanning:
                         df_covering.loc[df_covering.employee == res_sample.employee, ['hours_sum']] += value
 
                         if row_demand.planning_priority == 0:
-                            df_hours_for_zero_priority.loc[
-                                df_hours_for_zero_priority.employee == res_sample.employee, ['hours_0']] += value
+                            df_employees_with_zero_priority.loc[
+                                df_employees_with_zero_priority.employee == res_sample.employee, ['hours_0']] += value
 
                         employee_shift_detail_plan, created_shift_plan = Employee_Shift_Detail_Plan.objects.update_or_create(
                             shift_id=res_sample.shift_id,
@@ -584,7 +595,7 @@ class ShiftPlanning:
                     df_res = pandas.merge(df_res, df_covering, on=['employee'], how='left')
                     df_res.hours_sum = df_res.hours_sum.fillna(0)  # Меняем NULL на 0
                     # Подключаем к доступным сотрудникам кол-во часов по ФО с нулевым приоритетом
-                    df_res = pandas.merge(df_res, df_hours_for_zero_priority, on=['employee'], how='left')
+                    df_res = pandas.merge(df_res, df_employees_with_zero_priority, on=['employee'], how='left')
                     df_res.hours_0 = df_res.hours_0.fillna(0)  # Меняем NULL на 0
 
                     df_res['available'] = 1
@@ -748,14 +759,16 @@ class ShiftPlanning:
                     if row_demand.planning_priority == 0:
                         hours_0_length = shift_length - len(empty_hours_list)
 
-                        if df_hours_for_zero_priority.employee.isin([res_sample.employee]).any().any():
-                            df_hours_for_zero_priority.loc[df_hours_for_zero_priority.employee == res_sample.employee, [
-                                'hours_0']] += hours_0_length
+                        if df_employees_with_zero_priority.employee.isin([res_sample.employee]).any().any():
+                            df_employees_with_zero_priority.loc[
+                                df_employees_with_zero_priority.employee == res_sample.employee, [
+                                    'hours_0']] += hours_0_length
                         else:
-                            df_hours_for_zero_priority_row = pandas.Series(data={'employee': res_sample.employee,
-                                                                                 'hours_0': hours_0_length})
-                            df_hours_for_zero_priority = df_hours_for_zero_priority.append(
-                                df_hours_for_zero_priority_row, ignore_index=True)
+                            df_employees_with_zero_priority_row = pandas.Series(data={'employee': res_sample.employee,
+                                                                                      'hours_0': hours_0_length})
+
+                            df_employees_with_zero_priority = df_employees_with_zero_priority.append(
+                                df_employees_with_zero_priority_row, ignore_index=True)
 
                     # корректируем покрытие по назначенным часам
                     df_demand_on_date.loc[(df_demand_on_date.duty == row_demand.duty) &
@@ -796,8 +809,8 @@ class ShiftPlanning:
 
                             # Корректируем сотруднику кол-во часов по ФО с нулевым приоритетом (кол-во часов на кассе)
                             if row_to_cover.planning_priority == 0:
-                                df_hours_for_zero_priority.loc[
-                                    df_hours_for_zero_priority.employee == res_sample.employee, ['hours_0']] += 1
+                                df_employees_with_zero_priority.loc[
+                                    df_employees_with_zero_priority.employee == res_sample.employee, ['hours_0']] += 1
 
                     shift_duration_max = res_sample.shift_duration_max if res_sample.shift_duration_max else res_sample.shift_duration_min
                     df_shift_on_date_row = pandas.Series(data={'employee': res_sample.employee,
@@ -895,8 +908,8 @@ class ShiftPlanning:
 
                     # Корректируем сотруднику кол-во часов по ФО с нулевым приоритетом (кол-во часов на кассе)
                     if row_demand.planning_priority == 0:
-                        df_hours_for_zero_priority.loc[
-                            df_hours_for_zero_priority.employee == res_sample.employee, ['hours_0']] += 1
+                        df_employees_with_zero_priority.loc[
+                            df_employees_with_zero_priority.employee == res_sample.employee, ['hours_0']] += 1
 
                 else:
                     # зануляем qty
